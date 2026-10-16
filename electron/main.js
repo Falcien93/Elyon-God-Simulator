@@ -14,8 +14,35 @@ if (!gotLock) app.quit();
 
 let windowRef = null;
 
+function userFile(name) {
+  return path.join(app.getPath("userData"), name);
+}
+
 function saveFile() {
-  return path.join(app.getPath("userData"), "elyon-save.json");
+  return userFile("elyon-save.json");
+}
+
+function libraryFile() {
+  return userFile("elyon-saves.json");
+}
+
+function settingsFile() {
+  return userFile("elyon-settings.json");
+}
+
+function readText(file) {
+  try {
+    return fs.readFileSync(file, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+function writeText(file, text) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.tmp`;
+  fs.writeFileSync(temporary, text);
+  fs.renameSync(temporary, file);
 }
 
 function createWindow() {
@@ -47,7 +74,18 @@ ipcMain.handle("load-save", () => {
 });
 
 ipcMain.handle("write-save", (_event, text) => {
-  if (typeof text !== "string" || text.length < 2 || text.length > 1_500_000) return false;
+  if (!validJsonText(text, 1_500_000)) return false;
+  writeText(saveFile(), text);
+  return true;
+});
+
+ipcMain.handle("load-library", () => ({
+  library: readText(libraryFile()),
+  legacy: readText(saveFile()),
+}));
+
+ipcMain.handle("write-library", (_event, text) => {
+  if (!validJsonText(text, 1_500_000)) return false;
   let parsed;
   try {
     parsed = JSON.parse(text);
@@ -55,10 +93,24 @@ ipcMain.handle("write-save", (_event, text) => {
     return false;
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
-  fs.mkdirSync(path.dirname(saveFile()), { recursive: true });
-  const temporary = `${saveFile()}.tmp`;
-  fs.writeFileSync(temporary, text);
-  fs.renameSync(temporary, saveFile());
+  if (parsed.format !== 1 || !Array.isArray(parsed.slots)) return false;
+  writeText(libraryFile(), text);
+  return true;
+});
+
+ipcMain.handle("load-settings", () => readText(settingsFile()));
+
+ipcMain.handle("write-settings", (_event, text) => {
+  if (!validJsonText(text, 20_000)) return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return false;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+  if (parsed.version !== 1) return false;
+  writeText(settingsFile(), text);
   return true;
 });
 
@@ -67,6 +119,22 @@ ipcMain.handle("toggle-fullscreen", () => {
   windowRef.setFullScreen(!windowRef.isFullScreen());
   return windowRef.isFullScreen();
 });
+
+ipcMain.handle("set-fullscreen", (_event, value) => {
+  if (!windowRef) return false;
+  windowRef.setFullScreen(Boolean(value));
+  return windowRef.isFullScreen();
+});
+
+function validJsonText(text, max) {
+  if (typeof text !== "string" || text.length < 2 || text.length > max) return false;
+  try {
+    const parsed = JSON.parse(text);
+    return Boolean(parsed) && typeof parsed === "object" && !Array.isArray(parsed);
+  } catch {
+    return false;
+  }
+}
 
 if (gotLock) {
   app.whenReady().then(() => {

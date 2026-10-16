@@ -138,12 +138,26 @@ The Unity Thread reading (shown in Address) tracks age, coherence, cycle, popula
 
 ## Saves
 
-The game keeps one record automatically:
+The game keeps three gardens. Each slot holds one versioned record (garden, address log, mood and faith, Unity Thread, achievements). The library envelope is format 1:
 
-- In the desktop app: Electron `userData` / `elyon-save.json`
-- In a browser: `localStorage` key `elyon-save-v1`
+- In the desktop app: Electron `userData` / `elyon-saves.json`
+- In a browser: `localStorage` key `elyon-saves-v1`
 
-The record includes the garden, the address log, mood and faith, the Unity Thread reading, and achievements. If both desktop and browser copies exist, the newer `updatedAt` wins. Pause menu **Export record** writes `elyon-save.json`. **Import record** reads one back. A new creation replaces the record on this computer.
+An older single record is migrated into the first empty slot and is not copied again:
+
+- Desktop: `userData` / `elyon-save.json`
+- Browser: `localStorage` key `elyon-save-v1`
+
+If a desktop library and a browser library both exist, the newer stamp wins and the other library's unseen slots are filled in. Pause **Export the record** writes the active garden as `elyon-save.json`. **Import a record** replaces only the active slot. A new creation replaces one slot. The other two stay.
+
+## Settings
+
+Settings are separate from the gardens and are remembered on this computer:
+
+- Desktop: `userData` / `elyon-settings.json`
+- Browser: `localStorage` key `elyon-settings-v1`
+
+Master volume scales music and effects. Fullscreen, text speed (slow, normal, fast), and voice on/off are stored with them. Per-garden music and effects levels stay inside the slot.
 
 ## Voice
 
@@ -155,7 +169,7 @@ Voice input needs a runtime that exposes `SpeechRecognition` or `webkitSpeechRec
 npm test
 ```
 
-Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. They are covered by `test/game.test.js`.
+Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. Slots, migration, and settings live in `js/slots.js`. They are covered by `test/game.test.js`, `test/campaign.test.js`, and `test/saves.test.js`.
 
 ## Fonts
 

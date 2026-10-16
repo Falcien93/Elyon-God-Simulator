@@ -5,7 +5,7 @@ import { NODES } from "./content.js";
 import { SAVE_VERSION, createNewGame, sanitizeName } from "./sim.js";
 import { TILE, WORLD_H, WORLD_W } from "./world.js";
 
-const STORAGE_KEY = "elyon-save-v1";
+export const STORAGE_KEY = "elyon-save-v1";
 const KINDS = new Set([
   "tree",
   "tree_life",
