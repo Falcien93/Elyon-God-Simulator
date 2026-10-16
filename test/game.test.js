@@ -3,6 +3,7 @@ import test from "node:test";
 import { NODES } from "../js/content.js";
 import { normalize, serialize } from "../js/save.js";
 import {
+  addressBeing,
   advanceTalk,
   chooseSilence,
   chooseTalk,
@@ -10,6 +11,7 @@ import {
   createNewGame,
   currentNode,
   dialogueEntry,
+  enterSky,
   enterWalk,
   movePlayer,
   paint,
@@ -23,6 +25,7 @@ import {
   tick,
   visibleChoices,
 } from "../js/sim.js";
+import { speakText, startListening, voiceSupport } from "../js/voice.js";
 import { TILE, WORLD_H, WORLD_W, blocksFoot, findKind, tileAt } from "../js/world.js";
 
 function pump(state) {
@@ -224,4 +227,119 @@ test("click to walk does not cross water and sky click speaks", () => {
   assert.equal(moved.ok, false);
   tick(state, 0.016);
   assert.ok(state.breath > 70);
+});
+
+test("address chat, achievements, and field replies survive a save", () => {
+  const absent = createNewGame(2);
+  assert.equal(addressBeing(absent, "adam", "who are you").reason, "absent");
+
+  const state = garden(12);
+  assert.ok(state.achievements.includes("first_seed"));
+  assert.ok(state.achievements.includes("seals7"));
+  assert.equal(addressBeing(state, "serpent", "hello").reason, "absent");
+
+  const who = addressBeing(state, "eve", "Who are you?");
+  assert.equal(who.ok, true);
+  assert.match(who.reply, /I am Eve/);
+  assert.match(who.reply, /seals open/);
+  const god = addressBeing(state, "adam", "Is that you, Elyon?");
+  assert.match(god.reply, /Unity Thread/);
+  const fruit = addressBeing(state, "eve", "What of the fruit of the tree?");
+  assert.match(fruit.reply, /have not touched it/);
+  assert.ok(state.achievements.includes("dialogue"));
+  assert.equal(state.chat.length >= 5, true);
+
+  const faithBefore = state.beings.adam.faith;
+  const blessed = addressBeing(state, "adam", "bless us");
+  assert.match(blessed.reply, /grateful/);
+  assert.ok(state.beings.adam.faith > faithBefore);
+
+  enterWalk(state);
+  assert.ok(state.achievements.includes("walked"));
+  enterSky(state);
+  assert.ok(state.achievements.includes("walked"));
+
+  state.thread.pop = 100;
+  addressBeing(state, "adam", "the river is bright");
+  assert.ok(state.achievements.includes("pop100"));
+
+  const again = createNewGame(12);
+  for (const id of ["light", "waters", "land", "grove", "lights", "creatures", "form_adam"]) performRitual(again, id);
+  const first = addressBeing(again, "adam", "the river is bright").reply;
+  const twin = createNewGame(12);
+  for (const id of ["light", "waters", "land", "grove", "lights", "creatures", "form_adam"]) performRitual(twin, id);
+  assert.equal(addressBeing(twin, "adam", "the river is bright").reply, first);
+
+  const restored = normalize(serialize(state));
+  assert.equal(restored.chat.at(-1).text, state.chat.at(-1).text);
+  assert.ok(restored.achievements.includes("dialogue"));
+  assert.ok(restored.achievements.includes("walked"));
+  assert.equal(restored.address, "adam");
+});
+
+test("voice chat degrades when speech recognition is missing", () => {
+  assert.deepEqual(voiceSupport({}), { speak: false, listen: false });
+  assert.equal(speakText("peace", "eve", {}).reason, "no-tts");
+  const missing = startListening({}, () => {}, () => {});
+  assert.equal(missing.ok, false);
+  assert.equal(missing.reason, "no-recognition");
+  missing.stop();
+
+  const thrown = speakText("peace", "adam", {
+    speechSynthesis: {
+      cancel() {},
+      speak() {
+        throw new Error("speech service unavailable");
+      },
+    },
+    SpeechSynthesisUtterance: class {
+      constructor(text) {
+        this.text = text;
+      }
+    },
+  });
+  assert.equal(thrown.ok, false);
+  assert.equal(thrown.reason, "no-tts");
+
+  const spoken = [];
+  const said = speakText("peace", "eve", {
+    speechSynthesis: {
+      cancel() {},
+      speak(utter) {
+        spoken.push(utter);
+      },
+    },
+    SpeechSynthesisUtterance: class {
+      constructor(text) {
+        this.text = text;
+      }
+    },
+  });
+  assert.equal(said.ok, true);
+  assert.equal(spoken[0].pitch, 1.15);
+  assert.equal(spoken[0].rate, 0.95);
+
+  let transcript = "";
+  let ended = "";
+  class FakeRecognition {
+    start() {
+      this.onresult({ results: [[{ transcript: "  who are you  " }]] });
+    }
+    stop() {
+      this.onend();
+    }
+  }
+  const session = startListening(
+    { SpeechRecognition: FakeRecognition },
+    (text) => {
+      transcript = text;
+    },
+    (kind) => {
+      ended = kind;
+    },
+  );
+  assert.equal(session.ok, true);
+  assert.equal(transcript, "who are you");
+  session.stop();
+  assert.equal(ended, "end");
 });

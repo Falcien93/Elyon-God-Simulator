@@ -1,5 +1,6 @@
 /** DOM shell around the canvas. User text is never written as HTML. */
 
+import { achievementText, threadSummary } from "./converse.js";
 import { CODEX, SHAPES, BEAST_CYCLE } from "./content.js";
 import {
   availableShapes,
@@ -40,6 +41,18 @@ export function mount(next) {
   on("btn-inscribe", "click", () => handlers.inscribe(document.getElementById("commandment").value));
   on("btn-silence", "click", () => handlers.silence());
   on("btn-voice-close", "click", () => handlers.closeOverlay());
+  on("btn-address-close", "click", () => handlers.closeOverlay());
+  on("btn-adam", "click", () => handlers.selectAddress("adam"));
+  on("btn-eve", "click", () => handlers.selectAddress("eve"));
+  on("btn-send-chat", "click", () => handlers.sendAddress(document.getElementById("chat-input").value));
+  on("chat-input", "keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handlers.sendAddress(event.target.value);
+    }
+  });
+  on("btn-speak-last", "click", () => handlers.speakLast());
+  on("btn-voice-input", "click", () => handlers.toggleVoice());
   on("btn-codex-close", "click", () => handlers.closeOverlay());
   on("btn-journal-close", "click", () => handlers.closeOverlay());
   on("btn-help-close", "click", () => handlers.closeOverlay());
@@ -67,6 +80,7 @@ export function sync(state, view) {
   show("panel-codex", view.overlay === "codex");
   show("panel-journal", view.overlay === "journal");
   show("panel-voice", view.overlay === "voice");
+  show("panel-address", view.overlay === "address");
   const talking = Boolean(state?.talk) && view.screen === "play" && !view.pause && !view.overlay && !view.confirm;
   show("panel-dialogue", talking);
   text("status", view.status || "");
@@ -81,6 +95,7 @@ export function sync(state, view) {
   text("quest-kicker", state.mode === "walk" ? "Among them" : "From the sky");
   text("quest-title", objective.title);
   text("quest-detail", objective.detail);
+  text("quest-achievements", state.achievements?.length ? `Achievements: ${state.achievements.length}` : "");
   text("phase", phaseName(state));
   const stats = derivedStats(state);
   for (const key of ["light", "life", "order", "wonder"]) {
@@ -106,7 +121,7 @@ export function sync(state, view) {
   const shapes = availableShapes(state);
   const primary = primaryAction(state);
   const beast = BEAST_CYCLE[state.beastBrush % BEAST_CYCLE.length];
-  const signature = `${primary.label}|${shapes.join()}|${view.tool}|${beast}|${state.mode}|${state.flags.eve_made ? 1 : 0}`;
+  const signature = `${primary.label}|${shapes.join()}|${view.tool}|${beast}|${state.mode}|${state.flags.adam_made ? 1 : 0}|${state.flags.eve_made ? 1 : 0}`;
   if (signature !== dockKey) {
     dockKey = signature;
     buildDock(state, view, primary, shapes, beast);
@@ -116,6 +131,7 @@ export function sync(state, view) {
   if (view.overlay === "codex") buildCodex(state);
   if (view.overlay === "journal") buildJournal(state);
   if (view.overlay === "voice") buildVoice(state);
+  if (view.overlay === "address") buildAddress(state, view);
   if (view.confirm) text("confirm-text", view.confirm.text);
   if (view.overlay === "ending" && state.ending) {
     const ending = view.endingText;
@@ -156,6 +172,7 @@ function buildDock(state, view, primary, shapes, beast) {
   if (state.mode === "walk" && primary.type !== "sky") {
     utilitySlot.append(actionButton("Ascend", () => handlers.mode("sky")));
   }
+  if (state.flags.adam_made) utilitySlot.append(actionButton("Address", () => handlers.openAddress()));
   if (state.flags.eve_made) utilitySlot.append(actionButton("The word", () => handlers.openVoice()));
   utilitySlot.append(actionButton("Codex", () => handlers.openOverlay("codex")));
   utilitySlot.append(actionButton("Journal", () => handlers.openOverlay("journal")));
@@ -254,6 +271,44 @@ function buildJournal(state) {
   }
 }
 
+let addressKey = "";
+
+function buildAddress(state, view) {
+  text("thread-readout", threadSummary(state));
+  const adamBtn = document.getElementById("btn-adam");
+  const eveBtn = document.getElementById("btn-eve");
+  adamBtn.setAttribute("aria-pressed", state.address === "adam" ? "true" : "false");
+  eveBtn.disabled = !state.flags.eve_made;
+  eveBtn.setAttribute("aria-pressed", state.address === "eve" ? "true" : "false");
+  const voiceBtn = document.getElementById("btn-voice-input");
+  voiceBtn.setAttribute("aria-pressed", view.listening ? "true" : "false");
+  voiceBtn.textContent = view.listening ? "Stop voice" : "Voice";
+  const earned = achievementText(state);
+  text("address-achievements", earned.length ? earned.join(" · ") : "No achievements yet.");
+  const key = state.chat.map((entry) => `${entry.who}:${entry.text}`).join("\n");
+  if (key === addressKey) return;
+  addressKey = key;
+  const list = document.getElementById("chat-log");
+  list.replaceChildren();
+  if (!state.chat.length) {
+    const empty = document.createElement("p");
+    empty.className = "chat-line";
+    empty.textContent = "Speak, and they will answer from the garden as it stands.";
+    list.append(empty);
+    return;
+  }
+  for (const entry of state.chat) {
+    const line = document.createElement("p");
+    line.className = `chat-line chat-${entry.who}`;
+    const who = document.createElement("b");
+    const label = entry.who === "elyon" ? "Elyon" : entry.who === "eve" ? state.names.eve : state.names.adam;
+    who.textContent = `${label}: `;
+    line.append(who, document.createTextNode(entry.text));
+    list.append(line);
+  }
+  list.scrollTop = list.scrollHeight;
+}
+
 function buildVoice(state) {
   const locked = Boolean(state.ending || state.flags.serpent_present || state.flags.serpent_gone);
   const fixed = document.getElementById("voice-fixed");
@@ -275,6 +330,7 @@ export function resetPanels() {
   codexKey = "";
   journalKey = "";
   logKey = "";
+  addressKey = "";
 }
 
 export function nearestHint(state) {

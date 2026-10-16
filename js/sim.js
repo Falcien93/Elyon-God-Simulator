@@ -8,6 +8,7 @@ import {
   NODES,
   SHAPES,
 } from "./content.js";
+import { advanceThread, collectNewAchievements, emptyBeings, emptyThread, ensureAddress, replyToBeing } from "./converse.js";
 import {
   SPOT,
   TILE,
@@ -62,6 +63,11 @@ export function createNewGame(seed = 1) {
       adam: { trust: 20, wonder: 36, will: 28 },
       eve: { trust: 20, wonder: 44, will: 34 },
     },
+    address: "adam",
+    chat: [],
+    achievements: [],
+    beings: emptyBeings(),
+    thread: emptyThread(),
     ending: null,
     talk: null,
     nextEntity: 1,
@@ -235,7 +241,13 @@ function dayComplete(state, id) {
 function finish(state, extra = {}) {
   const day = acknowledgeDay(state);
   refreshStory(state);
-  return { ok: true, day, ...extra };
+  return { ok: true, day, achievements: noteAchievements(state), ...extra };
+}
+
+function noteAchievements(state) {
+  const fresh = collectNewAchievements(state);
+  for (const item of fresh) addLog(state, `Achievement: ${item.msg}`);
+  return fresh;
 }
 
 export function performRitual(state, id) {
@@ -333,12 +345,12 @@ export function enterWalk(state) {
     state.flags.descended = true;
     addLog(state, "You descended. The grass held your presence without breaking.");
   }
-  return { ok: true, cue: "ui" };
+  return { ok: true, cue: "ui", achievements: noteAchievements(state) };
 }
 
 export function enterSky(state) {
   state.mode = "sky";
-  return { ok: true, cue: "ui" };
+  return { ok: true, cue: "ui", achievements: noteAchievements(state) };
 }
 
 export function toggleMode(state) {
@@ -450,6 +462,7 @@ export const REASONS = {
   ended: "That chapter is already closed.",
   name: "Give a name made of letters.",
   empty: "There is nothing to say.",
+  absent: "They are not in the garden yet.",
 };
 
 export function sanitizeName(raw) {
@@ -682,7 +695,7 @@ function gotoNode(state, id) {
     state.talk = null;
     const day = acknowledgeDay(state);
     refreshStory(state);
-    return { ok: true, closed: true, day };
+    return { ok: true, closed: true, day, achievements: noteAchievements(state) };
   }
   const node = NODES[id];
   if (!node) {
@@ -694,7 +707,29 @@ function gotoNode(state, id) {
   runOnEnter(state, node);
   const day = acknowledgeDay(state);
   refreshStory(state);
-  return { ok: true, day };
+  return { ok: true, day, achievements: noteAchievements(state) };
+}
+
+export function selectAddress(state, who) {
+  ensureAddress(state);
+  if (who !== "adam" && who !== "eve") return { ok: false, reason: "absent" };
+  if (who === "adam" && !state.flags.adam_made) return { ok: false, reason: "absent" };
+  if (who === "eve" && !state.flags.eve_made) return { ok: false, reason: "absent" };
+  if (state.address !== who) {
+    state.address = who;
+    const name = who === "eve" ? state.names.eve : state.names.adam;
+    addLog(state, `Now addressing ${name}.`);
+  }
+  return { ok: true };
+}
+
+export function addressBeing(state, who, raw) {
+  const result = replyToBeing(state, who, raw);
+  if (!result.ok) return result;
+  const name = who === "eve" ? state.names.eve : state.names.adam;
+  addLog(state, `${name} answered.`);
+  result.achievements = noteAchievements(state);
+  return result;
 }
 
 export function visibleChoices(state, node) {
@@ -762,7 +797,11 @@ export function tick(state, dt) {
     }
   }
   stepEntities(state, step);
-  return noteRestIfNear(state);
+  advanceThread(state, step);
+  const day = noteRestIfNear(state);
+  const achievements = noteAchievements(state);
+  if (!day && !achievements.length) return null;
+  return { day, achievements };
 }
 
 function stepEntities(state, dt) {

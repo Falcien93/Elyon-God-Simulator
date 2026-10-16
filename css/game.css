@@ -118,6 +118,22 @@ body[data-screen="prologue"] #hud { display: none; }
 #log { left: 16px; max-height: 220px; overflow: auto; }
 #quest h3, #log h3 { margin: 2px 0 6px; font-size: 22px; font-weight: 600; }
 #quest-detail { margin: 0; color: var(--muted); font-size: 18px; }
+#quest-achievements { margin: 8px 0 0; color: var(--gold); font-size: 16px; }
+.char-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.panel button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.panel button:disabled { opacity: 0.45; cursor: default; }
+.chat-log {
+  max-height: 32vh;
+  overflow: auto;
+  margin: 8px 0;
+  padding-right: 6px;
+  text-align: left;
+}
+.chat-line { margin: 0 0 8px; font-size: 18px; }
+.chat-elyon { color: var(--gold); }
+.chat-adam { color: #d7eccf; }
+.chat-eve { color: #f0d0e4; }
+#address-achievements { text-align: left; }
 #log-list { margin: 0; padding-left: 18px; }
 #log-list li { margin: 0 0 4px; font-size: 16px; }
 

@@ -1,5 +1,6 @@
 /** Save validation and browser/desktop persistence. */
 
+import { ACHIEVEMENT_IDS, sanitizeChat, sealCount } from "./converse.js";
 import { NODES } from "./content.js";
 import { SAVE_VERSION, createNewGame, sanitizeName } from "./sim.js";
 import { TILE, WORLD_H, WORLD_W } from "./world.js";
@@ -78,6 +79,16 @@ export function normalize(raw) {
   state.dest = null;
   state.relations.adam = sanitizeRel(data.relations?.adam);
   state.relations.eve = sanitizeRel(data.relations?.eve);
+  state.address = data.address === "eve" ? "eve" : "adam";
+  state.chat = sanitizeChatLog(data.chat);
+  state.achievements = Array.isArray(data.achievements)
+    ? data.achievements.filter((id) => typeof id === "string" && ACHIEVEMENT_IDS.has(id)).slice(0, 32)
+    : [];
+  state.beings = {
+    adam: sanitizeBeing(data.beings?.adam, 62, 40),
+    eve: sanitizeBeing(data.beings?.eve, 64, 42),
+  };
+  state.thread = sanitizeThread(data.thread, state);
   if (data.ending && typeof data.ending.id === "string") {
     state.ending = { id: data.ending.id, at: Number(data.ending.at) || 0 };
   }
@@ -130,6 +141,39 @@ function sanitizeFlags(flags) {
     if (value === true) out[key] = true;
   }
   return out;
+}
+
+function sanitizeChatLog(chat) {
+  if (!Array.isArray(chat)) return [];
+  return chat
+    .filter((entry) => entry && (entry.who === "elyon" || entry.who === "adam" || entry.who === "eve"))
+    .map((entry) => ({ who: entry.who, text: sanitizeChat(entry.text) }))
+    .filter((entry) => entry.text)
+    .slice(-40);
+}
+
+function sanitizeBeing(being, mood, faith) {
+  return {
+    mood: clampNum(being?.mood, 0, 100, mood),
+    faith: clampNum(being?.faith, 0, 100, faith),
+    lastWords: typeof being?.lastWords === "string" ? being.lastWords.slice(0, 400) : "",
+  };
+}
+
+function sanitizeThread(thread, state) {
+  const seals = sealCount(state.flags);
+  const migrated = Math.min(100, 18 + 6.5 * seals);
+  const had = thread && typeof thread === "object";
+  return {
+    coherence: had ? clampNum(thread.coherence, 0, 100, migrated) : migrated,
+    cycle: clampNum(had ? thread.cycle : seals, 0, 1e7, seals),
+    seals,
+    age: clampNum(had ? thread.age : 0, 0, 3, 0),
+    pop: clampNum(had ? thread.pop : 2, 0, 1e7, 2),
+    faith: clampNum(had ? thread.faith : 30, 0, 100, 30),
+    sealsNoted: seals,
+    beings: (state.flags.adam_made ? 1 : 0) + (state.flags.eve_made ? 1 : 0),
+  };
 }
 
 function sanitizeRel(rel) {

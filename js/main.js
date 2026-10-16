@@ -20,7 +20,10 @@ import {
   tick,
   advanceTalk,
   interact,
+  addressBeing,
+  selectAddress,
 } from "./sim.js";
+import { speakText, startListening } from "./voice.js";
 import { WORLD_H, WORLD_W } from "./world.js";
 import { mount, nearestHint, resetPanels, setContinueEnabled, sync } from "./ui.js";
 
@@ -44,6 +47,8 @@ const view = {
   toast: "",
   toastUntil: 0,
   endingText: null,
+  listening: false,
+  voiceWarned: false,
 };
 
 let camX = WORLD_W / 2;
@@ -57,6 +62,31 @@ let cssW = 1;
 let cssH = 1;
 const keys = new Set();
 let reported = false;
+let listener = null;
+
+function stopListening() {
+  if (listener) listener.stop();
+  listener = null;
+  view.listening = false;
+}
+
+function sendAddressMessage(text) {
+  if (!state) return;
+  const result = addressBeing(state, state.address, text);
+  if (!result.ok) {
+    applyResult(result);
+    return;
+  }
+  const input = document.getElementById("chat-input");
+  if (input) input.value = "";
+  applyResult(result);
+  const voice = speakText(result.reply, result.who, window);
+  if (!voice.ok && !view.voiceWarned) {
+    view.voiceWarned = true;
+    setStatus("Spoken voice is not available here. The reply is in the address log.");
+  }
+  resetPanels();
+}
 
 mount({
   begin() {
@@ -156,10 +186,63 @@ mount({
   openVoice() {
     view.overlay = "voice";
   },
+  openAddress() {
+    if (!state?.flags.adam_made) return;
+    stopListening();
+    view.overlay = "address";
+    resetPanels();
+  },
+  selectAddress(who) {
+    if (!state) return;
+    applyResult(selectAddress(state, who));
+  },
+  sendAddress(text) {
+    sendAddressMessage(text);
+  },
+  speakLast() {
+    if (!state) return;
+    const being = state.beings?.[state.address];
+    const words = being?.lastWords;
+    if (!words) {
+      setStatus("They have not answered yet.");
+      return;
+    }
+    const voice = speakText(words, state.address, window);
+    if (!voice.ok) setStatus("Spoken voice is not available here. The reply is in the address log.");
+  },
+  toggleVoice() {
+    if (!state) return;
+    if (listener) {
+      stopListening();
+      setStatus("Voice stopped.");
+      return;
+    }
+    const session = startListening(
+      window,
+      (transcript) => {
+        const input = document.getElementById("chat-input");
+        if (input) input.value = transcript;
+        sendAddressMessage(transcript);
+      },
+      (kind) => {
+        listener = null;
+        view.listening = false;
+        if (kind === "error") setStatus("Voice recognition stopped. Type to Adam or Eve instead.");
+      },
+    );
+    if (!session.ok) {
+      setStatus("Voice input is not available in this window. Type to Adam or Eve instead.");
+      return;
+    }
+    listener = session;
+    view.listening = true;
+    setStatus("Listening. Speak now.");
+  },
   openOverlay(name) {
     view.overlay = name;
   },
   closeOverlay() {
+    stopListening();
     view.overlay = null;
   },
   inscribe(text) {
@@ -249,8 +332,15 @@ function applyResult(result) {
   }
   if (result.cue) audio.cue(result.cue);
   if (result.flash) flash = result.flash;
-  if (result.day) setToast(result.day.evening);
+  announce(result.day, result.achievements);
   if (state?.ending && !state.flags.ending_seen && !state.talk) openEnding();
+}
+
+function announce(day, achievements) {
+  const notes = (achievements || []).map((item) => item.msg);
+  if (day?.evening && notes.length) setToast(`${day.evening} Achievement: ${notes.join(" · ")}`);
+  else if (day?.evening) setToast(day.evening);
+  else if (notes.length) setToast(`Achievement: ${notes.join(" · ")}`);
 }
 
 function openEnding() {
@@ -380,7 +470,10 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "Space") event.preventDefault();
   if (event.key === "Escape") {
     if (view.confirm) view.confirm = null;
-    else if (view.overlay) view.overlay = null;
+    else if (view.overlay) {
+      stopListening();
+      view.overlay = null;
+    }
     else if (state?.talk && view.screen === "play") {
       state.talk = null;
       resetPanels();
@@ -433,8 +526,8 @@ function loop(now) {
   try {
     if (view.screen === "title") tick(preview, dt);
     if (playing() && !view.overlay) {
-      const day = tick(state, dt);
-      if (day) setToast(day.evening);
+      const beat = tick(state, dt);
+      if (beat) announce(beat.day, beat.achievements);
       if (!state.talk && state.mode === "walk") steer(dt);
       if (state.ending && !state.flags.ending_seen && !state.talk && !view.overlay) openEnding();
     }

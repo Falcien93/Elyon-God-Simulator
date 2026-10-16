@@ -36,6 +36,7 @@
       <p id="quest-kicker">Now</p>
       <h3 id="quest-title"></h3>
       <p id="quest-detail"></p>
+      <p id="quest-achievements"></p>
     </aside>
     <p id="status" role="status"></p>
     <footer id="dock">
@@ -117,6 +118,28 @@
     </div>
   </section>
 
+  <section id="panel-address" class="scrim" hidden role="dialog" aria-modal="true" aria-labelledby="address-title">
+    <div class="panel wide">
+      <p class="sub">Divine address</p>
+      <h2 id="address-title">Speak with the first beings</h2>
+      <p id="thread-readout" class="fine"></p>
+      <div class="char-row">
+        <button id="btn-adam" type="button" aria-pressed="true">Adam</button>
+        <button id="btn-eve" type="button" aria-pressed="false">Eve</button>
+        <button id="btn-speak-last" type="button">Speak</button>
+        <button id="btn-voice-input" type="button" aria-pressed="false">Voice</button>
+      </div>
+      <div id="chat-log" class="chat-log" aria-live="polite"></div>
+      <div class="row">
+        <input id="chat-input" type="text" maxlength="240" placeholder="Speak to Adam or Eve" autocomplete="off">
+        <button id="btn-send-chat" class="primary" type="button">Send</button>
+      </div>
+      <p id="address-achievements" class="fine"></p>
+      <p class="fine">Voice input uses the Web Speech API when this window has it. In the desktop app it often does not; typing still reaches them, and a missing spoken voice does not discard the reply.</p>
+      <div class="actions"><button id="btn-address-close" class="primary" type="button">Close</button></div>
+    </div>
+  </section>
+
   <section id="panel-codex" class="scrim" hidden role="dialog" aria-modal="true">
     <div class="panel wide">
       <p class="sub">Codex</p>
@@ -142,6 +165,7 @@
       <p>Speak the great words in order: light, waters, land, grove, luminaries, creatures, then the two people. Smaller acts spend divine breath, which returns on its own.</p>
       <p>Descend to walk. Draw near to Adam and Eve and press <b>E</b>, or click them when you are close. In the sky, click them from anywhere.</p>
       <p>After they have names for the beasts, inscribe a commandment or keep silent. Then speak with Eve. The garden will keep one of four endings, and it will remain open afterward.</p>
+      <p>Once Adam is formed, <b>Address</b> opens a free conversation with Adam or Eve. Replies follow the garden and the Unity Thread: age, coherence, seals, and what you just said. <b>Voice</b> types from speech when this window can hear you. If it cannot, type instead. <b>Speak</b> reads the last reply aloud when a voice is available; otherwise the reply stays in the log.</p>
       <p><b>M</b> ascend or descend · <b>1–8</b> tools · <b>E</b> speak · <b>Esc</b> pause · <b>H</b> help · <b>F</b> fullscreen · scroll to look closer</p>
       <div class="actions"><button id="btn-help-close" class="primary" type="button">Return</button></div>
     </div>
