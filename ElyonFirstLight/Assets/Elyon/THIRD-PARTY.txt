@@ -1,0 +1,8 @@
+Ground, sand, bark, and rock photographs in Resources are 1K albedo maps from Poly Haven (https://polyhaven.com), CC0:
+
+- grass.jpg — forest_floor
+- sand.jpg — aerial_beach_01
+- bark.jpg — bark_brown_02
+- rock.jpg — rock_boulder_dry
+
+Leaf cards are generated in GardenBuilder. People, water, and the camp are built in the scene at play.

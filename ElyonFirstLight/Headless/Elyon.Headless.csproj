@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>Elyon.Headless</RootNamespace>
+    <AssemblyName>Elyon.Headless</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="UnityStub.cs" />
+    <Compile Include="PlayThrough.cs" />
+    <Compile Include="../Assets/Elyon/*.cs" />
+  </ItemGroup>
+</Project>
