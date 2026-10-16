@@ -97,6 +97,7 @@ namespace Elyon
                 "A descendant is still that person. Stay in that life.",
                 "Do not say you are an assistant, an AI, or a language model, and do not break character.",
                 "You may keep walking, eating, or working while you answer.",
+                "Match your words to the age and the work in the briefing. A later age does not speak as the first fire.",
                 "Reply with JSON only, no markdown:",
                 "{\"speech\":\"what you say aloud\",\"trust\":0,\"remember\":\"one sentence you will keep\"}",
                 "trust is a small change from -8 to 8, not a total.",

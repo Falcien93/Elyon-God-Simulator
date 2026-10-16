@@ -27,18 +27,20 @@ Siblings do not keep house together. An adult with no living partner is joined b
 
 A hold founders when the food and the faith are gone, or when grief is heavy and the stores are thin. The people go to another hearth. The last hearth does not empty. A blessing can send a house back to an empty hold. The far hold is planted from the city, the north hold from the mills once the road is open, and the west quarter only after the present is blessed. A banked engine is not copied by the other holds, and lamps are not strung in a dark year.
 
+Speech and work follow the age. A person at the engine does not talk like a gatherer at the first fire. In the industrial years, gatherers haul wood into drive. Dark lamps slow the fields and make the wire-workers afraid. The body card and the voice both name that day's work.
+
 What changes:
 
 - **First family.** Gather fruit and wood at the fire. You may bless, heal, set fruit, calm a fear, and turn the years.
 - **Camps.** The household moves to the eastern meadow, hunts, and sleeps in lean-tos. You may send game and raise a shelter from their wood.
 - **Farming.** Fields, houses, grain, and hoes. You may send rain and bless a field.
 - **Metal and towns.** Ore, a smithy, and hammers. The camp is a town on the ridge. You may gift ore and mend a body at the smithy.
-- **Cities and empires.** A hall, a temple, and a second hold across the valley. You may proclaim a law, grant a harvest, or withhold one.
+- **Cities and empires.** A hall, a temple, and the far hold across the valley. You may proclaim a law, grant a harvest, or withhold one. Withholding the harvest darkens the year: no child is born there unless a house was blessed, and someone may leave.
 - **Roads and letters.** Someone teaches. A road can join the holds, and grain can move along it. You may open the road and kindle a lesson.
-- **Mills.** A mill multiplies the harvest. You may turn it or let it rest.
-- **Industry and engines.** An engine house burns wood into drive and speeds the fields. You may set the engine or bank it. A banked engine makes no drive.
+- **Mills.** A mill multiplies the harvest. You may turn it or let it rest. Once the road is open, a north hold can be planted.
+- **Industry and engines.** An engine house burns wood into drive and speeds the fields. Gatherers haul wood to it. You may set the engine or bank it. A banked engine makes no drive, and the other holds cannot copy it while it is cold.
 - **Electricity and cities of light.** Drive becomes power, and lamps are strung over the city. Lit lamps ease fatigue and fear. You may kindle the lamps or darken them. Darkening them costs faith and raises fear.
-- **The present.** A press is kept in the house of letters. You may bless the present, or keep a commons that moves a tenth of the richer store to the poorer hold. The years still turn after that. Once the road is open, the other hold raises its own mill, engine, and lamps from its own wood, and someone there keeps them.
+- **The present.** A press is kept in the house of letters. You may bless the present, which lets the west quarter be planted, or keep a commons that moves a tenth of the richer store to the poorer hold. The years still turn after that. Once the road is open, the other holds raise their own mill, engine, and lamps from their own wood, and someone there keeps them. A failed hold stays empty until you bless a house back into it.
 
 An age begins only when its facts are true: enough years, people, meals, wood, shelter, tools, faith, learning, drive, or power. The right-hand panel says what is still missing. **The years turn** resolves one year of labor, kinship, and building, so later ages can be reached without watching every day. Divine acts that lack the wood, the field, the smithy, the hall, the mill, the engine, or the power say so and change nothing.
 

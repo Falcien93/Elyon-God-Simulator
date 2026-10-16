@@ -120,6 +120,33 @@ namespace Elyon
             }
         }
 
+        public static string Voice(AgeId age)
+        {
+            switch (age)
+            {
+                case AgeId.FirstFamily:
+                    return "Speak simply of the fire, the fruit, and the two of you. You do not know fields, mills, or lamps.";
+                case AgeId.Camps:
+                    return "Speak of the camp, the hunt, the lean-to, and the night beyond the fire.";
+                case AgeId.Farming:
+                    return "Speak of the field, the rain, the hoe, and the house.";
+                case AgeId.MetalTowns:
+                    return "Speak of ore, the hammer, the smithy, and the ridge.";
+                case AgeId.Cities:
+                    return "Speak of the hall, the temple, the law, and the other hold.";
+                case AgeId.RoadsAndLetters:
+                    return "Speak of the road, the letters, and what was taught.";
+                case AgeId.Mills:
+                    return "Speak of the mill, the grain, and the turning stone.";
+                case AgeId.Industry:
+                    return "Speak of the engine, the wood it drinks, the drive, and the smoke. Do not talk as a gatherer at the first fire.";
+                case AgeId.ElectricLight:
+                    return "Speak of the lamps, the night, and power. A dark lamp is a thing you fear.";
+                default:
+                    return "Speak of the press, the commons, and the lamps still burning. You remember older ages, and you live in this one.";
+            }
+        }
+
         public static string Hand(AgeId age)
         {
             switch (age)

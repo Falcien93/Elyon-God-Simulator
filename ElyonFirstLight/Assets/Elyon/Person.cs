@@ -78,6 +78,7 @@ namespace Elyon
         public string kinLine = "";
         public string homeName = "the fire";
         public string ageName = "First family";
+        public string ageVoice = "";
         public string worldLine = "";
         public string dutyLabel = "";
         public Vector3 dutyTarget;
@@ -171,7 +172,9 @@ namespace Elyon
         {
             string memory = memories.Count == 0 ? "" : " You remember: " + string.Join(" | ", memories);
             string news = string.IsNullOrEmpty(worldLine) ? "" : " Just now: " + worldLine;
-            return "The age is " + ageName + ". You are in " + homeName + ". It is " + ActLabel + ". " + kinLine + ". " + body.CardLine().Replace("\n", " ") + "." + news + memory;
+            string voice = string.IsNullOrEmpty(ageVoice) ? "" : " " + ageVoice;
+            string work = string.IsNullOrEmpty(dutyLabel) ? "" : " Your work is " + dutyLabel + ".";
+            return "The age is " + ageName + "." + voice + " You are in " + homeName + ". It is " + ActLabel + "." + work + " " + kinLine + ". " + body.CardLine().Replace("\n", " ") + "." + news + memory;
         }
 
         public void Remember(string line)

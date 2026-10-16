@@ -1140,8 +1140,17 @@ namespace Elyon
                 switch (person.labor)
                 {
                     case Labor.Gather:
-                        home.wood += 3.2f * effort;
-                        home.fruit += 8.2f * effort;
+                        if (age >= AgeId.Industry && home.engineOn)
+                        {
+                            home.wood += 4.2f * effort;
+                            home.fruit += 4f * effort;
+                            home.drive += 0.35f * effort;
+                        }
+                        else
+                        {
+                            home.wood += 3.2f * effort;
+                            home.fruit += 8.2f * effort;
+                        }
                         break;
                     case Labor.Hunt:
                         home.meat += 8.5f * effort;
@@ -1151,7 +1160,8 @@ namespace Elyon
                         float mill = home.mill && home.millOn ? 1.8f : 1f;
                         float engine = home.engine && home.engineOn && home.drive > 0f ? 1.3f : 1f;
                         float field = home.fields > 0 ? 1f : 0.35f;
-                        home.grain += 9f * effort * mill * engine * field;
+                        float night = age >= AgeId.ElectricLight && !home.lights ? 0.85f : 1f;
+                        home.grain += 9f * effort * mill * engine * field * night;
                         break;
                     case Labor.Smith:
                         home.ore += 1.4f * effort;
@@ -1172,6 +1182,7 @@ namespace Elyon
                         {
                             home.wood -= fuel;
                             home.drive += 3.4f * effort;
+                            person.body.fatigue = Mathf.Min(100f, person.body.fatigue + 6f * years);
                         }
                         break;
                     case Labor.Wire:
@@ -1181,6 +1192,8 @@ namespace Elyon
                             home.drive -= take;
                             home.power += take * 5f;
                         }
+                        if (home.lights) person.body.fear = Mathf.Max(0f, person.body.fear - 3f * years);
+                        else person.body.fear = Mathf.Min(100f, person.body.fear + 4f * years);
                         break;
                     case Labor.Keep:
                         knowledge += (home.press ? 3.2f : 2.4f) * effort;
@@ -1282,49 +1295,39 @@ namespace Elyon
             if (home == null) return;
             Vector3 site = Dry(home.Hearth);
             Transform tree = null;
-            string label = "gathering";
+            string label = WorkPhrase(labor, home, person);
             switch (labor)
             {
                 case Labor.Gather:
                     tree = NearestTree(home.Hearth);
                     site = tree != null ? tree.position : site;
-                    label = person.tool == ToolKind.Axe ? "cutting wood at a tree" : "gathering fruit and wood";
                     break;
                 case Labor.Hunt:
                     site = Dry(home.Hearth + new Vector3(7f, 0f, 5f));
-                    label = "hunting out from the camp";
                     break;
                 case Labor.Farm:
                     site = FieldPoint(home, IndexOfLabor(person, Labor.Farm));
-                    label = "tending a field";
                     break;
                 case Labor.Smith:
                     site = Ridge();
-                    label = "working the smithy";
                     break;
                 case Labor.Tend:
                     site = Dry(home.Hearth + new Vector3(0f, 0f, 5f));
-                    label = "tending the temple";
                     break;
                 case Labor.Teach:
                     site = Dry(home.Hearth + new Vector3(4f, 0f, -2f));
-                    label = "teaching in the house of letters";
                     break;
                 case Labor.Guard:
                     site = Dry(home.Hearth + new Vector3(-3f, 0f, -2f));
-                    label = "keeping watch by the hall";
                     break;
                 case Labor.Engine:
                     site = Dry(home.Hearth + new Vector3(8f, 0f, -4f));
-                    label = home.engineOn ? "keeping the engine" : "standing by a banked engine";
                     break;
                 case Labor.Wire:
                     site = Dry(home.Hearth + new Vector3(3f, 0f, 7f));
-                    label = "drawing power from the engine";
                     break;
                 case Labor.Keep:
                     site = Dry(home.Hearth + new Vector3(5f, 0f, -2f));
-                    label = "keeping the press and the record";
                     break;
             }
 
@@ -1333,6 +1336,47 @@ namespace Elyon
             person.dutyTarget = site;
             person.dutyLabel = label;
             if (person.alive) person.Retarget();
+        }
+
+        string WorkPhrase(Labor labor, Settlement home, Person person)
+        {
+            switch (labor)
+            {
+                case Labor.Gather:
+                    if (age >= AgeId.Present) return "gathering for the commons";
+                    if (age >= AgeId.Industry) return home.engineOn ? "hauling wood to the engine" : "gathering while the engine is banked";
+                    if (age >= AgeId.MetalTowns) return "cutting timber for the town";
+                    if (age >= AgeId.Camps) return "gathering for the camp";
+                    return person.tool == ToolKind.Axe ? "cutting wood at a tree" : "gathering fruit and wood";
+                case Labor.Hunt:
+                    return "hunting out from the camp";
+                case Labor.Farm:
+                    if (age >= AgeId.Present) return "keeping the common field";
+                    if (age >= AgeId.ElectricLight) return home.lights ? "working the field under the lamps" : "working a field in the dark";
+                    if (age >= AgeId.Industry) return home.engineOn ? "driving the field from the engine" : "tending a field while the engine is banked";
+                    if (age >= AgeId.Mills) return home.millOn ? "feeding grain to the mill" : "tending a field while the mill rests";
+                    return "tending a field";
+                case Labor.Smith:
+                    if (age >= AgeId.Industry) return "mending tools for the engine house";
+                    return "working the smithy";
+                case Labor.Tend:
+                    if (age >= AgeId.Present) return "keeping the rite for the living holds";
+                    return "tending the temple";
+                case Labor.Teach:
+                    if (age >= AgeId.Present) return "setting type at the press";
+                    return "teaching in the house of letters";
+                case Labor.Guard:
+                    if (age >= AgeId.ElectricLight) return home.lights ? "watching the lamps" : "watching a dark street";
+                    return "keeping watch by the hall";
+                case Labor.Engine:
+                    return home.engineOn ? "keeping the engine" : "standing by a banked engine";
+                case Labor.Wire:
+                    return home.lights ? "drawing power for the lamps" : "drawing power in the dark";
+                case Labor.Keep:
+                    return "keeping the press and the commons";
+                default:
+                    return "following a parent";
+            }
         }
 
         void UpdateFollowers(float delta)
@@ -1475,6 +1519,7 @@ namespace Elyon
                 }
 
                 person.ageName = ageName;
+                person.ageVoice = Ages.Voice(age);
                 Settlement kinHome = HomeOf(person);
                 if (kinHome != null) person.homeName = kinHome.placeName;
                 person.kinLine = KinLine(person);
