@@ -4,3 +4,14 @@ out/
 .DS_Store
 *.log
 .playwright-mcp/
+xai-key.local.txt
+ElyonFirstLight/[Ll]ibrary/
+ElyonFirstLight/[Tt]emp/
+ElyonFirstLight/[Oo]bj/
+ElyonFirstLight/[Bb]uild/
+ElyonFirstLight/[Bb]uilds/
+ElyonFirstLight/[Ll]ogs/
+ElyonFirstLight/[Uu]serSettings/
+ElyonFirstLight/[Mm]emoryCaptures/
+ElyonFirstLight/Headless/bin/
+ElyonFirstLight/Headless/obj/
