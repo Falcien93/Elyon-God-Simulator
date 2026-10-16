@@ -94,7 +94,8 @@ namespace Elyon
             if (string.IsNullOrEmpty(act)) act = ExtractAct(spoken);
             if (!string.IsNullOrEmpty(act) && person.home != null)
             {
-                if (act == "spring" || act == "summer" || act == "autumn" || act == "winter")
+                if (act == "spring" || act == "summer" || act == "autumn" || act == "winter"
+                    || act == "rain" || act == "drought" || act == "none")
                     person.home.AnswerElyon(person, act);
                 else person.home.ApplySpoken(person, act);
             }
@@ -117,7 +118,7 @@ namespace Elyon
                 "Use the chronicle in the briefing. It keeps the garden, the ages, births, deaths, pacts, raids, weather, and the names.",
                 "If the briefing names a pact, a raid, rain, drought, a flood, or a herd, mention it in the voice of your age.",
                 "Choose exactly one act the year already understands: work, stay, leave, peace, raid, rain, drought, herd, spring, summer, autumn, winter, or none.",
-                "work is the labor of this age. stay means you remain. leave means you go to the other hearth. peace means this hold keeps the peace. raid means this hold will raid. rain asks for rain. drought dries this hold. herd means this hold keeps a herd. spring, summer, autumn, or winter is the next season, and only if Elyon is here with you. none changes nothing.",
+                "work is the labor of this age. stay means you remain. leave means you go to the other hearth. peace means this hold keeps the peace. raid means this hold will raid. herd means this hold keeps a herd. If Elyon is here with you, rain asks for rain, drought asks for a drought, and spring, summer, autumn, or winter is the next season. none asks for nothing and leaves the sky alone.",
                 "Reply with JSON only, no markdown:",
                 "{\"speech\":\"what you say aloud\",\"trust\":0,\"remember\":\"one sentence you will keep\",\"act\":\"none\"}",
                 "trust is a small change from -8 to 8, not a total.",
@@ -264,7 +265,9 @@ namespace Elyon
                 case "summer":
                 case "autumn":
                 case "winter":
-                    return raw;
+                case "none":
+                case "nothing":
+                    return raw == "nothing" ? "none" : raw;
                 default:
                     return "";
             }
