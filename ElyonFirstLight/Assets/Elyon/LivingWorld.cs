@@ -56,6 +56,7 @@ namespace Elyon
         bool shownRoad;
         bool shownEastFire;
         bool shownFarFire;
+        readonly List<string> raisedMarks = new List<string>();
 
         Material woodMat;
         Material clothMat;
@@ -815,7 +816,39 @@ namespace Elyon
                 Note("A press is kept in the house of letters.");
             }
 
+            RaiseSisterWorks(home);
+
             visualsDirty = true;
+        }
+
+        void RaiseSisterWorks(Settlement home)
+        {
+            if (!roadOpen || home == null) return;
+            foreach (var hold in settlements)
+            {
+                if (hold == home || Members(hold) <= 0) continue;
+                if (age >= AgeId.Mills && home.mill && !hold.mill && hold.wood >= 8f && hold.grain >= 4f)
+                {
+                    hold.wood -= 8f;
+                    hold.grain -= 4f;
+                    hold.mill = true;
+                    hold.millOn = true;
+                    Note("A mill is raised at " + hold.placeName + ".");
+                }
+                if (age >= AgeId.Industry && home.engine && !hold.engine && hold.wood >= 8f)
+                {
+                    hold.wood -= 8f;
+                    hold.engine = true;
+                    hold.engineOn = true;
+                    Note("An engine house is raised at " + hold.placeName + ".");
+                }
+                if (age >= AgeId.ElectricLight && home.lights && hold.engine && !hold.lights && hold.power >= 6f && hold.wood >= 4f)
+                {
+                    hold.wood -= 4f;
+                    hold.lights = true;
+                    Note("Lamps are strung over " + hold.placeName + ".");
+                }
+            }
         }
 
         void FoundFarHold(Settlement home)
@@ -966,8 +999,17 @@ namespace Elyon
             int teachers = age >= AgeId.RoadsAndLetters ? 1 : 0;
             int guards = age >= AgeId.Cities ? 1 : 0;
             int hunters = age == AgeId.Camps ? 1 : 0;
-            int engineers = age >= AgeId.Industry && home.engine ? 1 : 0;
-            int wirers = age >= AgeId.ElectricLight && home.engine ? 1 : 0;
+            int engineers = 0;
+            int wirers = 0;
+            if (age >= AgeId.Industry)
+            {
+                foreach (var hold in settlements)
+                {
+                    if (!hold.engine || Members(hold) <= 0) continue;
+                    engineers++;
+                    if (age >= AgeId.ElectricLight) wirers++;
+                }
+            }
             int keepers = age >= AgeId.Present ? 1 : 0;
             int specialists = smiths + tenders + teachers + guards + hunters + engineers + wirers + keepers;
             if (farmers + specialists >= adults.Count)
@@ -1386,11 +1428,25 @@ namespace Elyon
                 shownPress = true;
                 PlacePress(main.Hearth + new Vector3(5f, 0f, -4.2f));
             }
+            foreach (var hold in settlements)
+            {
+                if (hold == main) continue;
+                if (hold.mill) MarkWork(hold.id + ":mill", () => PlaceMill(hold.Hearth + new Vector3(6f, 0f, 4f)));
+                if (hold.engine) MarkWork(hold.id + ":engine", () => PlaceEngine(hold.Hearth + new Vector3(8f, 0f, -4f)));
+                if (hold.lights) MarkWork(hold.id + ":lamps", () => PlaceLamps(hold.Hearth));
+            }
             if (roadOpen && !shownRoad && far != null)
             {
                 shownRoad = true;
                 PlaceRoad(main.Hearth, far.Hearth);
             }
+        }
+
+        void MarkWork(string key, System.Action place)
+        {
+            if (raisedMarks.Contains(key)) return;
+            raisedMarks.Add(key);
+            place();
         }
 
         void CacheMaterials()

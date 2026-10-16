@@ -36,7 +36,7 @@ What changes:
 - **Mills.** A mill multiplies the harvest. You may turn it or let it rest.
 - **Industry and engines.** An engine house burns wood into drive and speeds the fields. You may set the engine or bank it. A banked engine makes no drive.
 - **Electricity and cities of light.** Drive becomes power, and lamps are strung over the city. Lit lamps ease fatigue and fear. You may kindle the lamps or darken them. Darkening them costs faith and raises fear.
-- **The present.** A press is kept in the house of letters. You may bless the present, or keep a commons that moves a tenth of the richer store to the poorer hold. The years still turn after that.
+- **The present.** A press is kept in the house of letters. You may bless the present, or keep a commons that moves a tenth of the richer store to the poorer hold. The years still turn after that. Once the road is open, the other hold raises its own mill, engine, and lamps from its own wood, and someone there keeps them.
 
 An age begins only when its facts are true: enough years, people, meals, wood, shelter, tools, faith, learning, drive, or power. The right-hand panel says what is still missing. **The years turn** resolves one year of labor, kinship, and building, so later ages can be reached without watching every day. Divine acts that lack the wood, the field, the smithy, the hall, the mill, the engine, or the power say so and change nothing.
 
