@@ -1,36 +1,88 @@
-# Elyon — God Simulator
+# Elyon
 
-Production-ready single-file browser game. Play as Elyon Adonai co-creating through the living Unity Thread with Adam and Eve. Consciousness is the primary interface.
+A single-player mythic simulator you can install. You play as Elyon and shape the first garden: light, waters, land, the two trees, the lights of the sky, the creatures, and Adam and Eve. Then you walk among them, name what lives, speak or keep silent, and see which ending the garden keeps.
 
-## Features
-- Full simulation loop (population, faith, resources, harmony, coherence)
-- Adam & Eve as named, drawable beings with mood, faith, and position
-- Text and voice chat with Adam or Eve (Web Speech API for TTS + optional Speech Recognition)
-- Grok-style contextual dialogue responses generated from current field state
-- Sky View (overview) and Walk Among modes (player avatar visible)
-- 10 Divine Fiat actions (including Divine Address)
-- 4 Ages: Primordial → Awakened → Christos → Unity
-- 7 Seals system with victory condition (Unity Age + 100% Coherence + all seals)
-- Achievements (including dialogue and walking)
-- Living canvas visualization (Unity Thread filaments + responsive particle field + character figures)
-- Auto-advance
-- Save / Load (localStorage v3) + JSON export
-- Tutorial / Guide
-- Responsive layout + bounds clamping + error handling
-- Zero dependencies
+Adam and Eve can also be addressed freely. Their replies follow what you say and the living field (age, coherence, cycle, seals). Text chat always works. Voice input and spoken replies use the Web Speech API when the window has it, and stay in the log when it does not.
 
-## Run
-Open `index.html` directly in any modern browser, or serve the folder:
+This is an original telling, not a scripture. The earlier single-page Unity Thread sketch (population, ten Divine Fiat actions, and the seal victory screen) remains in the history of `main`. This desktop game keeps that field’s ages, seals, coherence, and achievements beside the creation campaign.
+
+## Play
+
+Requirements: Node.js 20 or newer.
+
+```bash
+npm install
+npm start
+```
+
+`npm start` opens the desktop window. The garden is drawn on a canvas. Menus, dialogue, the address log, and the divine log sit over it.
+
+You can also serve the folder and open it in a browser:
+
 ```bash
 python3 -m http.server 8080
 ```
-Then visit `http://localhost:8080`.
 
-Voice input requires a browser that supports the Web Speech API (Chrome/Edge recommended).
+Then visit `http://localhost:8080`. Opening `index.html` as a file blocks ES modules on some systems. The desktop app does not have that limit.
 
-## Victory
-Reach Unity Age with Coherence at 100% and all 7 Seals open. The Christos field and Unity Thread become one. Adam, Eve, and all beings participate in sovereign co-creation.
+### Install a build
 
-Source of truth for collaborative development. Always pull latest before changes and push updates back.
+```bash
+npm run dist
+```
 
-May the light of unity guide your co-creation.
+On Linux this writes:
+
+- `dist/linux-unpacked/elyon` — run that file directly
+- `dist/Elyon-1.0.0.AppImage` — one file you can mark executable and launch
+
+Windows NSIS and macOS DMG targets are declared in `package.json`. Build those on the matching operating system (`npx electron-builder --win` or `--mac`).
+
+## How to play
+
+1. **Begin** (or **Continue** if a record already exists).
+2. **Open your eyes**, then follow the gold action at the bottom of the screen through the days of making.
+3. After dry land appears, press **M** to walk the garden (Walk Among). **M** again returns to Sky View. **WASD** or the arrow keys move you. Click open ground to walk there.
+4. Press **E** beside Adam or Eve to speak the story. Sky view can also address them by clicking them.
+5. Once Adam is formed, **Address** opens text chat with Adam or Eve. **Speak** reads the last reply aloud. **Voice** listens when speech recognition exists. In the desktop window it often does not: type instead. A missing spoken voice does not drop the reply.
+6. After the grove is planted, number keys **1–8** select brushes (water, meadow, bloom, tree, bless, beast, fish, bird). They spend Breath.
+7. **Esc** pauses. **H** opens help. **F** toggles fullscreen. The scroll wheel zooms.
+
+The campaign has four endings: harmony, exile, wonder, and order. After an ending you may keep walking the garden.
+
+The Unity Thread reading (shown in Address) tracks age, coherence, cycle, population, faith, beings, and seven seals. Seals open as the days of making are finished. Ages move Primordial → Awakened → Christos → Unity as coherence and seals rise. Reaching an ending sets Unity and absolute coherence. Population keeps growing slowly after the lights are set, and the hundred-beings achievement is still there.
+
+## Achievements
+
+- First Seed — Adam and Eve are both in the garden
+- Awakened Age, Christos Age, Unity Age
+- Three Seals Open, All Seals Unsealed
+- Coherence 50%, Absolute Coherence
+- 100 Beings
+- Spoken with the First Beings (five or more address lines)
+- Walked Among Them (kept after you ascend again)
+
+## Saves
+
+The game keeps one record automatically:
+
+- In the desktop app: Electron `userData` / `elyon-save.json`
+- In a browser: `localStorage` key `elyon-save-v1`
+
+The record includes the garden, the address log, mood and faith, the Unity Thread reading, and achievements. If both desktop and browser copies exist, the newer `updatedAt` wins. Pause menu **Export record** writes `elyon-save.json`. **Import record** reads one back. A new creation replaces the record on this computer.
+
+## Voice
+
+Voice input needs a runtime that exposes `SpeechRecognition` or `webkitSpeechRecognition` (Chromium browsers such as Chrome or Edge usually do). Electron on this build often has no speech-recognition service. The Address panel then tells you to type. Spoken replies need `speechSynthesis`. If that call is missing or throws, the reply remains in the address log.
+
+## Tests
+
+```bash
+npm test
+```
+
+Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. They are covered by `test/game.test.js`.
+
+## Fonts
+
+Cormorant Garamond and Cinzel are included as WOFF2 files under `assets/fonts/` and are licensed under the SIL Open Font License. See `assets/fonts/OFL.txt`.

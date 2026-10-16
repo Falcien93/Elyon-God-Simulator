@@ -1,0 +1,58 @@
+{
+  "name": "elyon",
+  "productName": "Elyon",
+  "version": "1.0.0",
+  "description": "A mythic simulator of the first garden. Play as Elyon, shape Eden, and walk among the first people.",
+  "author": "Elyon",
+  "license": "MIT",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/game.test.js",
+    "dist": "electron-builder --linux dir AppImage"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.elyon.garden",
+    "productName": "Elyon",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "css/**/*",
+      "js/**/*",
+      "assets/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "dir",
+        "AppImage"
+      ],
+      "category": "Game",
+      "icon": "assets/icons",
+      "synopsis": "A mythic simulator of the first garden.",
+      "executableName": "elyon"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.games"
+    }
+  }
+}
