@@ -50,6 +50,9 @@ namespace Elyon
         bool shownPalisade;
         bool shownLetters;
         bool shownMill;
+        bool shownEngine;
+        bool shownLamps;
+        bool shownPress;
         bool shownRoad;
         bool shownEastFire;
         bool shownFarFire;
@@ -309,6 +312,85 @@ namespace Elyon
                     }
                     Note("The mill rests. The farmers breathe.");
                     break;
+                case DivineAct.SetEngine:
+                    if (!home.engine)
+                    {
+                        Note("There is no engine house to set.");
+                        break;
+                    }
+                    if (home.wood < 4f)
+                    {
+                        Note("Setting the engine needs 4 wood. They have " + (int)home.wood + ".");
+                        break;
+                    }
+                    home.wood -= 4f;
+                    home.engineOn = true;
+                    home.drive += 2f;
+                    visualsDirty = true;
+                    Note("The engine is set. It drinks wood and makes drive.");
+                    break;
+                case DivineAct.BankEngine:
+                    if (!home.engine)
+                    {
+                        Note("There is no engine to bank.");
+                        break;
+                    }
+                    if (!home.engineOn)
+                    {
+                        Note("The engine is already banked.");
+                        break;
+                    }
+                    home.engineOn = false;
+                    Note("The engine is banked. Drive stops until it is set again.");
+                    break;
+                case DivineAct.KindleLamps:
+                    if (home.power < 4f)
+                    {
+                        Note("The lamps need 4 power. The city has " + (int)home.power + ".");
+                        break;
+                    }
+                    home.power -= 4f;
+                    home.lights = true;
+                    visualsDirty = true;
+                    Note("Lamps kindle over " + home.placeName + ".");
+                    break;
+                case DivineAct.DarkenLamps:
+                    if (!home.lights)
+                    {
+                        Note("The lamps are already dark.");
+                        break;
+                    }
+                    home.lights = false;
+                    home.faith = Mathf.Max(0f, home.faith - 3f);
+                    foreach (var member in people)
+                    {
+                        if (member.alive && member.settlementId == home.id)
+                        {
+                            member.body.fear = Mathf.Min(100f, member.body.fear + 6f);
+                        }
+                    }
+                    Note("The lamps go dark. Faith falls and fear rises.");
+                    break;
+                case DivineAct.BlessPresent:
+                    home.faith = Mathf.Clamp(home.faith + 3f, 0f, 100f);
+                    foreach (var member in people)
+                    {
+                        if (!member.alive) continue;
+                        member.body.fear = Mathf.Max(0f, member.body.fear - 8f);
+                        member.ApplyTrust(2);
+                    }
+                    Note("The present is blessed. Fear eases in every house.");
+                    break;
+                case DivineAct.KeepCommons:
+                    Settlement other = OtherHold(home);
+                    if (other == null)
+                    {
+                        Note("There is one hearth. The commons is already the whole house.");
+                        break;
+                    }
+                    ShareMeals(home, other, 0.1f);
+                    Note("A tenth of the richer store moves to the poorer hold.");
+                    break;
             }
 
             RefreshKin();
@@ -326,6 +408,7 @@ namespace Elyon
             if (Ages.ReadyForNext(age, Facts())) Advance();
             Craft();
             BuildPlaces();
+            if (Ages.ReadyForNext(age, Facts())) Advance();
             Trade();
             foreach (var person in people) person.arrived = false;
             year++;
@@ -372,6 +455,8 @@ namespace Elyon
 
                 bool bed = HasBed(person);
                 if (bed) person.body.fatigue = Mathf.Max(0f, person.body.fatigue - 12f);
+                if (home.lights && bed) person.body.fatigue = Mathf.Max(0f, person.body.fatigue - 6f);
+                if (home.lights) person.body.fear = Mathf.Max(0f, person.body.fear - 3f);
                 if (!bed && age != AgeId.FirstFamily) person.body.fever = Mathf.Min(100f, person.body.fever + 8f);
                 else if (person.body.hunger < 75f) person.body.fever = Mathf.Max(0f, person.body.fever - 10f);
             }
@@ -538,6 +623,15 @@ namespace Elyon
                 case AgeId.Mills:
                     Note("They can raise a mill. The harvest can be multiplied.");
                     break;
+                case AgeId.Industry:
+                    Note("An engine house can burn wood into drive. Someone must keep it.");
+                    break;
+                case AgeId.ElectricLight:
+                    Note("Drive can become power, and lamps can be strung over the city.");
+                    break;
+                case AgeId.Present:
+                    Note("The present keeps the press, the lamps, and the commons.");
+                    break;
             }
 
             jobStamp = -1;
@@ -683,6 +777,29 @@ namespace Elyon
                 Note("The mill is raised and set turning.");
             }
 
+            if (age >= AgeId.Mills && home.mill && !home.engine && knowledge >= 12f && home.wood >= 10f && home.ore >= 2f)
+            {
+                home.wood -= 10f;
+                home.ore -= 2f;
+                home.engine = true;
+                home.engineOn = true;
+                Note("An engine house is raised beside the mill.");
+            }
+
+            if (age >= AgeId.ElectricLight && home.engine && !home.lights && home.power >= 6f && home.wood >= 4f)
+            {
+                home.wood -= 4f;
+                home.lights = true;
+                Note("Lamps are strung over " + home.placeName + ".");
+            }
+
+            if (age >= AgeId.Present && home.letters && !home.press && home.wood >= 6f)
+            {
+                home.wood -= 6f;
+                home.press = true;
+                Note("A press is kept in the house of letters.");
+            }
+
             visualsDirty = true;
         }
 
@@ -768,8 +885,9 @@ namespace Elyon
                         break;
                     case Labor.Farm:
                         float mill = home.mill && home.millOn ? 1.8f : 1f;
+                        float engine = home.engine && home.engineOn && home.drive > 0f ? 1.3f : 1f;
                         float field = home.fields > 0 ? 1f : 0.35f;
-                        home.grain += 9f * effort * mill * field;
+                        home.grain += 9f * effort * mill * engine * field;
                         break;
                     case Labor.Smith:
                         home.ore += 1.4f * effort;
@@ -778,10 +896,30 @@ namespace Elyon
                         home.faith = Mathf.Clamp(home.faith + 3.5f * effort, 0f, 100f);
                         break;
                     case Labor.Teach:
-                        knowledge += 1.6f * effort;
+                        knowledge += (age >= AgeId.Present ? 2.2f : 1.6f) * effort;
                         break;
                     case Labor.Guard:
                         person.body.fear = Mathf.Max(0f, person.body.fear - 8f * effort);
+                        break;
+                    case Labor.Engine:
+                        float fuel = Mathf.Min(home.wood, 0.4f * effort);
+                        if (home.engineOn && fuel > 0.05f)
+                        {
+                            home.wood -= fuel;
+                            home.drive += 3.4f * effort;
+                        }
+                        break;
+                    case Labor.Wire:
+                        if (home.engineOn && home.drive > 0.05f)
+                        {
+                            float take = Mathf.Min(home.drive, 1.2f * effort);
+                            home.drive -= take;
+                            home.power += take * 5f;
+                        }
+                        break;
+                    case Labor.Keep:
+                        knowledge += (home.press ? 3.2f : 2.4f) * effort;
+                        home.faith = Mathf.Clamp(home.faith + 0.4f * effort, 0f, 100f);
                         break;
                 }
             }
@@ -807,9 +945,13 @@ namespace Elyon
             int teachers = age >= AgeId.RoadsAndLetters ? 1 : 0;
             int guards = age >= AgeId.Cities ? 1 : 0;
             int hunters = age == AgeId.Camps ? 1 : 0;
-            if (farmers + smiths + tenders + teachers + guards + hunters >= adults.Count)
+            int engineers = age >= AgeId.Industry && home.engine ? 1 : 0;
+            int wirers = age >= AgeId.ElectricLight && home.engine ? 1 : 0;
+            int keepers = age >= AgeId.Present ? 1 : 0;
+            int specialists = smiths + tenders + teachers + guards + hunters + engineers + wirers + keepers;
+            if (farmers + specialists >= adults.Count)
             {
-                farmers = Mathf.Max(0, adults.Count - (smiths + tenders + teachers + guards + hunters));
+                farmers = Mathf.Max(0, adults.Count - specialists);
             }
 
             foreach (var person in adults)
@@ -819,6 +961,9 @@ namespace Elyon
                 else if (tenders > 0) { labor = Labor.Tend; tenders--; }
                 else if (teachers > 0) { labor = Labor.Teach; teachers--; }
                 else if (guards > 0) { labor = Labor.Guard; guards--; }
+                else if (engineers > 0) { labor = Labor.Engine; engineers--; }
+                else if (wirers > 0) { labor = Labor.Wire; wirers--; }
+                else if (keepers > 0) { labor = Labor.Keep; keepers--; }
                 else if (farmers > 0 && age >= AgeId.Farming) { labor = Labor.Farm; farmers--; }
                 else if (hunters > 0) { labor = Labor.Hunt; hunters--; }
                 SetDuty(person, labor);
@@ -884,6 +1029,18 @@ namespace Elyon
                 case Labor.Guard:
                     site = Dry(home.Hearth + new Vector3(-3f, 0f, -2f));
                     label = "keeping watch by the hall";
+                    break;
+                case Labor.Engine:
+                    site = Dry(home.Hearth + new Vector3(8f, 0f, -4f));
+                    label = home.engineOn ? "keeping the engine" : "standing by a banked engine";
+                    break;
+                case Labor.Wire:
+                    site = Dry(home.Hearth + new Vector3(3f, 0f, 7f));
+                    label = "drawing power from the engine";
+                    break;
+                case Labor.Keep:
+                    site = Dry(home.Hearth + new Vector3(5f, 0f, -2f));
+                    label = "keeping the press and the record";
                     break;
             }
 
@@ -1099,6 +1256,10 @@ namespace Elyon
                 facts.temple |= settlement.temple;
                 facts.letters |= settlement.letters;
                 facts.mill |= settlement.mill;
+                facts.engine |= settlement.engine;
+                facts.lights |= settlement.lights;
+                facts.drive += settlement.drive;
+                facts.power += settlement.power;
             }
             facts.population = AliveCount();
             facts.settlements = livingSettlements;
@@ -1116,6 +1277,8 @@ namespace Elyon
             if (age >= AgeId.Farming) line += "   grain " + (int)TotalGrain();
             if (age >= AgeId.MetalTowns) line += "   ore " + (int)facts.ore;
             if (age >= AgeId.RoadsAndLetters) line += "   learning " + (int)knowledge;
+            if (age >= AgeId.Industry) line += "   drive " + (int)facts.drive;
+            if (age >= AgeId.ElectricLight) line += "   power " + (int)facts.power;
             return line;
         }
 
@@ -1181,6 +1344,21 @@ namespace Elyon
             {
                 shownMill = true;
                 PlaceMill(main.Hearth + new Vector3(6f, 0f, 4f));
+            }
+            if (main.engine && !shownEngine)
+            {
+                shownEngine = true;
+                PlaceEngine(main.Hearth + new Vector3(8f, 0f, -4f));
+            }
+            if (main.lights && !shownLamps)
+            {
+                shownLamps = true;
+                PlaceLamps(main.Hearth);
+            }
+            if (main.press && !shownPress)
+            {
+                shownPress = true;
+                PlacePress(main.Hearth + new Vector3(5f, 0f, -4.2f));
             }
             if (roadOpen && !shownRoad && far != null)
             {
@@ -1327,6 +1505,71 @@ namespace Elyon
             wheel.transform.localScale = new Vector3(0.12f, 1f, 0.12f);
             wheel.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Ellipse(8f, 8f, 12);
             wheel.AddComponent<MeshRenderer>().sharedMaterial = woodMat;
+        }
+
+        void PlaceEngine(Vector3 spot)
+        {
+            var root = new GameObject("Engine");
+            root.transform.SetParent(built, false);
+            root.transform.position = Dry(spot);
+            var house = new GameObject("House");
+            house.transform.SetParent(root.transform, false);
+            house.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Trunk(2.2f, 0.7f, 11);
+            house.AddComponent<MeshRenderer>().sharedMaterial = stoneMat;
+            var stack = new GameObject("Stack");
+            stack.transform.SetParent(root.transform, false);
+            stack.transform.localPosition = new Vector3(0.4f, 2.1f, 0f);
+            stack.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Trunk(1.6f, 0.12f, 12);
+            stack.AddComponent<MeshRenderer>().sharedMaterial = stoneMat;
+            var wheel = new GameObject("Flywheel");
+            wheel.transform.SetParent(root.transform, false);
+            wheel.transform.localPosition = new Vector3(1.2f, 1.1f, 0f);
+            wheel.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            wheel.transform.localScale = new Vector3(0.1f, 0.7f, 0.1f);
+            wheel.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Ellipse(8f, 8f, 12);
+            wheel.AddComponent<MeshRenderer>().sharedMaterial = woodMat;
+        }
+
+        void PlaceLamps(Vector3 hearth)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                float ang = i * Mathf.PI * 0.5f;
+                var pole = new GameObject("Lamp");
+                pole.transform.SetParent(built, false);
+                pole.transform.position = Dry(hearth + new Vector3(Mathf.Cos(ang) * 6f, 0f, Mathf.Sin(ang) * 6f));
+                var post = new GameObject("Post");
+                post.transform.SetParent(pole.transform, false);
+                post.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Trunk(3.2f, 0.06f, 20 + i);
+                post.AddComponent<MeshRenderer>().sharedMaterial = woodMat;
+                var lamp = new GameObject("LampLight");
+                lamp.transform.SetParent(pole.transform, false);
+                lamp.transform.localPosition = new Vector3(0f, 3.2f, 0f);
+                var light = lamp.AddComponent<Light>();
+                light.type = LightType.Point;
+                light.color = new Color(0.85f, 0.92f, 1f);
+                light.range = 14f;
+                light.intensity = 900f;
+                lamp.AddComponent<HDAdditionalLightData>().SetIntensity(900f, LightUnit.Lumen);
+            }
+        }
+
+        void PlacePress(Vector3 spot)
+        {
+            var root = new GameObject("Press");
+            root.transform.SetParent(built, false);
+            root.transform.position = Dry(spot);
+            var table = new GameObject("Table");
+            table.transform.SetParent(root.transform, false);
+            table.transform.localPosition = new Vector3(0f, 0.7f, 0f);
+            table.transform.localScale = new Vector3(1.4f, 0.12f, 0.8f);
+            table.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Boulder(3);
+            table.AddComponent<MeshRenderer>().sharedMaterial = woodMat;
+            var screw = new GameObject("Screw");
+            screw.transform.SetParent(root.transform, false);
+            screw.transform.localPosition = new Vector3(0f, 0.2f, 0f);
+            screw.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Trunk(1.5f, 0.08f, 21);
+            screw.AddComponent<MeshRenderer>().sharedMaterial = stoneMat;
         }
 
         void PlaceRoad(Vector3 from, Vector3 to)
@@ -1553,6 +1796,33 @@ namespace Elyon
             foreach (var settlement in settlements) settlement.millOn = turning;
         }
 
+        Settlement OtherHold(Settlement home)
+        {
+            Settlement found = null;
+            foreach (var settlement in settlements)
+            {
+                if (settlement == home || Members(settlement) <= 0) continue;
+                found = settlement;
+                if (settlement.id == "far") return settlement;
+            }
+            return found;
+        }
+
+        static void ShareMeals(Settlement a, Settlement b, float fraction)
+        {
+            Settlement rich = a.Meals >= b.Meals ? a : b;
+            Settlement poor = rich == a ? b : a;
+            float fruit = rich.fruit * fraction;
+            float meat = rich.meat * fraction;
+            float grain = rich.grain * fraction;
+            rich.fruit -= fruit;
+            rich.meat -= meat;
+            rich.grain -= grain;
+            poor.fruit += fruit;
+            poor.meat += meat;
+            poor.grain += grain;
+        }
+
         float TotalWater()
         {
             float total = 0f;
@@ -1660,7 +1930,7 @@ namespace Elyon
                 if (loaded.Count == 0) return false;
                 var previous = new List<Settlement>(settlements);
                 year = Mathf.Max(1, record.year);
-                age = (AgeId)Mathf.Clamp(record.age, 0, (int)AgeId.Mills);
+                age = (AgeId)Mathf.Clamp(record.age, 0, (int)AgeId.Present);
                 childrenBorn = record.childrenBorn;
                 knowledge = record.knowledge;
                 roadOpen = record.road;
@@ -1764,6 +2034,12 @@ namespace Elyon
             DivineAct.KindleLesson,
             DivineAct.TurnMill,
             DivineAct.RestMill,
+            DivineAct.SetEngine,
+            DivineAct.BankEngine,
+            DivineAct.KindleLamps,
+            DivineAct.DarkenLamps,
+            DivineAct.BlessPresent,
+            DivineAct.KeepCommons,
         };
     }
 
@@ -1809,6 +2085,12 @@ namespace Elyon
         public bool letters;
         public bool mill;
         public bool millOn;
+        public bool engine;
+        public bool engineOn;
+        public float drive;
+        public float power;
+        public bool lights;
+        public bool press;
 
         public static SettlementRecord From(Settlement settlement)
         {
@@ -1836,6 +2118,12 @@ namespace Elyon
                 letters = settlement.letters,
                 mill = settlement.mill,
                 millOn = settlement.millOn,
+                engine = settlement.engine,
+                engineOn = settlement.engineOn,
+                drive = settlement.drive,
+                power = settlement.power,
+                lights = settlement.lights,
+                press = settlement.press,
             };
         }
 
@@ -1865,6 +2153,12 @@ namespace Elyon
                 letters = letters,
                 mill = mill,
                 millOn = millOn,
+                engine = engine,
+                engineOn = engineOn,
+                drive = drive,
+                power = power,
+                lights = lights,
+                press = press,
             };
         }
     }

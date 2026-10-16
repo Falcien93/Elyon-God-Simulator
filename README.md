@@ -19,7 +19,7 @@ Paste an xAI key into the panel and press **Keep the key here**. It is written o
 
 Speech uses `POST https://api.x.ai/v1/responses` with model `grok-4.7`. Each person is instructed to believe they are that person, including the children and the people who later keep house with them. They do not say they are an assistant or a language model. A new line can start before the last one finishes, and they can talk while they walk.
 
-## One people, seven ages
+## One people, ten ages
 
 The valley does not offer a menu of ages. Adam and Eve are already awake at the fire, in the first family. The same bodies, needs, kin, speech, work, food, shelter, tools, belief, and settlements carry them forward. A garden day is a year. At the end of the day the household eats from its stores, children age, a birth or a newcomer can join a house, and at most one age can begin.
 
@@ -33,9 +33,12 @@ What changes:
 - **Metal and towns.** Ore, a smithy, and hammers. The camp is a town on the ridge. You may gift ore and mend a body at the smithy.
 - **Cities and empires.** A hall, a temple, and a second hold across the valley. You may proclaim a law, grant a harvest, or withhold one.
 - **Roads and letters.** Someone teaches. A road can join the holds, and grain can move along it. You may open the road and kindle a lesson.
-- **Mills.** A mill multiplies the harvest. You may turn it or let it rest. The years still turn after that.
+- **Mills.** A mill multiplies the harvest. You may turn it or let it rest.
+- **Industry and engines.** An engine house burns wood into drive and speeds the fields. You may set the engine or bank it. A banked engine makes no drive.
+- **Electricity and cities of light.** Drive becomes power, and lamps are strung over the city. Lit lamps ease fatigue and fear. You may kindle the lamps or darken them. Darkening them costs faith and raises fear.
+- **The present.** A press is kept in the house of letters. You may bless the present, or keep a commons that moves a tenth of the richer store to the poorer hold. The years still turn after that.
 
-An age begins only when its facts are true: enough years, people, meals, wood, shelter, tools, faith, or learning. The right-hand panel says what is still missing. **The years turn** resolves one year of labor, kinship, and building, so later ages can be reached without watching every day. Divine acts that lack the wood, the field, the smithy, the hall, or the mill say so and change nothing.
+An age begins only when its facts are true: enough years, people, meals, wood, shelter, tools, faith, learning, drive, or power. The right-hand panel says what is still missing. **The years turn** resolves one year of labor, kinship, and building, so later ages can be reached without watching every day. Divine acts that lack the wood, the field, the smithy, the hall, the mill, the engine, or the power say so and change nothing.
 
 The record is `elyon-first-light.json` in the persistent data folder, version 2. It keeps the people, the settlements, and the chronicle. It does not keep the key. Older tiny records are ignored.
 

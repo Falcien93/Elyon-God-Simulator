@@ -13,6 +13,9 @@ namespace Elyon
         Teach,
         Guard,
         Follow,
+        Engine,
+        Wire,
+        Keep,
     }
 
     public enum ToolKind
@@ -46,8 +49,14 @@ namespace Elyon
         public bool temple;
         public bool palisade;
         public bool letters;
+        public bool press;
         public bool mill;
         public bool millOn = true;
+        public bool engine;
+        public bool engineOn;
+        public float drive;
+        public float power;
+        public bool lights;
 
         public float Meals => fruit + meat + grain;
 

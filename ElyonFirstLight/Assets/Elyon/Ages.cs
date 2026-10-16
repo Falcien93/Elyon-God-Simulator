@@ -11,6 +11,9 @@ namespace Elyon
         Cities = 4,
         RoadsAndLetters = 5,
         Mills = 6,
+        Industry = 7,
+        ElectricLight = 8,
+        Present = 9,
     }
 
     public enum DivineAct
@@ -33,6 +36,12 @@ namespace Elyon
         KindleLesson,
         TurnMill,
         RestMill,
+        SetEngine,
+        BankEngine,
+        KindleLamps,
+        DarkenLamps,
+        BlessPresent,
+        KeepCommons,
     }
 
     public struct AgeFacts
@@ -56,6 +65,10 @@ namespace Elyon
         public bool road;
         public bool letters;
         public bool mill;
+        public bool engine;
+        public bool lights;
+        public float drive;
+        public float power;
     }
 
     /// <summary>
@@ -73,7 +86,10 @@ namespace Elyon
                 case AgeId.MetalTowns: return "Metal and towns";
                 case AgeId.Cities: return "Cities and empires";
                 case AgeId.RoadsAndLetters: return "Roads and letters";
-                default: return "Mills";
+                case AgeId.Mills: return "Mills";
+                case AgeId.Industry: return "Industry and engines";
+                case AgeId.ElectricLight: return "Electricity and cities of light";
+                default: return "The present";
             }
         }
 
@@ -93,8 +109,14 @@ namespace Elyon
                     return "A hall, a temple, and a second hold. Law and worship sit in the city.";
                 case AgeId.RoadsAndLetters:
                     return "A road joins the holds. Someone teaches, and a house keeps letters.";
-                default:
+                case AgeId.Mills:
                     return "A mill multiplies the harvest. The same families keep house.";
+                case AgeId.Industry:
+                    return "An engine burns wood and ore-work into drive. Fields turn faster, and someone keeps the engine.";
+                case AgeId.ElectricLight:
+                    return "Drive becomes power. Lamps are strung over the city, and the night is no longer only the fire.";
+                default:
+                    return "The same houses keep a press and a commons. Lamps, the mill, and the engine still run.";
             }
         }
 
@@ -114,8 +136,14 @@ namespace Elyon
                     return "You may proclaim a law, grant a harvest, or withhold one.";
                 case AgeId.RoadsAndLetters:
                     return "You may open the road and kindle a lesson.";
-                default:
+                case AgeId.Mills:
                     return "You may turn the mill or let it rest.";
+                case AgeId.Industry:
+                    return "You may set the engine or bank it. A banked engine does no work.";
+                case AgeId.ElectricLight:
+                    return "You may kindle the lamps or darken them. Dark lamps cost faith and raise fear.";
+                default:
+                    return "You may bless the present or keep a commons between the holds.";
             }
         }
 
@@ -140,7 +168,13 @@ namespace Elyon
                 case DivineAct.OpenRoad: return "Open the road";
                 case DivineAct.KindleLesson: return "Kindle a lesson";
                 case DivineAct.TurnMill: return "Turn the mill";
-                default: return "Let the mill rest";
+                case DivineAct.RestMill: return "Let the mill rest";
+                case DivineAct.SetEngine: return "Set the engine";
+                case DivineAct.BankEngine: return "Bank the engine";
+                case DivineAct.KindleLamps: return "Kindle the lamps";
+                case DivineAct.DarkenLamps: return "Darken the lamps";
+                case DivineAct.BlessPresent: return "Bless the present";
+                default: return "Keep the commons";
             }
         }
 
@@ -173,6 +207,15 @@ namespace Elyon
                 case DivineAct.TurnMill:
                 case DivineAct.RestMill:
                     return age >= AgeId.Mills;
+                case DivineAct.SetEngine:
+                case DivineAct.BankEngine:
+                    return age >= AgeId.Industry;
+                case DivineAct.KindleLamps:
+                case DivineAct.DarkenLamps:
+                    return age >= AgeId.ElectricLight;
+                case DivineAct.BlessPresent:
+                case DivineAct.KeepCommons:
+                    return age >= AgeId.Present;
                 default:
                     return false;
             }
@@ -216,6 +259,21 @@ namespace Elyon
                         && facts.letters
                         && facts.knowledge >= 8f
                         && facts.settlements >= 2;
+                case AgeId.Mills:
+                    return facts.year >= 64
+                        && facts.mill
+                        && facts.engine
+                        && facts.knowledge >= 12f;
+                case AgeId.Industry:
+                    return facts.year >= 78
+                        && facts.engine
+                        && facts.drive >= 6f
+                        && facts.knowledge >= 16f;
+                case AgeId.ElectricLight:
+                    return facts.year >= 92
+                        && facts.lights
+                        && facts.power >= 8f
+                        && facts.faith >= 20f;
                 default:
                     return false;
             }
@@ -223,9 +281,9 @@ namespace Elyon
 
         public static string StillNeeded(AgeId age, AgeFacts facts)
         {
-            if (age == AgeId.Mills)
+            if (age == AgeId.Present)
             {
-                return "Mills is the latest age. Kin, work, and the mill carry on. The years still turn.";
+                return "The present is the latest age. Kin, work, lamps, and the commons carry on. The years still turn.";
             }
 
             var missing = new List<string>();
@@ -264,13 +322,31 @@ namespace Elyon
                     if (facts.population < 12) missing.Add("people " + facts.population + "/12");
                     if (facts.faith < 30f) missing.Add("faith " + (int)facts.faith + "/30");
                     return Need("Roads and letters", missing);
-                default:
+                case AgeId.RoadsAndLetters:
                     if (facts.year < 52) missing.Add("year " + facts.year + "/52");
                     if (!facts.road) missing.Add("an open road");
                     if (!facts.letters) missing.Add("a house of letters");
                     if (facts.knowledge < 8f) missing.Add("learning " + (int)facts.knowledge + "/8");
                     if (facts.settlements < 2) missing.Add("two holds");
                     return Need("Mills", missing);
+                case AgeId.Mills:
+                    if (facts.year < 64) missing.Add("year " + facts.year + "/64");
+                    if (!facts.mill) missing.Add("a mill");
+                    if (!facts.engine) missing.Add("an engine house");
+                    if (facts.knowledge < 12f) missing.Add("learning " + (int)facts.knowledge + "/12");
+                    return Need("Industry and engines", missing);
+                case AgeId.Industry:
+                    if (facts.year < 78) missing.Add("year " + facts.year + "/78");
+                    if (!facts.engine) missing.Add("an engine house");
+                    if (facts.drive < 6f) missing.Add("drive " + (int)facts.drive + "/6");
+                    if (facts.knowledge < 16f) missing.Add("learning " + (int)facts.knowledge + "/16");
+                    return Need("Electricity and cities of light", missing);
+                default:
+                    if (facts.year < 92) missing.Add("year " + facts.year + "/92");
+                    if (!facts.lights) missing.Add("lamps over the city");
+                    if (facts.power < 8f) missing.Add("power " + (int)facts.power + "/8");
+                    if (facts.faith < 20f) missing.Add("faith " + (int)facts.faith + "/20");
+                    return Need("The present", missing);
             }
         }
 
