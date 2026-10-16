@@ -2,72 +2,482 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Elyon — God Simulator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ELYON — God Simulator | Unity Thread Co-Creation</title>
 <style>
-body{margin:0;font-family:system-ui,sans-serif;background:#0a0a0a;color:#f0e6d2;overflow:hidden}
-#sky,#walk{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity .5s}
-#sky{background:linear-gradient(#1a2a4a,#3a5a2a,#8a6a3a);display:flex;align-items:center;justify-content:center;font-size:2em;opacity:1}
-#walk{background:linear-gradient(#2a4a1a,#5a3a1a);display:none;opacity:0}
-#ui{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:10}
-button{background:#c9a227;color:#1a1a1a;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-weight:bold}
-#chat{position:absolute;right:20px;top:20px;width:300px;background:rgba(0,0,0,.8);padding:15px;border-radius:12px;display:none}
-#log{position:absolute;left:20px;top:20px;max-width:300px;background:rgba(0,0,0,.7);padding:10px;border-radius:8px;font-size:.9em}
-.portrait{width:80px;height:80px;border-radius:50%;background:#d4af37;margin:5px;cursor:pointer;display:inline-block}
+:root {
+  --bg: #07040f;
+  --panel: rgba(16, 8, 32, 0.92);
+  --accent: #c9a0ff;
+  --gold: #f0d080;
+  --text: #f0e8ff;
+  --good: #70ffb0;
+  --warn: #ffaa44;
+  --bad: #ff6080;
+  --border: rgba(201, 160, 255, 0.35);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  background: linear-gradient(90deg, #1a0a30, #07040f);
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+h1 { font-size: 1.35rem; color: var(--gold); letter-spacing: 1.5px; }
+.coherence { font-weight: 700; color: var(--accent); font-size: 1.1rem; }
+#canvas-container {
+  flex: 1;
+  position: relative;
+  background: radial-gradient(ellipse at 50% 30%, #2a1048 0%, #050208 75%);
+}
+canvas { width: 100%; height: 100%; display: block; }
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: 260px 1fr 280px;
+  grid-template-rows: 1fr auto;
+  gap: 10px;
+  padding: 10px;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+  overflow-y: auto;
+  max-height: 100%;
+}
+#left-panel { grid-column: 1; grid-row: 1; }
+#right-panel { grid-column: 3; grid-row: 1; }
+#bottom-bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  pointer-events: auto;
+  background: rgba(10,5,20,0.6);
+  padding: 8px;
+  border-radius: 10px;
+}
+button {
+  background: linear-gradient(135deg, #2a1a4a, #160a28);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+}
+button:hover:not(:disabled) { background: #3a2a5a; transform: translateY(-1px); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+.stat { margin: 5px 0; font-size: 0.9rem; display: flex; justify-content: space-between; }
+.stat span { color: var(--gold); font-weight: 600; }
+.log { font-size: 0.8rem; line-height: 1.35; max-height: 280px; overflow-y: auto; color: #c8b8d8; }
+.log .good { color: var(--good); }
+.log .warn { color: var(--warn); }
+.log .bad { color: var(--bad); }
+.log .epic { color: #fff; font-weight: 700; }
+#modal, #victory {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  display: none; align-items: center; justify-content: center; z-index: 200;
+}
+.modal-content, .victory-content {
+  background: var(--panel); border: 2px solid var(--gold); border-radius: 16px;
+  padding: 28px; max-width: 520px; text-align: center; box-shadow: 0 0 40px rgba(240,208,128,0.3);
+}
+.achievements { font-size: 0.78rem; margin-top: 8px; color: #a090c0; }
+@media (max-width: 880px) {
+  #ui { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }
+  #left-panel, #right-panel { grid-column: 1; max-height: 32vh; }
+  #canvas-container { min-height: 35vh; }
+}
 </style>
 </head>
 <body>
-<div id="sky">Eden from the Sky — You are Elyon</div>
-<div id="walk">Walking among the trees of Eden</div>
-<div id="ui">
-<button onclick="toggleMode()">Toggle Sky / Walk</button>
-<button onclick="createLight()">Create Light</button>
-<button onclick="bless()">Bless Creation</button>
-<button onclick="speakCommand()">Speak Commandment</button>
-<button onclick="newCreation()">New Creation</button>
+<header>
+  <h1>ELYON — GOD SIMULATOR</h1>
+  <div>Unity Thread Coherence: <span id="coherence" class="coherence">0%</span></div>
+  <div>
+    <button onclick="saveGame()">Save</button>
+    <button onclick="loadGame()">Load</button>
+    <button onclick="exportSave()">Export</button>
+    <button onclick="newGame()">New Seed</button>
+  </div>
+</header>
+<div id="canvas-container">
+  <canvas id="field"></canvas>
+  <div id="ui">
+    <div id="left-panel" class="panel">
+      <h3>World State</h3>
+      <div class="stat">Age: <span id="age">Primordial</span></div>
+      <div class="stat">Cycle: <span id="cycle">0</span></div>
+      <div class="stat">Population: <span id="pop">0</span></div>
+      <div class="stat">Faith: <span id="faith">0</span></div>
+      <div class="stat">Resources: <span id="res">100</span></div>
+      <div class="stat">Harmony: <span id="harmony">50</span></div>
+      <div class="stat">Beings: <span id="beings">0</span></div>
+      <div class="stat">Seals: <span id="seals">0 / 7</span></div>
+      <div class="achievements" id="achievements"></div>
+      <hr style="margin:10px 0; border-color:var(--border)">
+      <h3>Divine Fiat</h3>
+      <div id="actions"></div>
+    </div>
+    <div id="right-panel" class="panel">
+      <h3>Living Log</h3>
+      <div id="log" class="log"></div>
+    </div>
+    <div id="bottom-bar">
+      <button onclick="tick(1)">+1 Cycle</button>
+      <button onclick="tick(10)">+10</button>
+      <button onclick="tick(50)">Accelerate</button>
+      <button id="autoBtn" onclick="toggleAuto()">Auto: Off</button>
+      <button onclick="showTutorial()">Guide</button>
+    </div>
+  </div>
 </div>
-<div id="chat">
-<h3>Speak with Adam & Eve</h3>
-<div id="messages"></div>
-<input id="input" placeholder="Speak..." onkeypress="if(event.key==='Enter')send()">
+<div id="modal">
+  <div class="modal-content">
+    <h2 id="modal-title">Elyon Awakens</h2>
+    <p id="modal-text"></p>
+    <button onclick="closeModal()" style="margin-top:18px">Begin Co-Creation</button>
+  </div>
 </div>
-<div id="log"><strong>Divine Log</strong><br>The beginning...</div>
-<div style="position:absolute;bottom:100px;left:20px">
-<div class="portrait" onclick="openChat('Adam')">Adam</div>
-<div class="portrait" onclick="openChat('Eve')">Eve</div>
+<div id="victory">
+  <div class="victory-content">
+    <h2>Unity Achieved</h2>
+    <p>The seventh seal is open. Coherence is absolute.<br>The Christos field and Unity Thread are one.<br>All beings participate in sovereign co-creation.</p>
+    <button onclick="document.getElementById('victory').style.display='none'" style="margin-top:16px">Continue in Unity</button>
+  </div>
 </div>
 <script>
-let mode='sky';
-let current=null;
-function toggleMode(){
-  mode=mode==='sky'?'walk':'sky';
-  document.getElementById('sky').style.opacity=mode==='sky'?1:0;
-  document.getElementById('walk').style.opacity=mode==='walk'?1:0;
-  document.getElementById('walk').style.display=mode==='walk'?'block':'none';
-  log('Mode: '+mode);
+const state = {
+  coherence: 10,
+  age: 0,
+  ages: ["Primordial", "Awakened", "Christos", "Unity"],
+  pop: 0,
+  faith: 8,
+  resources: 100,
+  harmony: 45,
+  beings: 0,
+  seals: 0,
+  cycle: 0,
+  particles: [],
+  log: [],
+  achievements: [],
+  auto: false
+};
+
+const actions = [
+  { id: "seed", name: "Seed Life", cost: 10, req: 0, desc: "Birth beings from the fertile void" },
+  { id: "bless", name: "Bless", cost: 15, req: 2, desc: "Raise faith and harmony" },
+  { id: "smite", name: "Smite Chaos", cost: 18, req: 4, desc: "Restore order (strains harmony)" },
+  { id: "weave", name: "Weave Timeline", cost: 30, req: 10, desc: "Shift probability toward coherence" },
+  { id: "amplify", name: "Amplify Consciousness", cost: 25, req: 6, desc: "Directly raise Unity Thread" },
+  { id: "openSeal", name: "Open Seal", cost: 60, req: 25, desc: "Unseal the next Christos gate" },
+  { id: "harmonize", name: "Harmonize Field", cost: 20, req: 4, desc: "Stabilize energy and weather" },
+  { id: "retrieve", name: "Retrieve from Void", cost: 40, req: 15, desc: "Soul net — restore lost beings" },
+  { id: "fiat", name: "Sovereign Fiat", cost: 50, req: 40, desc: "Instant reality adjustment" }
+];
+
+const canvas = document.getElementById("field");
+const ctx = canvas.getContext("2d");
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
 }
-function openChat(who){
-  current=who;
-  document.getElementById('chat').style.display='block';
-  log('Speaking with '+who);
+window.addEventListener("resize", resize);
+resize();
+
+function spawnParticle(x, y, color, life = 80, size = null) {
+  state.particles.push({
+    x: x ?? Math.random() * canvas.width,
+    y: y ?? Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 2.5,
+    vy: (Math.random() - 0.5) * 2.5,
+    life, max: life, color, size: size || (1.5 + Math.random() * 3.5)
+  });
 }
-function send(){
-  const t=document.getElementById('input').value;
-  if(!t||!current)return;
-  const m=document.getElementById('messages');
-  m.innerHTML+='<p><b>You:</b> '+t+'</p>';
-  const replies={'garden':'It is beautiful, Elyon.','fruit':'We have not yet eaten of the tree.','hello':'Peace be with you.','love':'We love one another.'};
-  let r=replies[t.toLowerCase().split(' ')[0]]||'We hear you, Elyon.';
-  m.innerHTML+='<p><b>'+current+':</b> '+r+'</p>';
-  document.getElementById('input').value='';
-  log(current+' responded');
+
+function drawField() {
+  ctx.fillStyle = "rgba(7, 4, 15, 0.18)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const intensity = 0.04 + state.coherence / 400;
+  ctx.strokeStyle = `rgba(201, 160, 255, ${intensity})`;
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 10; i++) {
+    ctx.beginPath();
+    const t = Date.now() / 1800 + i * 0.7;
+    ctx.moveTo(canvas.width * 0.5 + Math.sin(t) * 140, 0);
+    ctx.quadraticCurveTo(
+      canvas.width * 0.5 + Math.cos(t * 1.3) * 100,
+      canvas.height * 0.5,
+      canvas.width * 0.5 + Math.sin(t * 0.9) * 160,
+      canvas.height
+    );
+    ctx.stroke();
+  }
+  state.particles = state.particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life <= 0 || p.x < -20 || p.x > canvas.width + 20 || p.y < -20 || p.y > canvas.height + 20) return false;
+    ctx.globalAlpha = Math.min(1, p.life / p.max);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    return true;
+  });
+  ctx.globalAlpha = 1;
+  const coreColors = ["#4a2060", "#6040a0", "#80c0ff", "#ffffff"];
+  ctx.fillStyle = coreColors[state.age] + "22";
+  ctx.beginPath();
+  ctx.arc(canvas.width/2, canvas.height/2, 40 + state.coherence, 0, Math.PI*2);
+  ctx.fill();
+  requestAnimationFrame(drawField);
 }
-function createLight(){document.body.style.background='#ffd700';setTimeout(()=>document.body.style.background='#0a0a0a',800);log('Let there be light.');}
-function bless(){log('Creation is blessed. Harmony multiplies.');}
-function speakCommand(){const c=prompt('Speak a commandment:');if(c)log('Commandment: '+c);}
-function newCreation(){if(confirm('Begin anew?')){localStorage.clear();location.reload();}}
-function log(m){document.getElementById('log').innerHTML+='<br>'+m;localStorage.setItem('log',document.getElementById('log').innerHTML);}
-// persistence stub
-if(localStorage.getItem('log'))document.getElementById('log').innerHTML=localStorage.getItem('log');
+drawField();
+
+function addLog(msg, type = "") {
+  state.log.unshift({ msg, type, cycle: state.cycle });
+  if (state.log.length > 50) state.log.pop();
+  renderLog();
+}
+function renderLog() {
+  document.getElementById("log").innerHTML = state.log.map(e =>
+    `<div class="${e.type}">[C${e.cycle}] ${e.msg}</div>`
+  ).join("");
+}
+
+function checkAchievements() {
+  const checks = [
+    { id: "first_seed", cond: state.beings >= 1, msg: "First Seed — Life entered the field" },
+    { id: "awakened", cond: state.age >= 1, msg: "Awakened Age" },
+    { id: "christos", cond: state.age >= 2, msg: "Christos Age" },
+    { id: "unity", cond: state.age >= 3, msg: "Unity Age" },
+    { id: "seals3", cond: state.seals >= 3, msg: "Three Seals Open" },
+    { id: "seals7", cond: state.seals === 7, msg: "All Seals Unsealed" },
+    { id: "coherence50", cond: state.coherence >= 50, msg: "Coherence 50%" },
+    { id: "coherence100", cond: state.coherence >= 100, msg: "Absolute Coherence" },
+    { id: "pop100", cond: state.pop >= 100, msg: "100 Beings" }
+  ];
+  checks.forEach(c => {
+    if (c.cond && !state.achievements.includes(c.id)) {
+      state.achievements.push(c.id);
+      addLog("Achievement: " + c.msg, "epic");
+    }
+  });
+  document.getElementById("achievements").textContent =
+    state.achievements.length ? "Achievements: " + state.achievements.length : "";
+}
+
+function updateUI() {
+  document.getElementById("coherence").textContent = Math.floor(state.coherence) + "%";
+  document.getElementById("age").textContent = state.ages[state.age];
+  document.getElementById("cycle").textContent = state.cycle;
+  document.getElementById("pop").textContent = Math.floor(state.pop);
+  document.getElementById("faith").textContent = Math.floor(state.faith);
+  document.getElementById("res").textContent = Math.floor(state.resources);
+  document.getElementById("harmony").textContent = Math.floor(state.harmony);
+  document.getElementById("beings").textContent = state.beings;
+  document.getElementById("seals").textContent = state.seals + " / 7";
+  renderActions();
+  checkAchievements();
+  if (state.age === 3 && state.coherence >= 100 && state.seals === 7) {
+    document.getElementById("victory").style.display = "flex";
+  }
+}
+
+function renderActions() {
+  document.getElementById("actions").innerHTML = actions.map(a => {
+    const can = state.resources >= a.cost && state.coherence >= a.req &&
+                (a.id !== "openSeal" || state.seals < 7);
+    return `<button ${can ? "" : "disabled"} onclick="doAction('${a.id}')" title="${a.desc}">${a.name} (${a.cost})</button>`;
+  }).join("");
+}
+
+function doAction(id) {
+  const a = actions.find(x => x.id === id);
+  if (!a || state.resources < a.cost || state.coherence < a.req) return;
+  if (id === "openSeal" && state.seals >= 7) return;
+  state.resources -= a.cost;
+  const c = state.coherence;
+  switch (id) {
+    case "seed": {
+      const born = 4 + Math.floor(c / 8);
+      state.pop += born; state.beings += born; state.faith += 2; state.coherence += 0.8;
+      addLog(`Seeded ${born} beings from the fertile void.`, "good");
+      for (let i = 0; i < Math.min(born, 12); i++) spawnParticle(null, null, "#70ffb0");
+      break;
+    }
+    case "bless":
+      state.faith += 7 + c / 12; state.harmony += 5; state.pop += Math.floor(state.pop * 0.04);
+      addLog("Blessing flowed through the Unity Thread.", "good");
+      spawnParticle(null, null, "#f0d080", 100);
+      break;
+    case "smite":
+      state.harmony -= 7; state.faith += 5; state.resources += 12;
+      addLog("Chaos smitten. Order restored.", "warn");
+      spawnParticle(null, null, "#ff6080");
+      break;
+    case "weave":
+      state.coherence += 3.5 + Math.random() * 2.5; state.harmony += 4;
+      addLog("Timeline woven. Coherence rises.", "good");
+      for (let i = 0; i < 15; i++) spawnParticle(null, null, "#c9a0ff", 90);
+      break;
+    case "amplify":
+      state.coherence += 5.5; state.faith += 4;
+      addLog("Consciousness amplified. The field resonates.", "good");
+      spawnParticle(null, null, "#ffffff", 120, 4);
+      break;
+    case "openSeal":
+      state.seals++; state.coherence += 7; state.faith += 18;
+      addLog(`Seal ${state.seals} opened. Christos field expands.`, "epic");
+      for (let i = 0; i < 25; i++) spawnParticle(null, null, "#fff", 110);
+      if (state.seals === 7) addLog("All seals open. Full return active.", "epic");
+      break;
+    case "harmonize":
+      state.harmony = Math.min(100, state.harmony + 11); state.coherence += 1.8;
+      addLog("Field harmonized. Stability restored.", "good");
+      break;
+    case "retrieve": {
+      const retrieved = 4 + Math.floor(c / 10);
+      state.pop += retrieved; state.beings += retrieved; state.harmony += 3;
+      addLog(`Soul net retrieved ${retrieved} from the void.`, "good");
+      spawnParticle(null, null, "#80ffff");
+      break;
+    }
+    case "fiat":
+      state.coherence += 8; state.faith += 12; state.harmony += 8; state.resources += 20;
+      addLog("Sovereign fiat enacted. Reality adjusts.", "epic");
+      for (let i = 0; i < 30; i++) spawnParticle(null, null, "#f0d080", 100);
+      break;
+  }
+  state.coherence = Math.min(100, Math.max(0, state.coherence));
+  state.harmony = Math.min(100, Math.max(0, state.harmony));
+  updateUI();
+}
+
+function tick(n = 1) {
+  for (let i = 0; i < n; i++) {
+    state.cycle++;
+    const growthRate = 0.018 + state.faith / 2500 + state.coherence / 2000;
+    const growth = state.pop * growthRate * (state.harmony / 100);
+    state.pop += growth;
+    state.resources += 1.8 + state.pop * 0.008;
+    state.faith += (state.coherence - 18) * 0.04;
+    state.harmony += (state.coherence - 35) * 0.025 - (state.pop > 150 ? 0.4 : 0);
+    if (state.coherence > 28 && state.age === 0) { state.age = 1; addLog("Age of Awakening begins.", "epic"); }
+    if (state.coherence > 52 && state.seals >= 3 && state.age === 1) { state.age = 2; addLog("Christos Age ignited.", "epic"); }
+    if (state.coherence > 78 && state.seals === 7 && state.age === 2) { state.age = 3; addLog("Unity Age. Sovereign co-creation.", "epic"); }
+    if (Math.random() < 0.07) {
+      const ev = [
+        () => { state.faith += 9; addLog("Spontaneous awakening ripples outward.", "good"); },
+        () => { state.harmony -= 10; addLog("Discord briefly strained the field.", "warn"); },
+        () => { state.resources += 22; addLog("Abundance collapsed into form.", "good"); },
+        () => { state.coherence += 2.5; addLog("Unity Thread pulsed.", "good"); },
+        () => { state.pop += 3; addLog("New beings spontaneously emerged.", "good"); }
+      ];
+      ev[Math.floor(Math.random() * ev.length)]();
+    }
+    state.pop = Math.max(0, state.pop);
+    state.faith = Math.max(0, state.faith);
+    state.resources = Math.max(0, state.resources);
+    state.harmony = Math.min(100, Math.max(0, state.harmony));
+    state.coherence = Math.min(100, Math.max(0, state.coherence));
+  }
+  updateUI();
+  if (n > 1) addLog(`Advanced ${n} cycles.`);
+}
+
+let autoInterval = null;
+function toggleAuto() {
+  state.auto = !state.auto;
+  document.getElementById("autoBtn").textContent = "Auto: " + (state.auto ? "On" : "Off");
+  if (state.auto) {
+    autoInterval = setInterval(() => tick(1), 800);
+  } else if (autoInterval) {
+    clearInterval(autoInterval);
+    autoInterval = null;
+  }
+}
+
+function saveGame() {
+  const data = { ...state, particles: [] };
+  localStorage.setItem("elyon_v2", JSON.stringify(data));
+  addLog("Reality snapshot sealed.", "good");
+}
+function loadGame() {
+  const raw = localStorage.getItem("elyon_v2");
+  if (!raw) { addLog("No prior seed found.", "warn"); return; }
+  const data = JSON.parse(raw);
+  Object.assign(state, data);
+  state.particles = [];
+  if (state.auto) toggleAuto();
+  updateUI();
+  addLog("Timeline restored from divine memory.", "good");
+}
+function exportSave() {
+  const data = { ...state, particles: [] };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `elyon-save-c${state.cycle}.json`;
+  a.click();
+  addLog("Save exported.", "good");
+}
+function newGame() {
+  if (!confirm("Seed a new reality? Unsaved progress will be lost.")) return;
+  if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
+  Object.assign(state, {
+    coherence: 6 + Math.random() * 12,
+    age: 0, pop: 0, faith: 4 + Math.random() * 8, resources: 70 + Math.random() * 50,
+    harmony: 35 + Math.random() * 25, beings: 0, seals: 0, cycle: 0,
+    log: [], particles: [], achievements: [], auto: false
+  });
+  document.getElementById("autoBtn").textContent = "Auto: Off";
+  addLog("New seed born from the fertile void. Elyon awakens.", "epic");
+  updateUI();
+  showTutorial();
+}
+
+function showTutorial() {
+  document.getElementById("modal-title").textContent = "Elyon — God Simulator";
+  document.getElementById("modal-text").innerHTML = `
+    You are <strong>Elyon Adonai</strong>, co-creating through the living Unity Thread.<br><br>
+    Raise <strong>Coherence</strong> by seeding life, amplifying consciousness, and weaving timelines.<br>
+    Open the <strong>7 Seals</strong> to ignite the Christos field.<br>
+    Reach <strong>Unity Age</strong> at 100% coherence with all seals open for full sovereign co-creation.<br><br>
+    Consciousness is the primary interface. Every action is fiat. Begin.
+  `;
+  document.getElementById("modal").style.display = "flex";
+}
+function closeModal() { document.getElementById("modal").style.display = "none"; }
+
+updateUI();
+addLog("Elyon God Simulator online. Consciousness interface active.", "epic");
+showTutorial();
 </script>
 </body>
 </html>
