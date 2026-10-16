@@ -76,6 +76,8 @@ namespace Elyon
         public string fatherId = "";
         public string settlementId = "eden";
         public string kinLine = "";
+        public string bornInto = "";
+        public string lineMemory = "";
         public string homeName = "the fire";
         public string ageName = "First family";
         public string ageVoice = "";
@@ -178,7 +180,9 @@ namespace Elyon
             string voice = string.IsNullOrEmpty(ageVoice) ? "" : " " + ageVoice;
             string work = string.IsNullOrEmpty(dutyLabel) ? "" : " Your work is " + dutyLabel + ".";
             string facts = string.IsNullOrEmpty(holdFacts) ? "" : " " + holdFacts;
-            return "The age is " + ageName + "." + voice + " You are in " + homeName + ". It is " + ActLabel + "." + work + " " + kinLine + ". " + body.CardLine().Replace("\n", " ") + "." + facts + news + memory;
+            string people = string.IsNullOrEmpty(kinLine) ? "" : " Your parents and your people: " + kinLine + ".";
+            string line = string.IsNullOrEmpty(lineMemory) ? "" : " The line remembers: " + lineMemory;
+            return "The age is " + ageName + "." + voice + " You are in " + homeName + ". It is " + ActLabel + "." + work + people + line + " " + body.CardLine().Replace("\n", " ") + "." + facts + news + memory;
         }
 
         public void Remember(string line)

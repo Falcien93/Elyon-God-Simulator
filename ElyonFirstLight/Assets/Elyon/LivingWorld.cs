@@ -633,6 +633,7 @@ namespace Elyon
             arrived.arrived = true;
             arrived.partnerId = lone.personId;
             lone.partnerId = arrived.personId;
+            arrived.bornInto = Ages.Name(age);
             Note(name + " comes to " + home.placeName + " and keeps house with " + lone.personName + ".");
             lone.Remember(name + " keeps house with me.");
             arrived.Remember("I keep house with " + lone.personName + ".");
@@ -687,10 +688,11 @@ namespace Elyon
                     child.motherId = one.personId;
                     child.fatherId = two.personId;
                 }
+                child.bornInto = Ages.Name(age);
                 childrenBorn++;
                 one.body.child = true;
                 two.body.child = true;
-                string line = name + " is born into the house of " + one.personName + " and " + two.personName + ".";
+                string line = name + " is born into the house of " + one.personName + " and " + two.personName + " in " + child.bornInto + ".";
                 Note(line);
                 KeepBook(ref bornLine, line);
                 one.Remember(line);
@@ -1887,6 +1889,8 @@ namespace Elyon
             people.Add(garden.Eve);
             SetHome(garden.Adam, eden, false);
             SetHome(garden.Eve, eden, false);
+            garden.Adam.bornInto = Ages.Name(AgeId.FirstFamily);
+            garden.Eve.bornInto = Ages.Name(AgeId.FirstFamily);
             garden.Adam.home = this;
             garden.Eve.home = this;
         }
@@ -2009,18 +2013,83 @@ namespace Elyon
 
         string KinLine(Person person)
         {
+            string line;
+            if (person.personId == "adam") line = "the first man, of the garden fire";
+            else if (person.personId == "eve") line = "the first woman, of the garden fire";
+            else line = HouseLine(person);
+            return WithHouse(person, line);
+        }
+
+        string HouseLine(Person person)
+        {
             Person mother = Find(person.motherId);
             Person father = Find(person.fatherId);
-            Person partner = Find(person.partnerId);
-            string line;
-            if (person.personId == "adam") line = "the first man";
-            else if (person.personId == "eve") line = "the first woman";
-            else if (mother != null && father != null) line = "child of " + mother.personName + " and " + father.personName;
-            else if (mother != null) line = "child of " + mother.personName;
-            else if (father != null) line = "child of " + father.personName;
-            else line = "of " + person.homeName;
+            string born = BirthAge(person);
+            if (mother == null && father == null)
+            {
+                Person partner = Find(person.partnerId);
+                string house = partner != null ? partner.personName : person.homeName;
+                return "came to the house of " + house + ", of the line of Eve and Adam" + born;
+            }
 
-            if (partner != null) line += ", keeping house with " + partner.personName;
+            string line = mother != null && father != null
+                ? "child of " + mother.personName + " and " + father.personName
+                : "child of " + (mother != null ? mother.personName : father.personName);
+            bool garden = (mother != null && IsRoot(mother)) || (father != null && IsRoot(father));
+            var elders = new List<string>();
+            var seen = new HashSet<string>();
+            seen.Add(person.personId);
+            if (mother != null) seen.Add(mother.personId);
+            if (father != null) seen.Add(father.personId);
+            WalkElders(mother, elders, seen, ref garden, 0);
+            WalkElders(father, elders, seen, ref garden, 0);
+            if (garden) line += ", of the line of Eve and Adam";
+            if (elders.Count > 0) line += ", through " + string.Join(", ", elders);
+            return line + born;
+        }
+
+        static bool IsRoot(Person person)
+        {
+            return person.personId == "adam" || person.personId == "eve";
+        }
+
+        static string BirthAge(Person person)
+        {
+            if (string.IsNullOrEmpty(person.bornInto)) return "";
+            if (string.IsNullOrEmpty(person.motherId) && string.IsNullOrEmpty(person.fatherId))
+                return ", in the age of " + person.bornInto;
+            return ", born in " + person.bornInto;
+        }
+
+        void WalkElders(Person node, List<string> elders, HashSet<string> seen, ref bool garden, int depth)
+        {
+            if (node == null || depth > 6) return;
+            TakeElder(Find(node.motherId), elders, seen, ref garden, depth);
+            TakeElder(Find(node.fatherId), elders, seen, ref garden, depth);
+        }
+
+        void TakeElder(Person elder, List<string> elders, HashSet<string> seen, ref bool garden, int depth)
+        {
+            if (elder == null) return;
+            if (IsRoot(elder))
+            {
+                garden = true;
+                return;
+            }
+            if (!seen.Add(elder.personId)) return;
+            if (elders.Count < 4) elders.Add(elder.personName);
+            WalkElders(elder, elders, seen, ref garden, depth + 1);
+        }
+
+        string WithHouse(Person person, string line)
+        {
+            Person partner = Find(person.partnerId);
+            if (partner != null)
+            {
+                line += partner.alive
+                    ? ", keeping house with " + partner.personName
+                    : ", of the house of " + partner.personName;
+            }
             string children = "";
             foreach (var child in people)
             {
@@ -3399,6 +3468,7 @@ namespace Elyon
         public string partner;
         public string mother;
         public string father;
+        public string bornInto;
         public string settlement;
         public bool eveShape;
         public bool alive;
@@ -3431,6 +3501,7 @@ namespace Elyon
                 partner = person.partnerId,
                 mother = person.motherId,
                 father = person.fatherId,
+                bornInto = person.bornInto,
                 settlement = person.settlementId,
                 eveShape = person.eveShape,
                 alive = person.alive,
@@ -3463,6 +3534,9 @@ namespace Elyon
             person.partnerId = partner;
             person.motherId = mother;
             person.fatherId = father;
+            person.bornInto = bornInto ?? "";
+            if (string.IsNullOrEmpty(person.bornInto) && (person.personId == "adam" || person.personId == "eve"))
+                person.bornInto = "First family";
             person.settlementId = settlement;
             person.eveShape = eveShape;
             person.alive = alive;
