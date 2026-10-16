@@ -202,7 +202,31 @@ namespace Elyon
                 if (memories[i] == trimmed) return;
             }
             memories.Add(trimmed);
-            if (memories.Count > 8) memories.RemoveAt(0);
+            while (memories.Count > 8)
+            {
+                int drop = 0;
+                if (KeepsValley(memories[0]))
+                {
+                    drop = -1;
+                    for (int i = 1; i < memories.Count; i++)
+                    {
+                        if (!KeepsValley(memories[i]))
+                        {
+                            drop = i;
+                            break;
+                        }
+                    }
+                    if (drop < 0) drop = 0;
+                }
+                memories.RemoveAt(drop);
+            }
+        }
+
+        static bool KeepsValley(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return false;
+            return line.IndexOf("keeps the people in the valley", System.StringComparison.Ordinal) >= 0
+                || line.IndexOf("sends the people out of the valley", System.StringComparison.Ordinal) >= 0;
         }
 
         public string[] MemoryLines()

@@ -65,6 +65,8 @@ namespace Elyon
         string attendedId = "";
         int destiny;
         string destinyLine = "";
+        int pendingSeason = -1;
+        int seasonHold = -1;
         string nameDraft = "";
         float followTimer;
         bool visualsDirty = true;
@@ -518,6 +520,12 @@ namespace Elyon
             AttendSeason();
             foreach (var person in people) person.arrived = false;
             year++;
+            if (pendingSeason >= 0 && pendingSeason <= 3)
+            {
+                seasonHold = pendingSeason;
+                pendingSeason = -1;
+            }
+            else seasonHold = -1;
             if (director != null) director.dayNumber = year;
             foreach (var person in people) person.spokenWork = false;
             jobStamp = -1;
@@ -748,6 +756,7 @@ namespace Elyon
                 KeepBook(ref bornLine, line);
                 one.Remember(line);
                 two.Remember(line);
+                if (!string.IsNullOrEmpty(destinyLine)) child.Remember(destinyLine);
                 if (AliveCount() >= PopulationCap) return;
             }
         }
@@ -2417,10 +2426,58 @@ namespace Elyon
 
         Season SeasonNow()
         {
+            if (seasonHold >= 0 && seasonHold <= 3) return (Season)seasonHold;
             return (Season)((Mathf.Max(1, year) - 1) % 4);
         }
 
-        string SeasonName()
+        public void AnswerElyon(Person person, string words)
+        {
+            if (person == null || !person.alive)
+            {
+                Note("No living person answers.");
+                return;
+            }
+            if (person.personId != attendedId)
+            {
+                Note(person.personName + " is not the one Elyon is resting on.");
+                return;
+            }
+            int asked = SeasonIndex(words);
+            if (asked < 0)
+            {
+                Note(person.personName + " answers Elyon, and the next season is unchanged.");
+                return;
+            }
+            pendingSeason = asked;
+            string name = SeasonLabel(asked);
+            person.HearLocal("The next season will be " + name + ".", false);
+            person.Remember("I asked Elyon for " + name + ".");
+            Note(person.personName + " answers Elyon. The next season will be " + name + ".");
+            Save();
+        }
+
+        static int SeasonIndex(string words)
+        {
+            string token = (words ?? "").Trim().ToLowerInvariant();
+            if (token == "spring") return (int)Season.Spring;
+            if (token == "summer") return (int)Season.Summer;
+            if (token == "autumn" || token == "fall") return (int)Season.Autumn;
+            if (token == "winter") return (int)Season.Winter;
+            return -1;
+        }
+
+        static string SeasonLabel(int index)
+        {
+            switch ((Season)index)
+            {
+                case Season.Spring: return "Spring";
+                case Season.Summer: return "Summer";
+                case Season.Autumn: return "Autumn";
+                default: return "Winter";
+            }
+        }
+
+        public string SeasonName()
         {
             switch (SeasonNow())
             {
@@ -3607,10 +3664,12 @@ namespace Elyon
             {
                 var record = new ChronicleRecord
                 {
-                    version = 5,
+                    version = 6,
                     attended = attendedId,
                     destiny = destiny,
                     destinyLine = destinyLine,
+                    pendingSeason = pendingSeason,
+                    seasonHold = seasonHold,
                     year = year,
                     age = (int)age,
                     dayTime = director != null ? director.timeOfDay : 0.1f,
@@ -3682,6 +3741,16 @@ namespace Elyon
                 attendedId = record.attended ?? "";
                 destiny = record.destiny;
                 destinyLine = record.destinyLine ?? "";
+                if (record.version >= 6)
+                {
+                    pendingSeason = record.pendingSeason;
+                    seasonHold = record.seasonHold;
+                }
+                else
+                {
+                    pendingSeason = -1;
+                    seasonHold = -1;
+                }
                 if (string.IsNullOrEmpty(gardenLine))
                 {
                     gardenLine = age >= AgeId.Camps
@@ -3877,6 +3946,15 @@ namespace Elyon
                 }
             }
             if (!anyLiving) GUILayout.Label("No living person is here.");
+            Person attendedPerson = string.IsNullOrEmpty(attendedId) ? null : Find(attendedId);
+            if (attendedPerson != null && attendedPerson.alive)
+            {
+                GUILayout.Label(attendedPerson.personName + " answers Elyon");
+                if (GUILayout.Button("Ask for spring", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "spring");
+                if (GUILayout.Button("Ask for summer", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "summer");
+                if (GUILayout.Button("Ask for autumn", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "autumn");
+                if (GUILayout.Button("Ask for winter", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "winter");
+            }
             if (namedPerson != null && namedPerson.alive && GUILayout.Button("Withhold this person", GUILayout.Height(22f)))
                 Act(DivineAct.WithholdPerson);
             if (destiny == 0 && GUILayout.Button("Keep them in the valley", GUILayout.Height(22f)))
@@ -3951,6 +4029,8 @@ namespace Elyon
         public string attended;
         public int destiny;
         public string destinyLine;
+        public int pendingSeason = -1;
+        public int seasonHold = -1;
         public string[] chronicleAges;
         public string[] chronicleEvents;
         public string[] chronicleRecent;
