@@ -4,7 +4,7 @@ Design sketch for the layer that begins once humanity is in the world and the ga
 
 The garden already tracks `order` and `wonder` (0–100), plus trust, wonder, and will on Adam and Eve. Faith, prosperity, fear, and population are new stats for tribes. They sit beside the garden stats. They do not replace them.
 
-Incarnation, a later mode in which God walks among the people, is specified in (f). Quantum miracles, a later layer of paired outcomes, are specified in (g). Neither is in the Python sketch.
+Incarnation, a later mode in which God walks among the people, is specified in (f). Quantum miracles, a later layer of paired outcomes, are specified in (g). Laws of Creation, later layers in which God wields or reveals physical law, are specified in (h). None of these are in the Python sketch.
 
 A pure-Python sketch of the rules lives in `unreal/Scripts/civ_sim.py`. It does not import Unreal and it does not call a model. Tests in `unreal/tests/test_civ.py` run with the existing `python3 -m unittest discover -s unreal/tests -v` step.
 
@@ -117,6 +117,18 @@ Quantum miracles wait until the first list is playing one locked ending. They ar
 2. The first NPC who sees it collapses it from that NPC's faith versus fear or doubt.
 3. Write the result into faith, power, and wrath.
 4. Then let wrath and the collapse touch Incarnation: hostility on the walk, the seizure beat, the pause in the underworld, and the bias after the return.
+
+**Later layers, after the core civ sim**
+
+Laws of Creation wait until that same first list is playing one locked ending. Each law is its own layer. The rules are (h). Suggested order, because later laws spend earlier ones:
+
+1. Conservation: a ledger, so an act that adds energy or matter has to take it from somewhere.
+2. Thermodynamics: entropy on neglected settlements, seasons, and fire that burns fuel.
+3. Chaos: a seeded replay of the tick that is already deterministic, with one small change diffed forward.
+4. Relativity: a god clock and a mortal clock, and a rational slowdown around one place.
+5. Quantum field theory: only after (g). The uncollapsed miracle becomes a field excitation that still collapses by the observer rule, and now pays the ledger.
+
+Revealing a law to a settlement unlocks that law's science-tree node and shifts faith versus reason. Wielding a law does not unlock the node.
 
 **Later**
 
@@ -267,7 +279,78 @@ After the core civ sim, as a later layer. The utility tick, the four determinist
 
 The four steps are listed under build order. They sit after Incarnation in that order because wrath has to have a walk, a fail state, a descent, and a return to touch. Mass, Niagara, and the model binary are still later. A marker and a stat write are enough for the collapse to be real.
 
-## (h) Open questions for John
+Laws of Creation (h) attach a cost and a field reading to this marker. They do not replace the observer rule.
+
+## (h) Laws of Creation
+
+These are physical laws God wields or reveals. They are not another list of miracles. A miracle asks the world for an outcome. A law is a constraint the world already has, which God can spend directly or show to a people so they can learn it. The science below is the established kind: conservation, thermodynamics, relativity, chaos, and quantum field theory. The sim does not solve the real equations. It keeps the constraint that makes each law a mechanic.
+
+All five are later layers, after the core civ sim. They are not in `civ_sim.py`. They do not add an ending. The locked id stays locked.
+
+### Faith versus reason
+
+Reason is a new tribe stat, 0–100, starting at 15. Faith stays the faith the core sim already tracks. Revealing a law unlocks that law's node on the settlement's science tree and moves the balance. Wielding the law, without revealing it, spends the mechanic and leaves the tree locked.
+
+On a reveal, reason rises by 12. Faith moves with the ending, and the ending id does not:
+
+| Ending | Faith on reveal | What the tree is for |
+| --- | --- | --- |
+| harmony | +4 | Keeping the garden: stores, seasons, fire used to tend. Reason grows inside loyalty. |
+| wonder | +2 | Measure and speech. Prophets may emit `needs_voice` about what was shown. |
+| exile | −2 | Skill becoming craft, in the east. The practical nodes come first. |
+| order | 0 | Maintenance and clocks. Reason can rise. Wonder is not restored, and the question stays closed. |
+
+Early nodes are craft and measure: ledgers, kilns, planting by season, two clocks. The formal statement of the law is a later node on the same branch. The tree does not jump to a modern industry.
+
+### Conservation
+
+Energy, momentum, and electric charge are conserved. Mass-energy is conserved with them. Creating something in one place means taking it from another. The first law of thermodynamics is the energy case of this, so the ledger lives here and heat lives under thermodynamics.
+
+**Hook.** Every later act that adds matter or energy pays a creation ledger first. A healing spends power or draws biomass from nearby growth. A flood lowers some other water. Light spends power. If the ledger cannot pay, the act is refused. There is no free creation once this layer is on.
+
+**Implementation.** Two numbers on the world, `energy` and `matter`, plus a data table of costs. The four core interventions and a quantum miracle call the pay step before they change faith or the land. No continuous physics solve. The Day 1 garden's water and foliage are the first places a cost can show up: a river scale drops, a plant scale drops. Debt is not silent. An unpaid act does not happen.
+
+### Thermodynamics
+
+Heat is energy moving because of a temperature difference, from hot toward cold. The second law: in an isolated system, entropy does not decrease. Useful work needs a gradient, and a settlement that does no work runs down. Seasons are the slow cycle of incoming sunlight. Fire is fast oxidation: chemical energy leaves the fuel as heat and light, and the fuel is gone.
+
+**Hook.** A neglected civilization decays. Ticks with no build and no trade raise entropy. Stores and shelter fail before people do. Winter is the season that makes that pressure worse. Fire is a law God wields: it spends fuel from the conservation ledger and writes a heat value. It can hold a settlement through winter or burn the stores. It is not a free effect.
+
+**Implementation.** `entropy` from 0 to 100 on the settlement. No build and no trade: +3. Build: −4. Trade: −1. At 70 or higher, prosperity falls by 2 a tick. If it stays there long enough, `shelter` can return to false and the goal list builds again. Season is `mortal_year % 4`. Winter adds +2 entropy unless fire's heat is applied that tick. `apply_heat` decrements `matter` and sets `heat` for a later Niagara read. No particle sim.
+
+### Relativity
+
+Special relativity: clocks in relative motion do not agree. A moving clock runs slow against the frame you call resting, by the Lorentz factor. General relativity: a clock deeper in a gravitational potential runs slow against a clock higher up. Slowing time around a place is the general-relativity hook. God's time against mortal eras is two clocks, not a spaceship.
+
+**Hook.** God dilates one place. Inside it, fewer settlement ticks pass per god step, so a short stay in that place is a long era outside, or the outside races while the place barely moves. Eras, entropy, seasons, and the science tree advance on the local mortal clock. The player acts on god-time. Slowing the walk stretches how many god steps it takes for hostility to climb. It does not rewrite the crucifixion into a maybe. It changes how long the mortal world has while the walk continues.
+
+**Implementation.** `god_ticks` and, per settlement, `mortal_ticks`. Dilation is a rational multiplier on that settlement only: `1`, `1/4`, or `4`. Each god step runs `tick` that many times, or once every few god steps. Same seed, same order. No metric tensor, no geodesics, no rewind. The underworld stays paused with the living tick. Dilation does not age the dead, and it does not make the descent a gravity well.
+
+### Chaos theory
+
+A deterministic system can still depend sharply on its starting state. The Lorenz attractor is the textbook picture. The butterfly wording is a metaphor for that sensitivity. It is not noise. The same state and the same seed produce the same future. This sim is already that kind of machine: the utility tick has no random call, and the garden scatter is seeded.
+
+**Hook.** God makes one small intervention, then looks ahead on the same seed. A faith change of 1, or one store, can turn a later trade into a clash, or let shelter land early enough that entropy never peaks. The player sees the first tick where the chosen act differs, and the stat gap after a fixed horizon. Big outcomes are earned by the tick rules, not by a hidden roll.
+
+**Implementation.** Snapshot the tribe. Apply the delta to a copy. Run a capped number of ticks, on the order of 20. Diff the action list against the unperturbed run. Store the settlement seed with the tribe when this layer exists. Do not add a random source to get "chaos." If two scores tie, the existing action rank already breaks the tie the same way every time.
+
+### Quantum field theory
+
+In quantum field theory, particles are excitations of fields. What the quantum-miracles section treats as two outcomes is the gameplay reduction of one field with two dominant modes. Looking is an interaction that selects a mode. The vacuum is not an empty account: fluctuations are why the conservation ledger has to balance. This layer does not simulate a lattice or a path integral.
+
+**Hook.** Revealing the law teaches the settlement that a miracle is a field event with a cost and an observer. That node unlocks only after conservation is revealed and the quantum-miracles marker exists. Wielding it adds no new cast. It binds (g) to the ledger: the marker holds two amplitudes, the first NPC still collapses them by faith versus fear or doubt, and the landed mode pays `energy` or `matter` before faith, power, and wrath change.
+
+**Implementation.** Extend the (g) marker with `field`, `mode_a`, `mode_b`, and `cost`. Collapse rules stay in (g). If the ledger cannot pay, the marker stays uncollapsed and nothing is written to faith, power, or wrath. A short data table names the fields already in play: heal or plague, bountiful or barren. Reason moves on reveal. The crowd still does not call the model. A leader or prophet who understood the reveal may emit `needs_voice`. They do not choose the mode.
+
+### What revelation does not do
+
+Showing a law does not reopen silence, move exile back through the gate, or turn order into wonder. Harmony does not start to clash because it learned fire. The crucifixion stays the committed fail state from (f). A quantum miracle stays two modes until a person sees it. The laws change the cost, the clock, the decay, and what the people can learn.
+
+### Where it sits in the build
+
+After the core civ sim, as later layers, in the order under build order. Conservation can land before quantum miracles so that (g) has a ledger to pay. Quantum field theory lands after (g), because it only explains that marker. None of this enters the first Python slice. Mass and Niagara can show heat and seasons later. They are not required for the ledger, the entropy number, the clock multiplier, or the seeded diff to be true.
+
+## (i) Open questions for John
 
 1. Is "falls" the closed question (wonder falls, the people remain) or exile (the people leave)? The shipped text has no collapse ending.
 2. Do civilizations only play out the locked garden ending, or can a long sim drift into another? `resolveEnding` keeps the first one.
@@ -284,3 +367,6 @@ The four steps are listed under build order. They sit after Incarnation in that 
 13. Do power and wrath stay their own stats, or should power stand in for prosperity and wrath for fear?
 14. Do the four core interventions stay single outcomes, with quantum miracles as an extra cast only?
 15. Is one uncollapsed miracle per settlement the right limit?
+16. On revealing a law, should faith move by ending as in (h), or should reason rise while faith always holds?
+17. If the conservation ledger cannot pay, is the act refused, or taken as debt that raises wrath?
+18. Is the default one god step to one mortal year, with dilation only where God sets it?
