@@ -95,6 +95,9 @@ namespace Elyon
         public int trust = 40;
         public int favor;
         public bool blessedHouse;
+        public string holdFacts = "";
+        public bool spokenWork;
+        public Labor spokenLabor = Labor.Gather;
         public Transform hips;
         public Transform thighL;
         public Transform thighR;
@@ -174,7 +177,8 @@ namespace Elyon
             string news = string.IsNullOrEmpty(worldLine) ? "" : " Just now: " + worldLine;
             string voice = string.IsNullOrEmpty(ageVoice) ? "" : " " + ageVoice;
             string work = string.IsNullOrEmpty(dutyLabel) ? "" : " Your work is " + dutyLabel + ".";
-            return "The age is " + ageName + "." + voice + " You are in " + homeName + ". It is " + ActLabel + "." + work + " " + kinLine + ". " + body.CardLine().Replace("\n", " ") + "." + news + memory;
+            string facts = string.IsNullOrEmpty(holdFacts) ? "" : " " + holdFacts;
+            return "The age is " + ageName + "." + voice + " You are in " + homeName + ". It is " + ActLabel + "." + work + " " + kinLine + ". " + body.CardLine().Replace("\n", " ") + "." + facts + news + memory;
         }
 
         public void Remember(string line)

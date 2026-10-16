@@ -83,10 +83,16 @@ namespace Elyon
             }
 
             string raw = request.downloadHandler.text ?? "";
+            string modelText = ExtractOutputText(raw);
             string spoken = ExtractSpeech(raw);
             person.HearLocal(spoken, true);
-            person.Remember(ExtractField(spoken, "remember"));
-            person.ApplyTrust(ExtractTrust(spoken));
+            string memory = ExtractField(modelText, "remember");
+            if (string.IsNullOrEmpty(memory)) memory = ExtractField(spoken, "remember");
+            person.Remember(memory);
+            person.ApplyTrust(ExtractTrust(modelText));
+            string act = ExtractAct(modelText);
+            if (string.IsNullOrEmpty(act)) act = ExtractAct(spoken);
+            if (!string.IsNullOrEmpty(act) && person.home != null) person.home.ApplySpoken(person, act);
         }
 
         string BuildPayload(Person person, string playerLine)
@@ -98,9 +104,12 @@ namespace Elyon
                 "Do not say you are an assistant, an AI, or a language model, and do not break character.",
                 "You may keep walking, eating, or working while you answer.",
                 "Match your words to the age and the work in the briefing. A later age does not speak as the first fire.",
+                "You know the stores, the pact, the raid, the law, and who was born or lost, because the briefing says so.",
                 "If the briefing names a pact or a raid, mention it in the voice of your age.",
+                "Choose exactly one act the year already understands: work, stay, leave, peace, raid, or none.",
+                "work is the labor of this age. stay means you remain. leave means you go to the other hearth. peace means this hold keeps the peace. raid means this hold will raid. none changes nothing.",
                 "Reply with JSON only, no markdown:",
-                "{\"speech\":\"what you say aloud\",\"trust\":0,\"remember\":\"one sentence you will keep\"}",
+                "{\"speech\":\"what you say aloud\",\"trust\":0,\"remember\":\"one sentence you will keep\",\"act\":\"none\"}",
                 "trust is a small change from -8 to 8, not a total.",
                 person.WorldBrief());
             string input = "Elyon says: " + (playerLine ?? "");
@@ -220,7 +229,43 @@ namespace Elyon
         public static int ExtractTrust(string text)
         {
             string raw = ExtractField(text, "trust");
-            if (int.TryParse(raw, out int value)) return Mathf.Clamp(value, -8, 8);
+            if (int.TryParse(raw, out int quoted)) return Mathf.Clamp(quoted, -8, 8);
+            return Mathf.Clamp(ReadJsonNumber(text, "trust"), -8, 8);
+        }
+
+        public static string ExtractAct(string text)
+        {
+            string raw = ExtractField(text, "act").Trim().ToLowerInvariant();
+            if (raw == "keep peace" || raw == "keeppeace" || raw == "keep_peace") raw = "peace";
+            switch (raw)
+            {
+                case "work":
+                case "stay":
+                case "leave":
+                case "peace":
+                case "raid":
+                    return raw;
+                default:
+                    return "";
+            }
+        }
+
+        static int ReadJsonNumber(string text, string field)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+            string key = "\"" + field + "\"";
+            int at = text.IndexOf(key, StringComparison.Ordinal);
+            if (at < 0) return 0;
+            int colon = text.IndexOf(':', at);
+            if (colon < 0) return 0;
+            int i = colon + 1;
+            while (i < text.Length && char.IsWhiteSpace(text[i])) i++;
+            int start = i;
+            if (i < text.Length && (text[i] == '-' || text[i] == '+')) i++;
+            int digits = i;
+            while (i < text.Length && char.IsDigit(text[i])) i++;
+            if (i == digits) return 0;
+            if (int.TryParse(text.Substring(start, i - start), out int value)) return value;
             return 0;
         }
     }

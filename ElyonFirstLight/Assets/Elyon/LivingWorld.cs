@@ -42,6 +42,8 @@ namespace Elyon
         bool pactWithheld;
         bool raidStopped;
         string dealLine = "";
+        string bornLine = "";
+        string lostLine = "";
         float followTimer;
         bool visualsDirty = true;
         string loadedTimeNote = "";
@@ -466,6 +468,7 @@ namespace Elyon
             foreach (var person in people) person.arrived = false;
             year++;
             if (director != null) director.dayNumber = year;
+            foreach (var person in people) person.spokenWork = false;
             jobStamp = -1;
             AssignJobs();
             RefreshKin();
@@ -474,6 +477,7 @@ namespace Elyon
             {
                 hold.dread = false;
                 hold.raided = false;
+                hold.willRaid = false;
             }
             pactWithheld = false;
             foreach (var person in people)
@@ -569,9 +573,12 @@ namespace Elyon
 
             foreach (var person in dying)
             {
+                Settlement hearth = HomeOf(person);
+                string place = hearth != null ? hearth.placeName : "the valley";
                 person.Die();
                 Grieve(person);
                 Note(person.personName + " dies. The house grieves.");
+                KeepBook(ref lostLine, person.personName + " is lost from " + place + ".");
             }
         }
 
@@ -657,6 +664,7 @@ namespace Elyon
                 two.body.child = true;
                 string line = name + " is born into the house of " + one.personName + " and " + two.personName + ".";
                 Note(line);
+                KeepBook(ref bornLine, line);
                 one.Remember(line);
                 two.Remember(line);
                 if (AliveCount() >= PopulationCap) return;
@@ -1179,13 +1187,18 @@ namespace Elyon
                 if (hold.abandoned || Members(hold) <= 0) continue;
                 bool hungry = hold.Meals < 4f && hold.faith < 22f;
                 bool grieving = MeanGrief(hold) >= 55f && hold.Meals < 8f;
-                if (!hungry && !grieving) continue;
-                if (hold.lawKept || hold.pactStay)
+                bool vowed = hold.willRaid && !hold.lawKept && !hold.pactStay;
+                if (!hungry && !grieving && !vowed) continue;
+                if (!vowed && (hold.lawKept || hold.pactStay))
                 {
                     if (peacemaker == null) peacemaker = hold;
                     continue;
                 }
-                if (attacker == null || hold.Meals < attacker.Meals) attacker = hold;
+                bool attackerVowed = attacker != null && attacker.willRaid && !attacker.lawKept && !attacker.pactStay;
+                if (attacker == null || (vowed && !attackerVowed) || (vowed == attackerVowed && hold.Meals < attacker.Meals))
+                {
+                    attacker = hold;
+                }
             }
             if (attacker == null)
             {
@@ -1232,8 +1245,6 @@ namespace Elyon
             victim.wood = Mathf.Max(0f, victim.wood - wood);
             attacker.wood += wood;
             bool tool = StealTool(victim, attacker);
-            if (tool && victim.metalTools > 0) victim.metalTools--;
-            if (tool) attacker.metalTools++;
             victim.raided = true;
             victim.dread = true;
             victim.faith = Mathf.Max(0f, victim.faith - 4f);
@@ -1548,6 +1559,11 @@ namespace Elyon
 
             foreach (var person in adults)
             {
+                if (person.spokenWork)
+                {
+                    SetDuty(person, person.spokenLabor);
+                    continue;
+                }
                 Labor labor = Labor.Gather;
                 if (smiths > 0) { labor = Labor.Smith; smiths--; }
                 else if (tenders > 0) { labor = Labor.Tend; tenders--; }
@@ -1564,6 +1580,11 @@ namespace Elyon
             foreach (var person in people)
             {
                 if (!person.alive || person.body.age >= 14f) continue;
+                if (person.spokenWork)
+                {
+                    SetDuty(person, person.spokenLabor);
+                    continue;
+                }
                 if (person.body.age < 8f)
                 {
                     person.labor = Labor.Follow;
@@ -1586,6 +1607,95 @@ namespace Elyon
                     SetDuty(person, young);
                 }
             }
+        }
+
+        public void ApplySpoken(Person person, string act)
+        {
+            if (person == null || !person.alive) return;
+            string token = (act ?? "").Trim().ToLowerInvariant();
+            if (token == "keep peace" || token == "keeppeace" || token == "keep_peace") token = "peace";
+            if (token.Length == 0 || token == "none") return;
+            Settlement hold = HomeOf(person);
+            if (hold == null) return;
+            switch (token)
+            {
+                case "work":
+                    if (person.body.age < 8f)
+                    {
+                        Note(person.personName + " is too young to take up the work.");
+                        return;
+                    }
+                    Labor labor = LaborFor(person);
+                    person.spokenWork = true;
+                    person.spokenLabor = labor;
+                    SetDuty(person, labor);
+                    Note(person.personName + " takes up " + person.dutyLabel + ".");
+                    break;
+                case "stay":
+                    person.blessedHouse = true;
+                    person.favor += 4;
+                    Note(person.personName + " stays in " + hold.placeName + ".");
+                    break;
+                case "leave":
+                    if (person.body.age < 18f)
+                    {
+                        Note(person.personName + " is too young to leave " + hold.placeName + ".");
+                        return;
+                    }
+                    Settlement dest = OtherHold(hold);
+                    if (dest == null)
+                    {
+                        Note(person.personName + " cannot leave. There is no other hearth.");
+                        return;
+                    }
+                    person.spokenWork = false;
+                    SetHome(person, dest, true);
+                    person.Remember("I left " + hold.placeName + ".");
+                    Note(person.personName + " leaves " + hold.placeName + " for " + dest.placeName + ".");
+                    jobStamp = -1;
+                    break;
+                case "peace":
+                    hold.lawKept = true;
+                    hold.pactStay = true;
+                    hold.willRaid = false;
+                    CalmMembers(hold, 4f);
+                    dealLine = person.personName + " keeps the peace in " + hold.placeName + ".";
+                    Note(dealLine + " The fields are worked harder, fear eases, and this hold will not raid.");
+                    jobStamp = -1;
+                    break;
+                case "raid":
+                    if (LivingHolds() < 2 || OtherHold(hold) == null)
+                    {
+                        Note(person.personName + " speaks of a raid, and there is only one hearth.");
+                        return;
+                    }
+                    hold.willRaid = true;
+                    hold.lawKept = false;
+                    hold.pactStay = false;
+                    dealLine = person.personName + " says " + hold.placeName + " will raid.";
+                    Note(dealLine + " At the year's end grain, wood, and a spare tool may be carried off.");
+                    jobStamp = -1;
+                    break;
+                default:
+                    return;
+            }
+            if (jobStamp < 0) AssignJobs();
+            RefreshKin();
+        }
+
+        Labor LaborFor(Person person)
+        {
+            Settlement hold = HomeOf(person);
+            if (person.body.age < 8f) return Labor.Follow;
+            if (age >= AgeId.Present && hold != null && hold.press) return Labor.Keep;
+            if (age >= AgeId.ElectricLight && hold != null && hold.engine) return Labor.Wire;
+            if (age >= AgeId.Industry && hold != null && hold.engine) return Labor.Engine;
+            if (age >= AgeId.RoadsAndLetters && hold != null && hold.letters) return Labor.Teach;
+            if (age >= AgeId.Cities && hold != null && hold.temple) return Labor.Tend;
+            if (age >= AgeId.MetalTowns && person.tool == ToolKind.Hammer) return Labor.Smith;
+            if (age >= AgeId.Farming && hold != null && hold.fields > 0) return Labor.Farm;
+            if (age == AgeId.Camps) return Labor.Hunt;
+            return Labor.Gather;
         }
 
         void SetDuty(Person person, Labor labor)
@@ -1825,6 +1935,7 @@ namespace Elyon
                 if (!string.IsNullOrEmpty(dealLine)) person.ageVoice += " Between the holds: " + dealLine;
                 Settlement kinHome = HomeOf(person);
                 if (kinHome != null) person.homeName = kinHome.placeName;
+                person.holdFacts = HoldFacts(kinHome);
                 person.kinLine = KinLine(person);
                 person.worldLine = LastEvent;
             }
@@ -1854,6 +1965,36 @@ namespace Elyon
             }
             if (children.Length > 0) line += ", children: " + children;
             return line;
+        }
+
+        string HoldFacts(Settlement hold)
+        {
+            if (hold == null) return "";
+            string law = hold.lawKept ? "The commandment is kept here." : "No commandment is kept here.";
+            string bond;
+            if (pactWithheld) bond = "The pact is withheld.";
+            else if (pact) bond = "A pact holds.";
+            else bond = "There is no pact.";
+            string strife = "";
+            if (hold.willRaid) strife += " This hold will raid.";
+            if (hold.raided) strife += " This hold was raided.";
+            string between = string.IsNullOrEmpty(dealLine) ? "" : " " + dealLine;
+            string born = string.IsNullOrEmpty(bornLine) ? "" : " Born: " + bornLine;
+            string lost = string.IsNullOrEmpty(lostLine) ? "" : " Lost: " + lostLine;
+            return "Stores in " + hold.placeName
+                + ": meals " + Mathf.RoundToInt(hold.Meals)
+                + ", grain " + Mathf.RoundToInt(hold.grain)
+                + ", wood " + Mathf.RoundToInt(hold.wood)
+                + ", faith " + Mathf.RoundToInt(hold.faith)
+                + ". " + law + " " + bond + strife + between + born + lost;
+        }
+
+        void KeepBook(ref string book, string line)
+        {
+            if (string.IsNullOrWhiteSpace(line)) return;
+            string next = string.IsNullOrEmpty(book) ? line.Trim() : (book + " " + line.Trim()).Trim();
+            if (next.Length > 240) next = next.Substring(next.Length - 240).Trim();
+            book = next;
         }
 
         AgeFacts Facts()
@@ -2635,6 +2776,8 @@ namespace Elyon
                     pactWithheld = pactWithheld,
                     raidStopped = raidStopped,
                     deal = dealLine,
+                    born = bornLine,
+                    lost = lostLine,
                     nextId = nextId,
                     nameCursor = nameCursor,
                     settlements = new SettlementRecord[settlements.Count],
@@ -2676,6 +2819,8 @@ namespace Elyon
                 pactWithheld = record.pactWithheld;
                 raidStopped = record.raidStopped;
                 dealLine = record.deal ?? "";
+                bornLine = record.born ?? "";
+                lostLine = record.lost ?? "";
                 nextId = Mathf.Max(3, record.nextId);
                 nameCursor = record.nameCursor;
                 settlements.Clear();
@@ -2803,6 +2948,8 @@ namespace Elyon
         public bool pactWithheld;
         public bool raidStopped;
         public string deal;
+        public string born;
+        public string lost;
         public int nextId;
         public int nameCursor;
         public SettlementRecord[] settlements;
@@ -2846,6 +2993,7 @@ namespace Elyon
         public bool pactStay;
         public bool raided;
         public bool lawKept;
+        public bool willRaid;
 
         public static SettlementRecord From(Settlement settlement)
         {
@@ -2884,6 +3032,7 @@ namespace Elyon
                 pactStay = settlement.pactStay,
                 raided = settlement.raided,
                 lawKept = settlement.lawKept,
+                willRaid = settlement.willRaid,
             };
         }
 
@@ -2924,6 +3073,7 @@ namespace Elyon
                 pactStay = pactStay,
                 raided = raided,
                 lawKept = lawKept,
+                willRaid = willRaid,
             };
         }
     }
@@ -2952,6 +3102,8 @@ namespace Elyon
         public float toolWear;
         public int favor;
         public bool blessedHouse;
+        public bool spokenWork;
+        public int spokenLabor;
         public string[] memories;
         public float x;
         public float y;
@@ -2982,6 +3134,8 @@ namespace Elyon
                 toolWear = person.toolWear,
                 favor = person.favor,
                 blessedHouse = person.blessedHouse,
+                spokenWork = person.spokenWork,
+                spokenLabor = (int)person.spokenLabor,
                 memories = person.MemoryLines(),
                 x = person.transform.position.x,
                 y = person.transform.position.y,
@@ -3012,6 +3166,8 @@ namespace Elyon
             person.toolWear = toolWear;
             person.favor = favor;
             person.blessedHouse = blessedHouse;
+            person.spokenWork = spokenWork;
+            person.spokenLabor = (Labor)spokenLabor;
             person.RestoreMemories(memories);
             var spot = person.transform.position;
             spot.x = x;

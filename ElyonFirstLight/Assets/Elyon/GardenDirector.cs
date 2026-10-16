@@ -206,6 +206,10 @@ namespace Elyon
             GUILayout.Label(person.body.CardLine());
             if (!string.IsNullOrEmpty(person.ToolLine())) GUILayout.Label(person.ToolLine());
             if (person.favor > 0) GUILayout.Label("blessed");
+            if (person == selected && string.IsNullOrEmpty(GrokSpeech.LoadKey()))
+            {
+                GUILayout.Label("A key is needed before they can answer.");
+            }
             if (!string.IsNullOrEmpty(person.LatestLine)) GUILayout.Label("“" + person.LatestLine + "”");
             GUILayout.Space(6f);
         }
