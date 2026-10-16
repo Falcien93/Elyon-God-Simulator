@@ -30,7 +30,7 @@ namespace Elyon
         {
             if (director != null && director.Typing) return;
             if (Input.GetKeyDown(KeyCode.M)) walking = !walking;
-            if (Input.GetMouseButtonDown(0)) TrySelect();
+            if (Input.GetMouseButtonDown(0) && !PointerOnPanel()) TrySelect();
             if (walking) Walk();
             else Orbit();
         }
@@ -61,7 +61,7 @@ namespace Elyon
 
         void Orbit()
         {
-            if (Input.GetMouseButton(1) || Input.GetMouseButton(0))
+            if (!PointerOnPanel() && (Input.GetMouseButton(1) || Input.GetMouseButton(0)))
             {
                 yaw += Input.GetAxis("Mouse X") * 4f;
                 pitch = Mathf.Clamp(pitch - Input.GetAxis("Mouse Y") * 2.5f, 8f, 70f);
@@ -81,7 +81,7 @@ namespace Elyon
 
         void Walk()
         {
-            if (Input.GetMouseButton(1) || Input.GetMouseButton(0))
+            if (!PointerOnPanel() && (Input.GetMouseButton(1) || Input.GetMouseButton(0)))
             {
                 lookYaw += Input.GetAxis("Mouse X") * 3.2f;
                 lookPitch = Mathf.Clamp(lookPitch - Input.GetAxis("Mouse Y") * 2.2f, -35f, 25f);
@@ -141,6 +141,13 @@ namespace Elyon
         {
             float yawRad = lookYaw * Mathf.Deg2Rad;
             return new Vector3(Mathf.Sin(yawRad), 0f, Mathf.Cos(yawRad));
+        }
+
+        static bool PointerOnPanel()
+        {
+            if (Screen.width < 800) return false;
+            float x = Input.mousePosition.x;
+            return x < 450f || x > Screen.width - 360f;
         }
 
         void TrySelect()

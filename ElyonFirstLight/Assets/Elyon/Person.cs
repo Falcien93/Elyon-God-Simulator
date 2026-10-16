@@ -39,6 +39,7 @@ namespace Elyon
                     grief * 0.2f +
                     fear * 0.16f +
                     (child ? 18f : 0f) +
+                    (age < 14f ? (14f - age) * 1.5f : 0f) +
                     Mathf.Max(0f, age - 30f) * 0.15f;
                 return Mathf.Clamp(100f - burden, 8f, 100f);
             }
@@ -58,6 +59,7 @@ namespace Elyon
                 "   grief " + Mathf.RoundToInt(grief) +
                 "   fear " + Mathf.RoundToInt(fear) +
                 "\nage " + Mathf.RoundToInt(age) +
+                (age < 14f ? "   young" : "") +
                 "   child " + (child ? "in their care" : "none") +
                 "   strength " + Mathf.RoundToInt(Strength) +
                 tired;
@@ -68,6 +70,25 @@ namespace Elyon
     {
         public string who = "adam";
         public string personName = "Adam";
+        public string personId = "";
+        public string partnerId = "";
+        public string motherId = "";
+        public string fatherId = "";
+        public string settlementId = "eden";
+        public string kinLine = "";
+        public string homeName = "the fire";
+        public string ageName = "First family";
+        public string worldLine = "";
+        public string dutyLabel = "";
+        public Vector3 dutyTarget;
+        public bool hasDuty;
+        public bool alive = true;
+        public bool arrived;
+        public bool scarce;
+        public bool eveShape;
+        public Labor labor = Labor.Gather;
+        public ToolKind tool = ToolKind.Hands;
+        public LivingWorld home;
         public Body body = new Body();
         public int trust = 40;
         public Transform hips;
@@ -101,16 +122,16 @@ namespace Elyon
 
         public string LatestLine => said.Count == 0 ? "" : said[said.Count - 1];
 
-        public string Persona =>
-            who == "eve"
-                ? personName + ", the first woman, awake in Eden and speaking with Elyon"
-                : personName + ", the first man, awake in Eden and speaking with Elyon";
+        public string Persona => personName + ", " + (string.IsNullOrEmpty(kinLine) ? "awake and speaking with Elyon" : kinLine);
+
+        public bool Working => alive && !coming && phase == DayPhase.Work;
 
         public string ActLabel
         {
             get
             {
                 if (coming) return "following the shore toward Elyon";
+                if (phase == DayPhase.Work && !string.IsNullOrEmpty(dutyLabel)) return dutyLabel;
                 switch (phase)
                 {
                     case DayPhase.Wake: return "waking, seated at the fire";
@@ -138,7 +159,8 @@ namespace Elyon
         public string WorldBrief()
         {
             string memory = memories.Count == 0 ? "" : " You remember: " + string.Join(" | ", memories);
-            return "It is " + ActLabel + ". " + body.CardLine().Replace("\n", " ") + "." + memory;
+            string news = string.IsNullOrEmpty(worldLine) ? "" : " Just now: " + worldLine;
+            return "The age is " + ageName + ". You are in " + homeName + ". It is " + ActLabel + ". " + kinLine + ". " + body.CardLine().Replace("\n", " ") + "." + news + memory;
         }
 
         public void Remember(string line)
@@ -170,8 +192,46 @@ namespace Elyon
             SetGoal(elyon);
         }
 
+        public void Retarget()
+        {
+            if (!alive) return;
+            SetGoal(GoalForPhase());
+        }
+
+        public void ApplyAge(float years)
+        {
+            body.age = years;
+            float scale = years >= 16f ? 1f : Mathf.Lerp(0.42f, 1f, Mathf.Max(0f, years) / 16f);
+            var armature = transform.Find("Armature");
+            if (armature != null) armature.localScale = Vector3.one * scale;
+            var capsule = GetComponent<CapsuleCollider>();
+            float height = (eveShape ? 1.62f : 1.78f) * scale;
+            if (capsule != null)
+            {
+                capsule.height = height;
+                capsule.radius = (eveShape ? 0.16f : 0.18f) * scale;
+                capsule.center = new Vector3(0f, height * 0.5f, 0f);
+            }
+            var bodyPhysics = GetComponent<Rigidbody>();
+            if (bodyPhysics != null) bodyPhysics.mass = (eveShape ? 58f : 78f) * scale;
+            massKg = (eveShape ? 58f : 78f) * scale;
+        }
+
+        public void Die()
+        {
+            alive = false;
+            coming = false;
+            moving = false;
+            foreach (var renderer in GetComponentsInChildren<Renderer>()) renderer.enabled = false;
+            var capsule = GetComponent<CapsuleCollider>();
+            if (capsule != null) capsule.enabled = false;
+            var bodyPhysics = GetComponent<Rigidbody>();
+            if (bodyPhysics != null) bodyPhysics.detectCollisions = false;
+        }
+
         public void Tick(float timeOfDay, float delta)
         {
+            if (!alive) return;
             TickBody(delta);
             if (!coming)
             {
@@ -204,14 +264,28 @@ namespace Elyon
 
         void OnEnterPhase()
         {
-            if (phase == DayPhase.Eat) body.hunger = Mathf.Max(0f, body.hunger - 26f);
-            if (phase == DayPhase.Drink) body.thirst = Mathf.Max(0f, body.thirst - 30f);
-            if (phase == DayPhase.Rest) body.fatigue = Mathf.Max(0f, body.fatigue - 18f);
+            if (phase == DayPhase.Eat)
+            {
+                bool ate = home == null || home.TryServeMeal(this);
+                body.hunger = Mathf.Max(0f, body.hunger - (ate ? 22f : 6f));
+                if (!ate) body.fear = Mathf.Min(100f, body.fear + 4f);
+            }
+            if (phase == DayPhase.Drink)
+            {
+                bool drank = home == null || home.TryServeWater(this);
+                body.thirst = Mathf.Max(0f, body.thirst - (drank ? 28f : 8f));
+            }
+            if (phase == DayPhase.Rest)
+            {
+                bool bed = home == null || home.HasBed(this);
+                body.fatigue = Mathf.Max(0f, body.fatigue - (bed ? 24f : 8f));
+            }
             SetGoal(GoalForPhase());
         }
 
         Vector3 GoalForPhase()
         {
+            if (phase == DayPhase.Work && hasDuty) return dutyTarget;
             switch (phase)
             {
                 case DayPhase.Eat: return pot;
@@ -272,11 +346,12 @@ namespace Elyon
 
         void TickBody(float delta)
         {
-            body.hunger = Mathf.Clamp(body.hunger + 0.09f * delta, 0f, 100f);
+            float hungerRate = scarce ? 0.2f : 0.09f;
+            body.hunger = Mathf.Clamp(body.hunger + hungerRate * delta, 0f, 100f);
             body.thirst = Mathf.Clamp(body.thirst + 0.11f * delta, 0f, 100f);
             float work = phase == DayPhase.Work ? 0.22f : -0.04f;
             body.fatigue = Mathf.Clamp(body.fatigue + work * delta, 0f, 100f);
-            body.age += 0.002f * delta;
+            if (body.bleeding > 0f) body.bleeding = Mathf.Max(0f, body.bleeding - 0.02f * delta);
             if (body.fatigue > 70f) body.fear = Mathf.Min(100f, body.fear + 0.02f * delta);
         }
 
@@ -314,7 +389,7 @@ namespace Elyon
                 float axeAngle = chop ? Mathf.Lerp(-20f, 70f, Mathf.PingPong(swing, 1f)) : 8f - strideR * 0.45f;
                 shoulderR.localRotation = Quaternion.Euler(axeAngle, 0f, 12f);
             }
-            if (axe != null) axe.gameObject.SetActive(chop || phase == DayPhase.Work);
+            if (axe != null) axe.gameObject.SetActive(body.age >= 14f && tool == ToolKind.Axe && (chop || phase == DayPhase.Work));
             if (sitNow && posed != phase)
             {
                 Vector3 look = GoalForPhase() - transform.position;

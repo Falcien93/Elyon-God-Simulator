@@ -86,7 +86,7 @@ namespace Elyon
             return tex;
         }
 
-        static Material Lit(Color color, float smooth, Texture2D albedo, Vector2 scale)
+        public static Material Lit(Color color, float smooth, Texture2D albedo, Vector2 scale)
         {
             var shader = Shader.Find("HDRP/Lit");
             if (shader == null) shader = Shader.Find("Standard");

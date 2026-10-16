@@ -48,13 +48,15 @@ namespace Elyon
             public bool Eve;
         }
 
-        public static void Attach(Person person, bool eve)
+        public static void Attach(Person person, bool eve, float scale = 1f)
         {
+            scale = Mathf.Clamp(scale, 0.4f, 1f);
             BodyShape shape = eve ? EveShape() : AdamShape();
-            person.massKg = shape.Mass;
+            person.massKg = shape.Mass * scale;
             person.standHip = shape.HipY;
             var armature = new GameObject("Armature").transform;
             armature.SetParent(person.transform, false);
+            armature.localScale = Vector3.one * scale;
             var bones = new Transform[BoneCount];
             BuildSkeleton(armature, bones, shape, person);
 
@@ -85,7 +87,7 @@ namespace Elyon
             Face(bones[Head], shape, skin);
             Hair(bones[Head], shape);
             Axe(bones[HandR], person);
-            Physics(person, shape);
+            Physics(person, shape, scale);
             Label(bones[Head], person.personName);
         }
 
@@ -426,17 +428,17 @@ namespace Elyon
             handle.SetActive(false);
         }
 
-        static void Physics(Person person, BodyShape shape)
+        static void Physics(Person person, BodyShape shape, float scale)
         {
             var body = person.gameObject.AddComponent<Rigidbody>();
-            body.mass = shape.Mass;
+            body.mass = shape.Mass * scale;
             body.isKinematic = true;
             body.useGravity = true;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             var capsule = person.gameObject.AddComponent<CapsuleCollider>();
-            capsule.height = shape.Eve ? 1.62f : 1.78f;
-            capsule.radius = shape.Hip * 0.85f;
+            capsule.height = (shape.Eve ? 1.62f : 1.78f) * scale;
+            capsule.radius = shape.Hip * 0.85f * scale;
             capsule.center = new Vector3(0f, capsule.height * 0.5f, 0f);
         }
 

@@ -1,4 +1,3 @@
-using System.IO;
 using UnityEngine;
 
 namespace Elyon
@@ -11,13 +10,12 @@ namespace Elyon
         public Person selected;
 
         GardenWorld world;
+        LivingWorld living;
         ElyonPlayer player;
         GrokSpeech speech;
         string line = "";
         string keyDraft = "";
         bool typing;
-        bool shots;
-        int shotFrame;
 
         public bool Typing => typing;
 
@@ -28,13 +26,15 @@ namespace Elyon
             var root = new GameObject("World").transform;
             root.SetParent(transform, false);
             world = GardenBuilder.Build(root);
+            living = gameObject.GetComponent<LivingWorld>();
+            if (living == null) living = gameObject.AddComponent<LivingWorld>();
+            living.Begin(world, root, this);
             selected = world.Adam;
             speech = gameObject.GetComponent<GrokSpeech>();
             if (speech == null) speech = gameObject.AddComponent<GrokSpeech>();
             BindCamera();
             AimSun();
             keyDraft = GrokSpeech.LoadKey();
-            shots = System.Environment.GetEnvironmentVariable("ELYON_SHOT") == "1";
         }
 
         void BindCamera()
@@ -69,35 +69,46 @@ namespace Elyon
         void Update()
         {
             float delta = Time.deltaTime;
+            bool newDay = false;
             timeOfDay += delta / daySeconds;
             if (timeOfDay >= 1f)
             {
                 timeOfDay -= 1f;
-                dayNumber++;
+                newDay = true;
             }
-            if (world.Adam != null) world.Adam.Tick(timeOfDay, delta);
-            if (world.Eve != null) world.Eve.Tick(timeOfDay, delta);
+            if (living != null) living.Tick(delta, timeOfDay, newDay);
             BillboardNames();
+            if (selected != null && !selected.alive) selected = FirstLiving();
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
-                if (!string.IsNullOrWhiteSpace(line) && selected != null)
+                if (!string.IsNullOrWhiteSpace(line) && selected != null && selected.alive)
                 {
                     speech.Ask(selected, line.Trim());
                     line = "";
                 }
             }
-            if (Input.GetKeyDown(KeyCode.C) && selected != null && player != null)
+            if (Input.GetKeyDown(KeyCode.C) && selected != null && selected.alive && player != null)
             {
                 Vector3 feet = player.walking ? player.transform.position : player.focus;
                 selected.ComeTo(feet);
             }
-            if (shots) Capture();
         }
 
         void BillboardNames()
         {
             var cam = Camera.main;
             if (cam == null) return;
+            if (living != null)
+            {
+                foreach (var person in living.People)
+                {
+                    if (person == null || !person.alive) continue;
+                    var label = person.GetComponentInChildren<TextMesh>();
+                    if (label == null) continue;
+                    label.transform.rotation = Quaternion.LookRotation(label.transform.position - cam.transform.position);
+                }
+                return;
+            }
             foreach (var person in new[] { world.Adam, world.Eve })
             {
                 if (person == null) continue;
@@ -109,27 +120,7 @@ namespace Elyon
 
         public void Select(Person person)
         {
-            selected = person;
-        }
-
-        void Capture()
-        {
-            shotFrame++;
-            if (shotFrame == 40)
-            {
-                string sky = System.Environment.GetEnvironmentVariable("ELYON_SKY");
-                if (!string.IsNullOrEmpty(sky)) ScreenCapture.CaptureScreenshot(sky);
-            }
-            if (shotFrame == 50 && player != null && world.Adam != null)
-            {
-                player.FrameAdam(world.Adam.transform);
-            }
-            if (shotFrame == 90)
-            {
-                string walk = System.Environment.GetEnvironmentVariable("ELYON_WALK");
-                if (!string.IsNullOrEmpty(walk)) ScreenCapture.CaptureScreenshot(walk);
-            }
-            if (shotFrame == 110) Application.Quit();
+            if (person != null && person.alive) selected = person;
         }
 
         void OnGUI()
@@ -137,22 +128,22 @@ namespace Elyon
             var area = new Rect(16f, 16f, 420f, Screen.height - 32f);
             GUILayout.BeginArea(area);
             GUI.color = new Color(0.96f, 0.9f, 0.75f);
-            GUILayout.Label("Elyon  ·  First Light  ·  day " + dayNumber + "  ·  " + ClockName());
+            string ageName = living != null ? living.AgeName : "First Light";
+            GUILayout.Label("Elyon  ·  " + ageName + "  ·  year " + dayNumber + "  ·  " + ClockName());
             GUILayout.Label(player != null && player.walking ? "Walking among them" : "Above the garden");
-            Card(world.Adam);
-            Card(world.Eve);
+            PeopleCards();
             GUILayout.Space(8f);
-            GUILayout.Label(selected == null ? "Select Adam or Eve" : "Speaking with " + selected.personName);
+            GUILayout.Label(selected == null || !selected.alive ? "Select a person" : "Speaking with " + selected.personName);
             GUI.SetNextControlName("say");
             line = GUILayout.TextField(line, 240, GUILayout.Height(28f));
             typing = GUI.GetNameOfFocusedControl() == "say" || GUI.GetNameOfFocusedControl() == "key";
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Speak", GUILayout.Height(28f)) && selected != null)
+            if (GUILayout.Button("Speak", GUILayout.Height(28f)) && selected != null && selected.alive)
             {
                 speech.Ask(selected, line.Trim());
                 line = "";
             }
-            if (GUILayout.Button("Come here", GUILayout.Height(28f)) && selected != null && player != null)
+            if (GUILayout.Button("Come here", GUILayout.Height(28f)) && selected != null && selected.alive && player != null)
             {
                 Vector3 feet = player.walking ? player.transform.position : player.focus;
                 selected.ComeTo(feet);
@@ -169,7 +160,41 @@ namespace Elyon
             if (GUILayout.Button("Keep the key here")) GrokSpeech.SaveKey(keyDraft);
             if (string.IsNullOrEmpty(GrokSpeech.LoadKey())) GUILayout.Label(GrokSpeech.MissingKeyLine);
             GUILayout.Label("M sky/walk   drag look   WASD move   click a person   Enter speak   C call them along the shore");
+            GUILayout.Label("The hand of Elyon is on the right. The years turn there.");
             GUILayout.EndArea();
+        }
+
+        void PeopleCards()
+        {
+            int shown = 0;
+            if (selected != null && selected.alive)
+            {
+                Card(selected);
+                shown++;
+            }
+            if (living == null)
+            {
+                if (world.Adam != selected) Card(world.Adam);
+                if (world.Eve != selected) Card(world.Eve);
+                return;
+            }
+            foreach (var person in living.People)
+            {
+                if (shown >= 8) break;
+                if (person == null || !person.alive || person == selected) continue;
+                Card(person);
+                shown++;
+            }
+        }
+
+        Person FirstLiving()
+        {
+            if (living == null) return world.Adam;
+            foreach (var person in living.People)
+            {
+                if (person != null && person.alive) return person;
+            }
+            return null;
         }
 
         void Card(Person person)
@@ -177,6 +202,7 @@ namespace Elyon
             if (person == null) return;
             string mark = person == selected ? "  ·  chosen" : "";
             GUILayout.Label(person.personName + "  ·  " + person.ActLabel + mark);
+            if (!string.IsNullOrEmpty(person.kinLine)) GUILayout.Label(person.kinLine);
             GUILayout.Label(person.body.CardLine());
             if (!string.IsNullOrEmpty(person.LatestLine)) GUILayout.Label("“" + person.LatestLine + "”");
             GUILayout.Space(6f);
@@ -194,23 +220,7 @@ namespace Elyon
 
         public void SaveRecord()
         {
-            var record = JsonUtility.ToJson(new GardenRecord
-            {
-                day = dayNumber,
-                time = timeOfDay,
-                adamHunger = world.Adam.body.hunger,
-                eveHunger = world.Eve.body.hunger,
-            });
-            File.WriteAllText(Path.Combine(Application.persistentDataPath, "elyon-first-light.json"), record);
+            if (living != null) living.Save();
         }
-    }
-
-    [System.Serializable]
-    public class GardenRecord
-    {
-        public int day;
-        public float time;
-        public float adamHunger;
-        public float eveHunger;
     }
 }

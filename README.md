@@ -17,7 +17,29 @@ Open `ElyonFirstLight` in Unity 6000.0.64f1 or newer with HDRP. Use **Elyon → 
 
 Paste an xAI key into the panel and press **Keep the key here**. It is written only to `elyon-xai-key.txt` in the app's persistent data folder (`Application.persistentDataPath`). A file named `xai-key.local.txt` next to the Unity project is also read and is gitignored. The garden record never contains the key. With no key, the day still runs and the panel explains that a key is needed.
 
-Speech uses `POST https://api.x.ai/v1/responses` with model `grok-4.7`. Adam and Eve are instructed to believe they are those people. They do not say they are an assistant, a language model, or Grok. A new line can start before the last one finishes, and they can talk while they walk.
+Speech uses `POST https://api.x.ai/v1/responses` with model `grok-4.7`. Each person is instructed to believe they are that person, including the children and the people who later keep house with them. They do not say they are an assistant or a language model. A new line can start before the last one finishes, and they can talk while they walk.
+
+## One people, seven ages
+
+The valley does not offer a menu of ages. Adam and Eve are already awake at the fire, in the first family. The same bodies, needs, kin, speech, work, food, shelter, tools, belief, and settlements carry them forward. A garden day is a year. At the end of the day the household eats from its stores, children age, a birth or a newcomer can join a house, and at most one age can begin.
+
+Siblings do not keep house together. An adult with no living partner is joined by a newcomer. A birth is a line in the chronicle ("someone is born into the house of A and B"), not a scene. "A child in their care" on a body card is the burden of an infant. A young person is a smaller body in the world, and they follow a parent until they can work.
+
+What changes:
+
+- **First family.** Gather fruit and wood at the fire. You may bless, heal, set fruit, calm a fear, and turn the years.
+- **Camps.** The household moves to the eastern meadow, hunts, and sleeps in lean-tos. You may send game and raise a shelter from their wood.
+- **Farming.** Fields, houses, grain, and hoes. You may send rain and bless a field.
+- **Metal and towns.** Ore, a smithy, and hammers. The camp is a town on the ridge. You may gift ore and mend a body at the smithy.
+- **Cities and empires.** A hall, a temple, and a second hold across the valley. You may proclaim a law, grant a harvest, or withhold one.
+- **Roads and letters.** Someone teaches. A road can join the holds, and grain can move along it. You may open the road and kindle a lesson.
+- **Mills.** A mill multiplies the harvest. You may turn it or let it rest. The years still turn after that.
+
+An age begins only when its facts are true: enough years, people, meals, wood, shelter, tools, faith, or learning. The right-hand panel says what is still missing. **The years turn** resolves one year of labor, kinship, and building, so later ages can be reached without watching every day. Divine acts that lack the wood, the field, the smithy, the hall, or the mill say so and change nothing.
+
+The record is `elyon-first-light.json` in the persistent data folder, version 2. It keeps the people, the settlements, and the chronicle. It does not keep the key. Older tiny records are ignored.
+
+This machine has no Unity editor license and no GPU, so the valley was not rendered here. Open the project in a licensed Unity 6000 editor and press Play to see it.
 
 Ground, sand, bark, and rock photographs are CC0 maps from Poly Haven. See `ElyonFirstLight/Assets/Elyon/THIRD-PARTY.txt`.
 
