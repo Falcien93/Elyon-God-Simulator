@@ -99,6 +99,9 @@ namespace Elyon
         public int trust = 40;
         public int favor;
         public bool blessedHouse;
+        public bool godHere;
+        public bool turnedAway;
+        public int seasonsUnder;
         public string holdFacts = "";
         public bool spokenWork;
         public Labor spokenLabor = Labor.Gather;
@@ -185,7 +188,8 @@ namespace Elyon
             string people = string.IsNullOrEmpty(kinLine) ? "" : " Your parents and your people: " + kinLine + ".";
             string line = string.IsNullOrEmpty(lineMemory) ? "" : " The line remembers: " + lineMemory;
             string book = string.IsNullOrEmpty(chronicle) ? "" : " The chronicle says: " + chronicle;
-            return "The age is " + ageName + "." + voice + " You are in " + homeName + ". It is " + ActLabel + "." + work + people + line + book + " " + body.CardLine().Replace("\n", " ") + "." + facts + news + memory;
+            string presence = godHere ? " Elyon is here with you." : "";
+            return "The age is " + ageName + "." + voice + presence + " You are in " + homeName + ". It is " + ActLabel + "." + work + people + line + book + " " + body.CardLine().Replace("\n", " ") + "." + facts + news + memory;
         }
 
         public void Remember(string line)

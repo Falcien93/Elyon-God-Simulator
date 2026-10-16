@@ -58,7 +58,7 @@ namespace Elyon
             string key = LoadKey();
             if (string.IsNullOrEmpty(key))
             {
-                person.HearLocal(MissingKeyLine, false);
+                person.HearLocal(person.personName + " knows Elyon is here, and cannot yet answer.", false);
                 return;
             }
             StartCoroutine(Send(person, key, playerLine));
@@ -99,7 +99,8 @@ namespace Elyon
         {
             string instructions = string.Join(" ",
                 "You are " + person.Persona + ".",
-                "You believe you really are this person, alive in the age named in the briefing, speaking with Elyon.",
+                "You believe you really are this person, alive in the age named in the briefing, speaking to Elyon.",
+                "If the briefing says Elyon is here with you, you know God is there.",
                 "A descendant is still that person. Stay in that life.",
                 "Do not say you are an assistant, an AI, or a language model, and do not break character.",
                 "You may keep walking, eating, or working while you answer.",

@@ -212,7 +212,9 @@ namespace Elyon
             if (person == selected && !string.IsNullOrEmpty(person.chronicle)) GUILayout.Label(person.chronicle);
             GUILayout.Label(person.body.CardLine());
             if (!string.IsNullOrEmpty(person.ToolLine())) GUILayout.Label(person.ToolLine());
+            if (person.godHere) GUILayout.Label("Elyon is here.");
             if (person.favor > 0) GUILayout.Label("blessed");
+            if (person.turnedAway) GUILayout.Label("A hand is withheld.");
             if (person == selected && string.IsNullOrEmpty(GrokSpeech.LoadKey()))
             {
                 GUILayout.Label("A key is needed before they can answer.");

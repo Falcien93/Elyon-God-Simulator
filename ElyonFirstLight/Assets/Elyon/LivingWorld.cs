@@ -14,6 +14,7 @@ namespace Elyon
     {
         public const int PopulationCap = 18;
         public const string RecordName = "elyon-first-light.json";
+        public const string SceneName = "elyon-scene.json";
 
         static readonly string[] Names =
         {
@@ -61,6 +62,9 @@ namespace Elyon
         string pactLine = "";
         string raidLine = "";
         string woundLine = "";
+        string attendedId = "";
+        int destiny;
+        string destinyLine = "";
         string nameDraft = "";
         float followTimer;
         bool visualsDirty = true;
@@ -209,6 +213,20 @@ namespace Elyon
                     }
                     home.faith = Mathf.Clamp(home.faith + 2f, 0f, 100f);
                     Note(person.personName + " is blessed. Their house may bear this year, and they will not be the one to leave.");
+                    Chronicle(LastEvent);
+                    break;
+                case DivineAct.Attend:
+                    RestAttention(person);
+                    break;
+                case DivineAct.WithholdPerson:
+                    if (person == null) { Note("No one is here to withhold."); break; }
+                    WithholdPerson(person, home);
+                    break;
+                case DivineAct.KeepValley:
+                    ChooseDestiny(true);
+                    break;
+                case DivineAct.SendOut:
+                    ChooseDestiny(false);
                     break;
                 case DivineAct.Heal:
                     if (person == null) { Note("No one is here to heal."); break; }
@@ -497,6 +515,7 @@ namespace Elyon
             Trade();
             KeepLaw();
             KeepRite();
+            AttendSeason();
             foreach (var person in people) person.arrived = false;
             year++;
             if (director != null) director.dayNumber = year;
@@ -802,6 +821,12 @@ namespace Elyon
                 if (person.body.age < 18f) continue;
                 if (person.personId == "adam" || person.personId == "eve") continue;
                 if (person.blessedHouse || person.favor >= 4) continue;
+                if (person.turnedAway)
+                {
+                    if (worst == null || !worst.turnedAway || person.trust < worst.trust) worst = person;
+                    continue;
+                }
+                if (worst != null && worst.turnedAway) continue;
                 if (worst == null || person.trust < worst.trust) worst = person;
             }
             return worst;
@@ -2064,6 +2089,8 @@ namespace Elyon
                 person.ageName = ageName;
                 person.ageVoice = Ages.Voice(age) + " " + Ages.Between(age);
                 if (!string.IsNullOrEmpty(dealLine)) person.ageVoice += " Between the holds: " + dealLine;
+                if (!string.IsNullOrEmpty(destinyLine)) person.ageVoice += " " + destinyLine;
+                person.godHere = person.alive && person.personId == attendedId;
                 Settlement kinHome = HomeOf(person);
                 if (kinHome != null) person.homeName = kinHome.placeName;
                 person.holdFacts = HoldFacts(kinHome);
@@ -2177,7 +2204,86 @@ namespace Elyon
             if (pact.Length > 0) memory += " " + pact;
             if (raid.Length > 0) memory += " " + raid;
             if (wound.Length > 0) memory += " " + wound;
+            if (!string.IsNullOrEmpty(destinyLine)) memory += " " + destinyLine;
             return memory;
+        }
+
+        void RestAttention(Person person)
+        {
+            if (person == null || !person.alive)
+            {
+                Note("No living person is here to attend.");
+                return;
+            }
+            attendedId = person.personId;
+            foreach (var other in people) other.godHere = false;
+            person.godHere = true;
+            person.HearLocal("Elyon is here.", false);
+            person.Remember("Elyon is here.");
+            Settlement home = HomeOf(person);
+            if (home != null) home.faith = Mathf.Clamp(home.faith + 1f, 0f, 100f);
+            person.body.fear = Mathf.Max(0f, person.body.fear - 4f);
+            Note(person.personName + " knows Elyon is here. Faith stirs, and fear eases.");
+            Chronicle(LastEvent);
+            RefreshKin();
+        }
+
+        void WithholdPerson(Person person, Settlement home)
+        {
+            person.blessedHouse = false;
+            person.favor = 0;
+            person.turnedAway = true;
+            person.body.fear = Mathf.Min(100f, person.body.fear + 10f);
+            if (home != null) home.faith = Mathf.Max(0f, home.faith - 1f);
+            person.HearLocal("Elyon withholds a hand.", false);
+            Note("Elyon withholds a hand from " + person.personName + ". Their house will not be the one that bears, and they may leave.");
+            Chronicle(LastEvent);
+            if (person.body.age >= 18f && person.personId != "adam" && person.personId != "eve")
+            {
+                SendAway(home, "Elyon withheld a hand, and I left " + home.placeName + ".");
+                Chronicle(LastEvent);
+            }
+            RefreshKin();
+        }
+
+        void ChooseDestiny(bool stay)
+        {
+            if (destiny != 0)
+            {
+                Note("The choice is already kept. " + destinyLine);
+                return;
+            }
+            destiny = stay ? 1 : 2;
+            destinyLine = stay
+                ? "Elyon keeps the people in the valley."
+                : "Elyon sends the people out of the valley.";
+            Note(destinyLine);
+            Chronicle(LastEvent);
+            foreach (var person in people)
+            {
+                if (person.alive) person.Remember(destinyLine);
+            }
+            RefreshKin();
+        }
+
+        void AttendSeason()
+        {
+            if (string.IsNullOrEmpty(attendedId)) return;
+            Person person = Find(attendedId);
+            if (person == null || !person.alive) return;
+            person.godHere = true;
+            person.seasonsUnder++;
+            Settlement home = HomeOf(person);
+            if (person.turnedAway)
+            {
+                person.body.fear = Mathf.Min(100f, person.body.fear + 3f);
+                if (home != null) home.faith = Mathf.Max(0f, home.faith - 1f);
+            }
+            else
+            {
+                person.body.fear = Mathf.Max(0f, person.body.fear - 2f);
+                if (home != null) home.faith = Mathf.Clamp(home.faith + 1f, 0f, 100f);
+            }
         }
 
         static string Tail(string book, int cap)
@@ -3465,7 +3571,10 @@ namespace Elyon
             {
                 var record = new ChronicleRecord
                 {
-                    version = 3,
+                    version = 4,
+                    attended = attendedId,
+                    destiny = destiny,
+                    destinyLine = destinyLine,
                     year = year,
                     age = (int)age,
                     dayTime = director != null ? director.timeOfDay : 0.1f,
@@ -3495,6 +3604,7 @@ namespace Elyon
                 for (int i = 0; i < settlements.Count; i++) record.settlements[i] = SettlementRecord.From(settlements[i]);
                 for (int i = 0; i < people.Count; i++) record.people[i] = PersonRecord.From(people[i]);
                 File.WriteAllText(RecordPath(), JsonUtility.ToJson(record));
+                File.WriteAllText(ScenePath(), JsonUtility.ToJson(SceneNow()));
             }
             catch (Exception error)
             {
@@ -3533,6 +3643,9 @@ namespace Elyon
                 pactLine = record.pactMemory ?? "";
                 raidLine = record.raidMemory ?? "";
                 woundLine = record.wound ?? "";
+                attendedId = record.attended ?? "";
+                destiny = record.destiny;
+                destinyLine = record.destinyLine ?? "";
                 if (string.IsNullOrEmpty(gardenLine))
                 {
                     gardenLine = age >= AgeId.Camps
@@ -3623,6 +3736,63 @@ namespace Elyon
             return Path.Combine(Application.persistentDataPath, RecordName);
         }
 
+        static string ScenePath()
+        {
+            return Path.Combine(Application.persistentDataPath, SceneName);
+        }
+
+        SceneRecord SceneNow()
+        {
+            var peopleHere = new List<ScenePerson>();
+            foreach (var person in people)
+            {
+                if (person == null) continue;
+                Vector3 at = person.transform.position;
+                peopleHere.Add(new ScenePerson
+                {
+                    id = person.personId,
+                    personName = person.personName,
+                    alive = person.alive,
+                    ageYears = person.body.age,
+                    x = at.x,
+                    y = at.y,
+                    z = at.z,
+                    attended = person.personId == attendedId,
+                    fear = person.body.fear,
+                    favor = person.favor,
+                });
+            }
+            var holds = new List<SceneHold>();
+            foreach (var hold in settlements)
+            {
+                if (hold == null) continue;
+                holds.Add(new SceneHold
+                {
+                    id = hold.id,
+                    placeName = hold.placeName,
+                    x = hold.hearthX,
+                    z = hold.hearthZ,
+                    weather = SkyName(hold.sky),
+                    herd = hold.herd,
+                    herdName = hold.herdName ?? "",
+                    fish = hold.fish,
+                    fishName = hold.fishName ?? "",
+                    lights = hold.lights,
+                });
+            }
+            return new SceneRecord
+            {
+                version = 1,
+                year = year,
+                age = Ages.Name(age),
+                season = SeasonName(),
+                attended = attendedId ?? "",
+                destiny = destinyLine ?? "",
+                people = peopleHere.ToArray(),
+                holds = holds.ToArray(),
+            };
+        }
+
         void OnGUI()
         {
             var area = new Rect(Screen.width - 336f, 16f, 320f, Screen.height - 32f);
@@ -3653,6 +3823,17 @@ namespace Elyon
             if (namedHome != null && age >= AgeId.Farming && namedHome.fish >= 1f && string.IsNullOrEmpty(namedHome.fishName)
                 && GUILayout.Button("Name the fish", GUILayout.Height(22f)))
                 GiveFishName(namedHome);
+            GUILayout.Space(8f);
+            GUILayout.Label("Presence");
+            if (namedPerson != null && namedPerson.alive && GUILayout.Button("Rest attention", GUILayout.Height(22f)))
+                Act(DivineAct.Attend);
+            if (namedPerson != null && namedPerson.alive && GUILayout.Button("Withhold this person", GUILayout.Height(22f)))
+                Act(DivineAct.WithholdPerson);
+            if (destiny == 0 && GUILayout.Button("Keep them in the valley", GUILayout.Height(22f)))
+                Act(DivineAct.KeepValley);
+            if (destiny == 0 && GUILayout.Button("Send them out", GUILayout.Height(22f)))
+                Act(DivineAct.SendOut);
+            if (!string.IsNullOrEmpty(destinyLine)) GUILayout.Label(destinyLine);
             GUILayout.Space(8f);
             GUILayout.Label("Chronicle");
             int start = Mathf.Max(0, log.Count - 5);
@@ -3717,6 +3898,9 @@ namespace Elyon
         public string pactMemory;
         public string raidMemory;
         public string wound;
+        public string attended;
+        public int destiny;
+        public string destinyLine;
         public string[] chronicleAges;
         public string[] chronicleEvents;
         public string[] chronicleRecent;
@@ -3888,6 +4072,9 @@ namespace Elyon
         public float toolWear;
         public int favor;
         public bool blessedHouse;
+        public bool godHere;
+        public bool turnedAway;
+        public int seasonsUnder;
         public bool spokenWork;
         public int spokenLabor;
         public bool givenName;
@@ -3922,6 +4109,9 @@ namespace Elyon
                 toolWear = person.toolWear,
                 favor = person.favor,
                 blessedHouse = person.blessedHouse,
+                godHere = person.godHere,
+                turnedAway = person.turnedAway,
+                seasonsUnder = person.seasonsUnder,
                 spokenWork = person.spokenWork,
                 spokenLabor = (int)person.spokenLabor,
                 givenName = person.givenName,
@@ -3958,6 +4148,9 @@ namespace Elyon
             person.toolWear = toolWear;
             person.favor = favor;
             person.blessedHouse = blessedHouse;
+            person.godHere = godHere;
+            person.turnedAway = turnedAway;
+            person.seasonsUnder = seasonsUnder;
             person.spokenWork = spokenWork;
             person.spokenLabor = (Labor)spokenLabor;
             person.givenName = givenName || person.personId == "adam" || person.personId == "eve";
@@ -3967,5 +4160,48 @@ namespace Elyon
             spot.z = z;
             person.transform.position = spot;
         }
+    }
+
+    [Serializable]
+    public class SceneRecord
+    {
+        public int version;
+        public int year;
+        public string age;
+        public string season;
+        public string attended;
+        public string destiny;
+        public ScenePerson[] people;
+        public SceneHold[] holds;
+    }
+
+    [Serializable]
+    public class ScenePerson
+    {
+        public string id;
+        public string personName;
+        public bool alive;
+        public float ageYears;
+        public float x;
+        public float y;
+        public float z;
+        public bool attended;
+        public float fear;
+        public int favor;
+    }
+
+    [Serializable]
+    public class SceneHold
+    {
+        public string id;
+        public string placeName;
+        public float x;
+        public float z;
+        public string weather;
+        public int herd;
+        public string herdName;
+        public float fish;
+        public string fishName;
+        public bool lights;
     }
 }

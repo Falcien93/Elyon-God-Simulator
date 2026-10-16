@@ -80,12 +80,16 @@ namespace Elyon.Headless
             bool drought = false;
             bool raidStopped = false;
             bool pact = false;
+            bool attended = false;
+            bool blessed = false;
+            bool withheld = false;
+            bool kept = false;
             int stagnant = 0;
             AgeId previous = living.Age;
 
             for (int step = 0; step < 140 && living.Age != AgeId.Present; step++)
             {
-                Story(living, director, ref named, ref refusedKey, ref herd, ref herdNamed, ref fishNamed, ref rain, ref drought, ref raidStopped, ref pact);
+                Story(living, director, ref named, ref refusedKey, ref herd, ref herdNamed, ref fishNamed, ref rain, ref drought, ref raidStopped, ref pact, ref attended, ref blessed, ref withheld, ref kept);
                 living.Act(DivineAct.TurnYears);
                 if (living.Age == previous) stagnant++;
                 else
@@ -151,6 +155,10 @@ namespace Elyon.Headless
             if (!drought) failures.Add("A drought never lay on a hold.");
             if (!raidStopped) failures.Add("Elyon never stopped a raid.");
             if (!pact) failures.Add("No pact was blessed.");
+            if (!attended) failures.Add("Elyon never rested attention on a living person.");
+            if (!blessed) failures.Add("The attended person was never blessed.");
+            if (!withheld) failures.Add("A withheld person never left for another hearth.");
+            if (!kept) failures.Add("The people were not kept in the valley.");
 
             bool birth = false;
             bool death = false;
@@ -190,6 +198,39 @@ namespace Elyon.Headless
             if (book.IndexOf("herd", StringComparison.OrdinalIgnoreCase) < 0) failures.Add("The chronicle has no herd.");
             if (book.IndexOf("Carmel", StringComparison.Ordinal) < 0) failures.Add("The chronicle drops the herd's name.");
             if (book.IndexOf("Kinneret", StringComparison.Ordinal) < 0) failures.Add("The chronicle drops the fish's name.");
+            if (book.IndexOf("knows Elyon is here", StringComparison.Ordinal) < 0) failures.Add("The chronicle drops the presence.");
+            if (book.IndexOf("is blessed", StringComparison.Ordinal) < 0) failures.Add("The chronicle drops the blessing.");
+            if (book.IndexOf("withholds a hand", StringComparison.Ordinal) < 0) failures.Add("The chronicle drops the withholding.");
+            if (book.IndexOf("leaves", StringComparison.Ordinal) < 0) failures.Add("The chronicle drops the leaving.");
+            if (book.IndexOf("keeps the people in the valley", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The chronicle drops the choice to keep the people in the valley.");
+            }
+            bool seasonMoved = false;
+            bool laterAgeSpeaks = false;
+            foreach (var person in living.People)
+            {
+                if (person == null) continue;
+                if (person.seasonsUnder > 0) seasonMoved = true;
+                if (person.alive && person.ageVoice.IndexOf("keeps the people in the valley", StringComparison.Ordinal) >= 0)
+                {
+                    laterAgeSpeaks = true;
+                }
+            }
+            if (!seasonMoved) failures.Add("Faith or fear never moved for a season of attention.");
+            if (!laterAgeSpeaks) failures.Add("A later age does not speak of keeping the people in the valley.");
+            if (living.FamilyMemory().IndexOf("keeps the people in the valley", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The line does not remember that the people were kept in the valley.");
+            }
+            string scenePath = Path.Combine(dir, LivingWorld.SceneName);
+            string scene = File.Exists(scenePath) ? File.ReadAllText(scenePath) : "";
+            if (scene.Length == 0) failures.Add("The scene was not written from the simulation.");
+            if (scene.IndexOf("Carmel", StringComparison.Ordinal) < 0) failures.Add("The scene drops the herd.");
+            if (scene.IndexOf("weather", StringComparison.Ordinal) < 0) failures.Add("The scene drops the weather.");
+            if (scene.IndexOf("lights", StringComparison.Ordinal) < 0) failures.Add("The scene drops the lamps.");
+            if (scene.IndexOf("personName", StringComparison.Ordinal) < 0) failures.Add("The scene drops the people.");
+            if (scene.IndexOf(SentinelKey, StringComparison.Ordinal) >= 0) failures.Add("The key is written into the scene.");
             if (book.IndexOf("returns to the nets", StringComparison.Ordinal) < 0)
             {
                 failures.Add("The chronicle never brings the fish back after the drought.");
@@ -214,6 +255,8 @@ namespace Elyon.Headless
                 failures.Add("The key file was not present beside the save.");
             }
 
+            ProveSentOut(failures);
+
             if (failures.Count > 0)
             {
                 failures.Add("Year " + living.Year + "  " + living.AgeName + "  " + living.StockLine());
@@ -237,8 +280,36 @@ namespace Elyon.Headless
             ref bool rain,
             ref bool drought,
             ref bool raidStopped,
-            ref bool pact)
+            ref bool pact,
+            ref bool attended,
+            ref bool blessed,
+            ref bool withheld,
+            ref bool kept)
         {
+            if (!attended)
+            {
+                Person eve = FindId(living, "eve");
+                if (eve != null)
+                {
+                    director.selected = eve;
+                    living.Act(DivineAct.Attend);
+                    attended = eve.godHere
+                        && living.LastEvent.IndexOf("Elyon is here", StringComparison.Ordinal) >= 0;
+                }
+            }
+
+            if (attended && !blessed)
+            {
+                Person eve = FindId(living, "eve");
+                if (eve != null)
+                {
+                    director.selected = eve;
+                    living.Act(DivineAct.Bless);
+                    blessed = eve.blessedHouse
+                        && living.LastEvent.IndexOf("is blessed", StringComparison.Ordinal) >= 0;
+                }
+            }
+
             if (!named)
             {
                 Person child = Unnamed(living);
@@ -291,6 +362,35 @@ namespace Elyon.Headless
             }
 
             int holds = HoldCount(living.StockLine());
+            if (!withheld && holds >= 2)
+            {
+                Person leaver = null;
+                foreach (var person in living.People)
+                {
+                    if (person == null || !person.alive || person.body.age < 18f) continue;
+                    if (person.personId == "adam" || person.personId == "eve" || person.godHere) continue;
+                    if (MembersOf(living, person.settlementId) < 2) continue;
+                    leaver = person;
+                    break;
+                }
+                if (leaver != null)
+                {
+                    director.selected = leaver;
+                    string from = leaver.settlementId;
+                    living.Act(DivineAct.WithholdPerson);
+                    withheld = leaver.settlementId != from
+                        && living.LastEvent.IndexOf("leaves", StringComparison.Ordinal) >= 0;
+                }
+            }
+
+            if (withheld && !kept)
+            {
+                living.Act(DivineAct.KeepValley);
+                kept = living.LastEvent.IndexOf("keeps the people in the valley", StringComparison.Ordinal) >= 0;
+            }
+
+            int holdsAfter = HoldCount(living.StockLine());
+            holds = holdsAfter;
             if (!raidStopped && living.Age >= AgeId.Cities && holds >= 2)
             {
                 Person speaker = Adult(living);
@@ -306,6 +406,91 @@ namespace Elyon.Headless
                 living.Act(DivineAct.BlessPact);
                 pact = living.LastEvent.IndexOf("A pact holds", StringComparison.Ordinal) >= 0;
             }
+        }
+
+        static void ProveSentOut(List<string> failures)
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "elyon-sent-out-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            Application.persistentDataPath = dir;
+            Application.dataPath = Path.Combine(dir, "ElyonFirstLight");
+            Directory.CreateDirectory(Application.dataPath);
+
+            var root = new GameObject("SentWorld").transform;
+            var world = new GardenWorld
+            {
+                Fire = new Vector3(150f, 0f, 100f),
+                Adam = PersonOn("Adam", "adam", false),
+                Eve = PersonOn("Eve", "eve", true),
+            };
+            var director = new GardenDirector();
+            var living = new GameObject("SentLiving").AddComponent<LivingWorld>();
+            living.Begin(world, root, director);
+
+            Person eve = FindId(living, "eve");
+            if (eve == null)
+            {
+                failures.Add("The sending had no Eve to speak.");
+                return;
+            }
+
+            director.selected = eve;
+            new GameObject("Speech").AddComponent<GrokSpeech>().Ask(eve, "Are you there?");
+            if (eve.LatestLine.IndexOf("cannot yet answer", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("With no key, the person did not still speak. " + eve.LatestLine);
+            }
+
+            living.Act(DivineAct.SendOut);
+            living.Act(DivineAct.TurnYears);
+            string book = living.ChronicleText();
+            if (book.IndexOf("sends the people out of the valley", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The chronicle does not remember sending the people out.");
+            }
+            if (living.FamilyMemory().IndexOf("sends the people out of the valley", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The line does not remember sending the people out.");
+            }
+            bool spoke = false;
+            foreach (var person in living.People)
+            {
+                if (person != null && person.alive
+                    && person.ageVoice.IndexOf("sends the people out of the valley", StringComparison.Ordinal) >= 0)
+                {
+                    spoke = true;
+                }
+            }
+            if (!spoke) failures.Add("A later age does not speak of sending the people out.");
+
+            string scenePath = Path.Combine(dir, LivingWorld.SceneName);
+            string savePath = Path.Combine(dir, LivingWorld.RecordName);
+            string scene = File.Exists(scenePath) ? File.ReadAllText(scenePath) : "";
+            string saved = File.Exists(savePath) ? File.ReadAllText(savePath) : "";
+            if (scene.IndexOf(SentinelKey, StringComparison.Ordinal) >= 0
+                || saved.IndexOf(SentinelKey, StringComparison.Ordinal) >= 0)
+            {
+                failures.Add("The key is written into the sending.");
+            }
+        }
+
+        static Person FindId(LivingWorld living, string id)
+        {
+            foreach (var person in living.People)
+            {
+                if (person != null && person.alive && person.personId == id) return person;
+            }
+            return null;
+        }
+
+        static int MembersOf(LivingWorld living, string settlementId)
+        {
+            int count = 0;
+            foreach (var person in living.People)
+            {
+                if (person != null && person.alive && person.settlementId == settlementId) count++;
+            }
+            return count;
         }
 
         static Person Unnamed(LivingWorld living)

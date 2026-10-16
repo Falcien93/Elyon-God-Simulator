@@ -48,6 +48,10 @@ namespace Elyon
         BlessPact,
         WithholdPact,
         StopRaid,
+        Attend,
+        WithholdPerson,
+        KeepValley,
+        SendOut,
     }
 
     public struct AgeFacts
@@ -240,6 +244,10 @@ namespace Elyon
                 case DivineAct.BlessPact: return "Bless the pact";
                 case DivineAct.WithholdPact: return "Withhold the pact";
                 case DivineAct.StopRaid: return "Stop the raid";
+                case DivineAct.Attend: return "Rest attention";
+                case DivineAct.WithholdPerson: return "Withhold this person";
+                case DivineAct.KeepValley: return "Keep them in the valley";
+                case DivineAct.SendOut: return "Send them out";
                 default: return "Keep the commons";
             }
         }
@@ -253,6 +261,10 @@ namespace Elyon
                 case DivineAct.Heal:
                 case DivineAct.SetFruit:
                 case DivineAct.Calm:
+                case DivineAct.Attend:
+                case DivineAct.WithholdPerson:
+                case DivineAct.KeepValley:
+                case DivineAct.SendOut:
                     return true;
                 case DivineAct.SendGame:
                 case DivineAct.KeepHerd:
