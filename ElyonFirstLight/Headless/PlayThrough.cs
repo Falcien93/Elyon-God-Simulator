@@ -173,6 +173,19 @@ namespace Elyon.Headless
             if (book.IndexOf("herd", StringComparison.OrdinalIgnoreCase) < 0) failures.Add("The chronicle has no herd.");
             if (book.IndexOf("Carmel", StringComparison.Ordinal) < 0) failures.Add("The chronicle drops the herd's name.");
             if (book.IndexOf("Kinneret", StringComparison.Ordinal) < 0) failures.Add("The chronicle drops the fish's name.");
+            if (book.IndexOf("returns to the nets", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The chronicle never brings the fish back after the drought.");
+            }
+            string stock = living.StockLine();
+            if (stock.IndexOf("Kinneret", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The present stock line drops the fish. " + stock);
+            }
+            if (stock.IndexOf("Carmel", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The present stock line drops the herd. " + stock);
+            }
 
             if (!File.Exists(savePath)) failures.Add("The world was not saved.");
             if (saved.IndexOf(SentinelKey, StringComparison.Ordinal) >= 0)

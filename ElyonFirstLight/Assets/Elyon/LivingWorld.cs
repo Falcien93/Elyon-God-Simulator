@@ -2360,7 +2360,11 @@ namespace Elyon
                 }
                 else if (season == Season.Winter)
                 {
-                    if (hold.fish >= 1f) hold.fish -= 1f;
+                    if (hold.fish >= 1f)
+                    {
+                        float leave = string.IsNullOrEmpty(hold.fishName) || hold.water < 6f ? 0f : 1f;
+                        hold.fish = Mathf.Max(leave, hold.fish - 1f);
+                    }
                     if (hold.wood > 0.5f) hold.wood -= 0.4f;
                     if (hold.herd > 0)
                     {
@@ -2378,7 +2382,21 @@ namespace Elyon
                     hold.herd++;
                     Note(HerdCalled(hold) + " at " + hold.placeName + " grows. They keep " + hold.herd + " head.");
                 }
+                if (hold.sky != Sky.Flood && hold.sky != Sky.Drought) RefillNets(hold, season);
             }
+        }
+
+        void RefillNets(Settlement hold, Season season)
+        {
+            if (hold.water < 6f) return;
+            if (hold.fields <= 0 && string.IsNullOrEmpty(hold.fishName)) return;
+            if (season == Season.Winter && string.IsNullOrEmpty(hold.fishName)) return;
+            if (hold.fish >= 4f) return;
+            float before = hold.fish;
+            hold.fish = Mathf.Min(4f, hold.fish + 1f);
+            if (before >= 1f || hold.fish < 1f || string.IsNullOrEmpty(hold.fishName)) return;
+            Note(hold.fishName + " returns to the nets at " + hold.placeName + ".");
+            Chronicle(LastEvent);
         }
 
         void SendTheRain(Settlement home)
