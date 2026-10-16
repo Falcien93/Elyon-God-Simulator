@@ -9,7 +9,8 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/game.test.js test/campaign.test.js test/saves.test.js test/release.test.js test/playthrough.test.js test/security.test.js",
+    "test": "node --test test/game.test.js test/campaign.test.js test/saves.test.js test/release.test.js test/playthrough.test.js test/security.test.js test/site.test.js",
+    "capture:site": "ELECTRON_DISABLE_SANDBOX=1 electron scripts/capture-site.mjs",
     "dist": "electron-builder --linux dir AppImage",
     "dist:dir": "electron-builder --linux dir",
     "dist:win": "electron-builder --win nsis",
