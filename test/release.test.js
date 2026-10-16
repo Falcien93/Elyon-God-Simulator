@@ -27,6 +27,8 @@ test("installer targets stay unsigned", () => {
   assert.equal(pkg.build.mac.notarize, false);
   assert.equal(pkg.build.mac.gatekeeperAssess, false);
   assert.equal(pkg.build.nsis.oneClick, false);
+  assert.equal(pkg.build.nsis.installerIcon, "assets/icon.ico");
+  assert.equal(pkg.build.nsis.uninstallerIcon, "assets/icon.ico");
   assert.equal(pkg.build.nsis.shortcutName, "Elyon");
   assert.ok(pkg.build.files.includes("splash.html"));
   assert.equal(pkg.scripts["dist:dir"], "electron-builder --linux dir");
@@ -65,4 +67,22 @@ test("title, about, and splash expose the version", () => {
   assert.match(main, /signAndEditExecutable|signed:\s*false|signed: false/);
   assert.match(main, /get-about/);
   assert.match(main, /splash\.html/);
+  assert.match(main, /icon\.ico/);
+  assert.match(main, /devTools:\s*false/);
+  assert.doesNotMatch(main, /openDevTools/);
+});
+
+test("Windows CI uploads an unsigned installer and does not publish a release", () => {
+  const workflow = fs.readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /runs-on: windows-latest/);
+  assert.match(workflow, /npm ci/);
+  assert.match(workflow, /npm test/);
+  assert.match(workflow, /electron-builder --win nsis --publish never/);
+  assert.match(workflow, /CSC_IDENTITY_AUTO_DISCOVERY: false/);
+  assert.match(workflow, /actions\/upload-artifact@v4/);
+  assert.match(workflow, /name: elyon-windows-installer/);
+  assert.match(workflow, /retention-days: 14/);
+  assert.match(workflow, /refs\/heads\/main/);
+  assert.doesNotMatch(workflow, /action-gh-release|gh release|softprops/);
 });

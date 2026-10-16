@@ -114,14 +114,14 @@ The desktop window opens on a short splash, then the title screen. **About** (al
 
 Icons are original: `assets/icon.png`, `assets/icon.ico`, `assets/icon.icns`, and the Linux sizes under `assets/icons/`.
 
-Windows NSIS and macOS DMG targets are declared in `package.json` with signing turned off (`forceCodeSigning: false`, `win.signAndEditExecutable: false`, `mac.identity: null`, notarization off). No certificates are required. Build those on the matching operating system:
+Windows NSIS and macOS DMG targets are declared in `package.json` with signing turned off (`forceCodeSigning: false`, `win.signAndEditExecutable: false`, `mac.identity: null`, notarization off). No certificates are required. The Windows executable and the Setup program use `assets/icon.ico`. The installed app does not open developer tools. Build locally on the matching operating system:
 
 ```bash
 npm run dist:win
 npm run dist:mac
 ```
 
-Continuous integration only builds the unpacked Linux app (`npm run dist:dir`). It does not produce the NSIS or DMG installers.
+Continuous integration on Ubuntu builds the unpacked Linux app (`npm run dist:dir`). A Windows job runs `npm ci`, `npm test`, and `electron-builder --win nsis` (unsigned, and it does not publish a GitHub Release) on pull requests, on pushes to `main`, and when someone starts the workflow by hand. The Setup executable is the Actions artifact `elyon-windows-installer`, kept for 14 days.
 
 ## How to play
 

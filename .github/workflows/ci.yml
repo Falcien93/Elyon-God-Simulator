@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,3 +34,35 @@ jobs:
 
       - name: Confirm unpacked app
         run: test -x dist/linux-unpacked/elyon
+
+  windows-installer:
+    runs-on: windows-latest
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Unsigned Windows installer
+        run: npx electron-builder --win nsis --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: elyon-windows-installer
+          path: dist/*Setup*.exe
+          retention-days: 14
+          if-no-files-found: error
