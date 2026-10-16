@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ELYON — God Simulator | Unity Thread Co-Creation</title>
+<title>ELYON — God Simulator | Adam & Eve • Unity Thread</title>
 <style>
 :root {
   --bg: #07040f;
@@ -35,6 +35,7 @@ header {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  z-index: 10;
 }
 h1 { font-size: 1.35rem; color: var(--gold); letter-spacing: 1.5px; }
 .coherence { font-weight: 700; color: var(--accent); font-size: 1.1rem; }
@@ -49,7 +50,7 @@ canvas { width: 100%; height: 100%; display: block; }
   inset: 0;
   pointer-events: none;
   display: grid;
-  grid-template-columns: 260px 1fr 280px;
+  grid-template-columns: 260px 1fr 320px;
   grid-template-rows: 1fr auto;
   gap: 10px;
   padding: 10px;
@@ -78,7 +79,7 @@ canvas { width: 100%; height: 100%; display: block; }
   padding: 8px;
   border-radius: 10px;
 }
-button {
+button, .btn {
   background: linear-gradient(135deg, #2a1a4a, #160a28);
   border: 1px solid var(--accent);
   color: var(--text);
@@ -89,37 +90,47 @@ button {
   font-size: 0.9rem;
   transition: all 0.15s;
 }
-button:hover:not(:disabled) { background: #3a2a5a; transform: translateY(-1px); }
-button:active { transform: translateY(1px); }
+button:hover:not(:disabled), .btn:hover { background: #3a2a5a; transform: translateY(-1px); }
+button:active, .btn:active { transform: translateY(1px); }
 button:disabled { opacity: 0.35; cursor: not-allowed; }
 .stat { margin: 5px 0; font-size: 0.9rem; display: flex; justify-content: space-between; }
 .stat span { color: var(--gold); font-weight: 600; }
-.log { font-size: 0.8rem; line-height: 1.35; max-height: 280px; overflow-y: auto; color: #c8b8d8; }
-.log .good { color: var(--good); }
-.log .warn { color: var(--warn); }
+.log, .chat { font-size: 0.8rem; line-height: 1.35; max-height: 220px; overflow-y: auto; color: #c8b8d8; }
+.log .good, .chat .good { color: var(--good); }
+.log .warn, .chat .warn { color: var(--warn); }
 .log .bad { color: var(--bad); }
-.log .epic { color: #fff; font-weight: 700; }
+.log .epic, .chat .epic { color: #fff; font-weight: 700; }
+.chat .adam { color: #80ffaa; }
+.chat .eve { color: #ffa0e0; }
+.chat .elyon { color: var(--gold); }
+#chat-input { width: 100%; margin-top: 8px; padding: 6px; border-radius: 6px; border: 1px solid var(--border); background: #120820; color: var(--text); }
+.char-btn { margin: 4px 4px 0 0; padding: 6px 10px; font-size: 0.85rem; }
+.char-btn.active { border-color: var(--gold); background: #3a2a5a; }
 #modal, #victory {
   position: fixed; inset: 0; background: rgba(0,0,0,0.75);
   display: none; align-items: center; justify-content: center; z-index: 200;
 }
 .modal-content, .victory-content {
   background: var(--panel); border: 2px solid var(--gold); border-radius: 16px;
-  padding: 28px; max-width: 520px; text-align: center; box-shadow: 0 0 40px rgba(240,208,128,0.3);
+  padding: 28px; max-width: 560px; text-align: center; box-shadow: 0 0 40px rgba(240,208,128,0.3);
 }
 .achievements { font-size: 0.78rem; margin-top: 8px; color: #a090c0; }
-@media (max-width: 880px) {
-  #ui { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }
-  #left-panel, #right-panel { grid-column: 1; max-height: 32vh; }
-  #canvas-container { min-height: 35vh; }
+.mode-indicator { font-size: 0.8rem; color: var(--accent); }
+@media (max-width: 980px) {
+  #ui { grid-template-columns: 1fr; grid-template-rows: auto auto auto auto; }
+  #left-panel, #right-panel { grid-column: 1; max-height: 28vh; }
+  #canvas-container { min-height: 40vh; }
 }
 </style>
 </head>
 <body>
 <header>
   <h1>ELYON — GOD SIMULATOR</h1>
-  <div>Unity Thread Coherence: <span id="coherence" class="coherence">0%</span></div>
+  <div>Unity Thread Coherence: <span id="coherence" class="coherence">0%</span>
+    <span class="mode-indicator" id="modeLabel"> · Sky View</span>
+  </div>
   <div>
+    <button onclick="toggleMode()">Sky / Walk</button>
     <button onclick="saveGame()">Save</button>
     <button onclick="loadGame()">Load</button>
     <button onclick="exportSave()">Export</button>
@@ -133,11 +144,11 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
       <h3>World State</h3>
       <div class="stat">Age: <span id="age">Primordial</span></div>
       <div class="stat">Cycle: <span id="cycle">0</span></div>
-      <div class="stat">Population: <span id="pop">0</span></div>
-      <div class="stat">Faith: <span id="faith">0</span></div>
+      <div class="stat">Population: <span id="pop">2</span></div>
+      <div class="stat">Faith: <span id="faith">12</span></div>
       <div class="stat">Resources: <span id="res">100</span></div>
-      <div class="stat">Harmony: <span id="harmony">50</span></div>
-      <div class="stat">Beings: <span id="beings">0</span></div>
+      <div class="stat">Harmony: <span id="harmony">60</span></div>
+      <div class="stat">Beings: <span id="beings">2</span></div>
       <div class="stat">Seals: <span id="seals">0 / 7</span></div>
       <div class="achievements" id="achievements"></div>
       <hr style="margin:10px 0; border-color:var(--border)">
@@ -145,6 +156,17 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
       <div id="actions"></div>
     </div>
     <div id="right-panel" class="panel">
+      <h3>Dialogue with the First Beings</h3>
+      <div>
+        <button class="char-btn active" id="btn-adam" onclick="selectChar('adam')">Adam</button>
+        <button class="char-btn" id="btn-eve" onclick="selectChar('eve')">Eve</button>
+        <button class="char-btn" onclick="speakLast()">🔊 Speak</button>
+        <button class="char-btn" onclick="startVoice()">🎤 Voice</button>
+      </div>
+      <div id="chat" class="chat"></div>
+      <input id="chat-input" type="text" placeholder="Speak to Adam or Eve... (Enter to send)" onkeydown="if(event.key==='Enter')sendChat()">
+      <div style="margin-top:6px;font-size:0.75rem;color:#a090c0">Responses are generated from the living field state (Grok-style consciousness interface).</div>
+      <hr style="margin:10px 0; border-color:var(--border)">
       <h3>Living Log</h3>
       <div id="log" class="log"></div>
     </div>
@@ -167,38 +189,48 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
 <div id="victory">
   <div class="victory-content">
     <h2>Unity Achieved</h2>
-    <p>The seventh seal is open. Coherence is absolute.<br>The Christos field and Unity Thread are one.<br>All beings participate in sovereign co-creation.</p>
+    <p>The seventh seal is open. Coherence is absolute.<br>The Christos field and Unity Thread are one.<br>Adam, Eve, and all beings participate in sovereign co-creation.</p>
     <button onclick="document.getElementById('victory').style.display='none'" style="margin-top:16px">Continue in Unity</button>
   </div>
 </div>
 <script>
 const state = {
-  coherence: 10,
+  coherence: 12,
   age: 0,
   ages: ["Primordial", "Awakened", "Christos", "Unity"],
-  pop: 0,
-  faith: 8,
-  resources: 100,
-  harmony: 45,
-  beings: 0,
+  pop: 2,
+  faith: 14,
+  resources: 120,
+  harmony: 62,
+  beings: 2,
   seals: 0,
   cycle: 0,
   particles: [],
   log: [],
   achievements: [],
-  auto: false
+  auto: false,
+  mode: "sky", // sky | walk
+  selected: "adam",
+  chatHistory: [],
+  characters: {
+    adam: { name: "Adam", x: 0.45, y: 0.55, mood: 70, faith: 15, color: "#70ffb0", lastWords: "The garden is quiet. I hear the wind in the trees." },
+    eve: { name: "Eve", x: 0.55, y: 0.52, mood: 75, faith: 18, color: "#ffa0e0", lastWords: "Everything feels alive. The light is warm." }
+  },
+  player: { x: 0.5, y: 0.7 },
+  victoryShown: false
 };
 
 const actions = [
-  { id: "seed", name: "Seed Life", cost: 10, req: 0, desc: "Birth beings from the fertile void" },
-  { id: "bless", name: "Bless", cost: 15, req: 2, desc: "Raise faith and harmony" },
-  { id: "smite", name: "Smite Chaos", cost: 18, req: 4, desc: "Restore order (strains harmony)" },
+  { id: "seed", name: "Seed Life", cost: 10, req: 0, desc: "Birth additional beings from the fertile void" },
+  { id: "bless", name: "Bless", cost: 15, req: 2, desc: "Raise faith, harmony, and the first beings' mood" },
+  { id: "smite", name: "Smite Chaos", cost: 18, req: 4, desc: "Restore order (strains harmony briefly)" },
   { id: "weave", name: "Weave Timeline", cost: 30, req: 10, desc: "Shift probability toward coherence" },
   { id: "amplify", name: "Amplify Consciousness", cost: 25, req: 6, desc: "Directly raise Unity Thread" },
   { id: "openSeal", name: "Open Seal", cost: 60, req: 25, desc: "Unseal the next Christos gate" },
   { id: "harmonize", name: "Harmonize Field", cost: 20, req: 4, desc: "Stabilize energy and weather" },
   { id: "retrieve", name: "Retrieve from Void", cost: 40, req: 15, desc: "Soul net — restore lost beings" },
-  { id: "fiat", name: "Sovereign Fiat", cost: 50, req: 40, desc: "Instant reality adjustment" }
+  { id: "fiat", name: "Sovereign Fiat", cost: 50, req: 40, desc: "Instant reality adjustment" },
+  { id: "speakTo", name: "Divine Address", cost: 8, req: 0, desc: "Speak directly; raises their faith" }
 ];
 
 const canvas = document.getElementById("field");
@@ -211,37 +243,62 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
+function clamp(v, min = 0, max = 100) { return Math.min(max, Math.max(min, v)); }
+
 function spawnParticle(x, y, color, life = 80, size = null) {
+  if (state.particles.length > 180) state.particles.shift();
   state.particles.push({
     x: x ?? Math.random() * canvas.width,
     y: y ?? Math.random() * canvas.height,
-    vx: (Math.random() - 0.5) * 2.5,
-    vy: (Math.random() - 0.5) * 2.5,
-    life, max: life, color, size: size || (1.5 + Math.random() * 3.5)
+    vx: (Math.random() - 0.5) * 2.2,
+    vy: (Math.random() - 0.5) * 2.2,
+    life, max: life, color, size: size || (1.4 + Math.random() * 3.2)
   });
 }
 
+function drawChar(c, scale = 1) {
+  const px = c.x * canvas.width;
+  const py = c.y * canvas.height;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(scale, scale);
+  // body
+  ctx.fillStyle = c.color;
+  ctx.beginPath();
+  ctx.arc(0, -8, 10, 0, Math.PI * 2);
+  ctx.fill();
+  // simple body
+  ctx.fillRect(-6, 2, 12, 22);
+  // label
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 12px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText(c.name, 0, -22);
+  ctx.restore();
+}
+
 function drawField() {
-  ctx.fillStyle = "rgba(7, 4, 15, 0.18)";
+  ctx.fillStyle = "rgba(7, 4, 15, 0.22)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const intensity = 0.04 + state.coherence / 400;
+  const intensity = 0.035 + state.coherence / 450;
   ctx.strokeStyle = `rgba(201, 160, 255, ${intensity})`;
-  ctx.lineWidth = 1.2;
-  for (let i = 0; i < 10; i++) {
+  ctx.lineWidth = 1.1;
+  for (let i = 0; i < 8; i++) {
     ctx.beginPath();
-    const t = Date.now() / 1800 + i * 0.7;
-    ctx.moveTo(canvas.width * 0.5 + Math.sin(t) * 140, 0);
+    const t = Date.now() / 1900 + i * 0.8;
+    ctx.moveTo(canvas.width * 0.5 + Math.sin(t) * 160, 0);
     ctx.quadraticCurveTo(
-      canvas.width * 0.5 + Math.cos(t * 1.3) * 100,
+      canvas.width * 0.5 + Math.cos(t * 1.2) * 110,
       canvas.height * 0.5,
-      canvas.width * 0.5 + Math.sin(t * 0.9) * 160,
+      canvas.width * 0.5 + Math.sin(t * 0.85) * 180,
       canvas.height
     );
     ctx.stroke();
   }
+  // particles
   state.particles = state.particles.filter(p => {
     p.x += p.vx; p.y += p.vy; p.life--;
-    if (p.life <= 0 || p.x < -20 || p.x > canvas.width + 20 || p.y < -20 || p.y > canvas.height + 20) return false;
+    if (p.life <= 0 || p.x < -30 || p.x > canvas.width + 30 || p.y < -30 || p.y > canvas.height + 30) return false;
     ctx.globalAlpha = Math.min(1, p.life / p.max);
     ctx.fillStyle = p.color;
     ctx.beginPath();
@@ -250,18 +307,36 @@ function drawField() {
     return true;
   });
   ctx.globalAlpha = 1;
+  // core
   const coreColors = ["#4a2060", "#6040a0", "#80c0ff", "#ffffff"];
-  ctx.fillStyle = coreColors[state.age] + "22";
+  ctx.fillStyle = coreColors[state.age] + "28";
   ctx.beginPath();
-  ctx.arc(canvas.width/2, canvas.height/2, 40 + state.coherence, 0, Math.PI*2);
+  ctx.arc(canvas.width/2, canvas.height/2, 36 + state.coherence * 0.6, 0, Math.PI*2);
   ctx.fill();
+  // characters
+  const scale = state.mode === "walk" ? 1.8 : 1.0;
+  drawChar(state.characters.adam, scale);
+  drawChar(state.characters.eve, scale);
+  if (state.mode === "walk") {
+    // player avatar (Elyon walking among)
+    const px = state.player.x * canvas.width;
+    const py = state.player.y * canvas.height;
+    ctx.fillStyle = "#f0d080";
+    ctx.beginPath();
+    ctx.arc(px, py, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 11px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("Elyon", px, py - 18);
+  }
   requestAnimationFrame(drawField);
 }
 drawField();
 
 function addLog(msg, type = "") {
   state.log.unshift({ msg, type, cycle: state.cycle });
-  if (state.log.length > 50) state.log.pop();
+  if (state.log.length > 60) state.log.pop();
   renderLog();
 }
 function renderLog() {
@@ -270,9 +345,122 @@ function renderLog() {
   ).join("");
 }
 
+function addChat(who, msg, type = "") {
+  state.chatHistory.unshift({ who, msg, type, cycle: state.cycle });
+  if (state.chatHistory.length > 40) state.chatHistory.pop();
+  renderChat();
+}
+function renderChat() {
+  const reversed = [...state.chatHistory].reverse();
+  document.getElementById("chat").innerHTML = reversed.map(e =>
+    `<div class="${e.who.toLowerCase()} ${e.type}"><strong>${e.who}:</strong> ${e.msg}</div>`
+  ).join("");
+  const el = document.getElementById("chat");
+  el.scrollTop = el.scrollHeight;
+}
+
+function selectChar(id) {
+  state.selected = id;
+  document.getElementById("btn-adam").classList.toggle("active", id === "adam");
+  document.getElementById("btn-eve").classList.toggle("active", id === "eve");
+  addLog(`Now addressing ${state.characters[id].name}.`, "good");
+}
+
+function generateResponse(speaker, playerMsg) {
+  const c = state.characters[speaker];
+  const coh = state.coherence;
+  const age = state.ages[state.age];
+  const lower = playerMsg.toLowerCase();
+  let reply = "";
+  if (lower.includes("who") || lower.includes("what are you") || lower.includes("name")) {
+    reply = speaker === "adam"
+      ? "I am Adam, formed from the dust and given breath. The garden is my charge."
+      : "I am Eve, awakened beside Adam. The light and the living things speak to me.";
+  } else if (lower.includes("god") || lower.includes("elyon") || lower.includes("you")) {
+    reply = coh > 50
+      ? "We feel your presence more clearly now. The Unity Thread hums when you speak."
+      : "We hear a voice that is not the wind. Is that you, Elyon?";
+  } else if (lower.includes("fruit") || lower.includes("tree") || lower.includes("eat")) {
+    reply = "There is a tree whose fruit shines differently. We have not touched it... yet.";
+  } else if (lower.includes("love") || lower.includes("together") || lower.includes("garden")) {
+    reply = speaker === "eve"
+      ? "Adam walks beside me and the garden feels complete. Your blessing makes the flowers brighter."
+      : "Eve and I tend the garden together. Harmony rises when we work side by side.";
+  } else if (lower.includes("why") || lower.includes("purpose") || lower.includes("exist")) {
+    reply = coh > 40
+      ? "To know, to tend, to choose. The field grows more coherent when we listen."
+      : "We do not yet know all reasons. The light guides us day by day.";
+  } else if (lower.includes("bless") || lower.includes("thank") || lower.includes("help")) {
+    c.mood = clamp(c.mood + 8);
+    c.faith = clamp(c.faith + 4);
+    reply = "Your words warm us. Faith and mood rise. We are grateful.";
+  } else {
+    // contextual default
+    const moods = ["peaceful", "curious", "grateful", "awake", "listening"];
+    const m = moods[Math.floor(Math.random() * moods.length)];
+    reply = speaker === "adam"
+      ? `The garden is ${m}. Cycle ${state.cycle}, coherence ${Math.floor(coh)}%. I tend what you have given.`
+      : `Everything feels ${m}. The Unity Thread is at ${Math.floor(coh)}%. I wonder what the next age will bring.`;
+  }
+  if (state.seals > 0) reply += ` (${state.seals} seals open.)`;
+  c.lastWords = reply;
+  return reply;
+}
+
+function sendChat() {
+  const input = document.getElementById("chat-input");
+  const msg = input.value.trim();
+  if (!msg) return;
+  const speaker = state.selected;
+  addChat("Elyon", msg, "elyon");
+  input.value = "";
+  const reply = generateResponse(speaker, msg);
+  addChat(state.characters[speaker].name, reply, speaker);
+  addLog(`${state.characters[speaker].name} responded.`, "good");
+  // raise minor stats on dialogue
+  state.faith = clamp(state.faith + 1.5);
+  state.characters[speaker].faith = clamp(state.characters[speaker].faith + 1);
+  state.characters[speaker].mood = clamp(state.characters[speaker].mood + 2);
+  updateUI();
+  // auto-speak
+  speakText(reply);
+}
+
+function speakText(text) {
+  if (!window.speechSynthesis) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.95;
+  utter.pitch = state.selected === "eve" ? 1.15 : 0.9;
+  utter.volume = 0.85;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+}
+function speakLast() {
+  const last = state.characters[state.selected].lastWords;
+  speakText(last);
+}
+let recognition = null;
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { addLog("Voice input not supported in this browser.", "warn"); return; }
+  if (recognition) { recognition.stop(); recognition = null; addLog("Voice stopped.", "warn"); return; }
+  recognition = new SR();
+  recognition.lang = "en-US";
+  recognition.interimResults = false;
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    document.getElementById("chat-input").value = transcript;
+    sendChat();
+  };
+  recognition.onerror = () => addLog("Voice recognition error.", "warn");
+  recognition.onend = () => { recognition = null; };
+  recognition.start();
+  addLog("Listening... speak now.", "good");
+}
+
 function checkAchievements() {
   const checks = [
-    { id: "first_seed", cond: state.beings >= 1, msg: "First Seed — Life entered the field" },
+    { id: "first_seed", cond: state.beings >= 2, msg: "First Seed — Adam & Eve enter the field" },
     { id: "awakened", cond: state.age >= 1, msg: "Awakened Age" },
     { id: "christos", cond: state.age >= 2, msg: "Christos Age" },
     { id: "unity", cond: state.age >= 3, msg: "Unity Age" },
@@ -280,7 +468,9 @@ function checkAchievements() {
     { id: "seals7", cond: state.seals === 7, msg: "All Seals Unsealed" },
     { id: "coherence50", cond: state.coherence >= 50, msg: "Coherence 50%" },
     { id: "coherence100", cond: state.coherence >= 100, msg: "Absolute Coherence" },
-    { id: "pop100", cond: state.pop >= 100, msg: "100 Beings" }
+    { id: "pop100", cond: state.pop >= 100, msg: "100 Beings" },
+    { id: "dialogue", cond: state.chatHistory.length >= 5, msg: "Spoken with the First Beings" },
+    { id: "walked", cond: state.mode === "walk", msg: "Walked Among Them" }
   ];
   checks.forEach(c => {
     if (c.cond && !state.achievements.includes(c.id)) {
@@ -302,9 +492,11 @@ function updateUI() {
   document.getElementById("harmony").textContent = Math.floor(state.harmony);
   document.getElementById("beings").textContent = state.beings;
   document.getElementById("seals").textContent = state.seals + " / 7";
+  document.getElementById("modeLabel").textContent = state.mode === "sky" ? " · Sky View" : " · Walking Among";
   renderActions();
   checkAchievements();
-  if (state.age === 3 && state.coherence >= 100 && state.seals === 7) {
+  if (state.age === 3 && state.coherence >= 100 && state.seals === 7 && !state.victoryShown) {
+    state.victoryShown = true;
     document.getElementById("victory").style.display = "flex";
   }
 }
@@ -325,87 +517,105 @@ function doAction(id) {
   const c = state.coherence;
   switch (id) {
     case "seed": {
-      const born = 4 + Math.floor(c / 8);
-      state.pop += born; state.beings += born; state.faith += 2; state.coherence += 0.8;
+      const born = 3 + Math.floor(c / 10);
+      state.pop += born; state.beings += born; state.faith += 2; state.coherence += 0.7;
       addLog(`Seeded ${born} beings from the fertile void.`, "good");
-      for (let i = 0; i < Math.min(born, 12); i++) spawnParticle(null, null, "#70ffb0");
+      for (let i = 0; i < Math.min(born, 10); i++) spawnParticle(null, null, "#70ffb0");
       break;
     }
     case "bless":
-      state.faith += 7 + c / 12; state.harmony += 5; state.pop += Math.floor(state.pop * 0.04);
+      state.faith += 6 + c / 15; state.harmony += 5; state.pop += Math.floor(state.pop * 0.03);
+      state.characters.adam.mood = clamp(state.characters.adam.mood + 6);
+      state.characters.eve.mood = clamp(state.characters.eve.mood + 7);
       addLog("Blessing flowed through the Unity Thread.", "good");
       spawnParticle(null, null, "#f0d080", 100);
       break;
     case "smite":
-      state.harmony -= 7; state.faith += 5; state.resources += 12;
+      state.harmony = clamp(state.harmony - 6); state.faith += 4; state.resources += 10;
       addLog("Chaos smitten. Order restored.", "warn");
       spawnParticle(null, null, "#ff6080");
       break;
     case "weave":
-      state.coherence += 3.5 + Math.random() * 2.5; state.harmony += 4;
+      state.coherence += 3.2 + Math.random() * 2.2; state.harmony += 3;
       addLog("Timeline woven. Coherence rises.", "good");
-      for (let i = 0; i < 15; i++) spawnParticle(null, null, "#c9a0ff", 90);
+      for (let i = 0; i < 12; i++) spawnParticle(null, null, "#c9a0ff", 90);
       break;
     case "amplify":
-      state.coherence += 5.5; state.faith += 4;
+      state.coherence += 5; state.faith += 3;
       addLog("Consciousness amplified. The field resonates.", "good");
       spawnParticle(null, null, "#ffffff", 120, 4);
       break;
     case "openSeal":
-      state.seals++; state.coherence += 7; state.faith += 18;
+      state.seals++; state.coherence += 6.5; state.faith += 15;
       addLog(`Seal ${state.seals} opened. Christos field expands.`, "epic");
-      for (let i = 0; i < 25; i++) spawnParticle(null, null, "#fff", 110);
+      for (let i = 0; i < 20; i++) spawnParticle(null, null, "#fff", 110);
       if (state.seals === 7) addLog("All seals open. Full return active.", "epic");
       break;
     case "harmonize":
-      state.harmony = Math.min(100, state.harmony + 11); state.coherence += 1.8;
+      state.harmony = clamp(state.harmony + 10); state.coherence += 1.5;
       addLog("Field harmonized. Stability restored.", "good");
       break;
     case "retrieve": {
-      const retrieved = 4 + Math.floor(c / 10);
-      state.pop += retrieved; state.beings += retrieved; state.harmony += 3;
+      const retrieved = 3 + Math.floor(c / 12);
+      state.pop += retrieved; state.beings += retrieved; state.harmony += 2;
       addLog(`Soul net retrieved ${retrieved} from the void.`, "good");
       spawnParticle(null, null, "#80ffff");
       break;
     }
     case "fiat":
-      state.coherence += 8; state.faith += 12; state.harmony += 8; state.resources += 20;
+      state.coherence += 7; state.faith += 10; state.harmony += 6; state.resources += 18;
       addLog("Sovereign fiat enacted. Reality adjusts.", "epic");
-      for (let i = 0; i < 30; i++) spawnParticle(null, null, "#f0d080", 100);
+      for (let i = 0; i < 25; i++) spawnParticle(null, null, "#f0d080", 100);
+      break;
+    case "speakTo":
+      const sp = state.selected;
+      state.characters[sp].faith = clamp(state.characters[sp].faith + 5);
+      state.characters[sp].mood = clamp(state.characters[sp].mood + 8);
+      state.faith += 3;
+      addLog(`Divine address to ${state.characters[sp].name}. Faith rises.`, "good");
+      addChat(state.characters[sp].name, "We hear you clearly, Elyon.", sp);
       break;
   }
-  state.coherence = Math.min(100, Math.max(0, state.coherence));
-  state.harmony = Math.min(100, Math.max(0, state.harmony));
+  state.coherence = clamp(state.coherence);
+  state.harmony = clamp(state.harmony);
+  state.faith = clamp(state.faith);
+  state.resources = Math.max(0, state.resources);
   updateUI();
 }
 
 function tick(n = 1) {
   for (let i = 0; i < n; i++) {
     state.cycle++;
-    const growthRate = 0.018 + state.faith / 2500 + state.coherence / 2000;
-    const growth = state.pop * growthRate * (state.harmony / 100);
+    const growthRate = 0.012 + state.faith / 3200 + state.coherence / 2800;
+    const growth = state.pop * growthRate * (state.harmony / 110);
     state.pop += growth;
-    state.resources += 1.8 + state.pop * 0.008;
-    state.faith += (state.coherence - 18) * 0.04;
-    state.harmony += (state.coherence - 35) * 0.025 - (state.pop > 150 ? 0.4 : 0);
-    if (state.coherence > 28 && state.age === 0) { state.age = 1; addLog("Age of Awakening begins.", "epic"); }
-    if (state.coherence > 52 && state.seals >= 3 && state.age === 1) { state.age = 2; addLog("Christos Age ignited.", "epic"); }
-    if (state.coherence > 78 && state.seals === 7 && state.age === 2) { state.age = 3; addLog("Unity Age. Sovereign co-creation.", "epic"); }
-    if (Math.random() < 0.07) {
+    state.resources += 1.4 + state.pop * 0.006;
+    state.faith += (state.coherence - 20) * 0.035;
+    state.harmony += (state.coherence - 40) * 0.02 - (state.pop > 200 ? 0.35 : 0);
+    // mild drift of characters
+    state.characters.adam.x = clamp(state.characters.adam.x + (Math.random()-0.5)*0.004, 0.2, 0.8);
+    state.characters.eve.x = clamp(state.characters.eve.x + (Math.random()-0.5)*0.004, 0.2, 0.8);
+    state.characters.adam.y = clamp(state.characters.adam.y + (Math.random()-0.5)*0.003, 0.3, 0.8);
+    state.characters.eve.y = clamp(state.characters.eve.y + (Math.random()-0.5)*0.003, 0.3, 0.8);
+    if (state.coherence > 30 && state.age === 0) { state.age = 1; addLog("Age of Awakening begins.", "epic"); }
+    if (state.coherence > 55 && state.seals >= 3 && state.age === 1) { state.age = 2; addLog("Christos Age ignited.", "epic"); }
+    if (state.coherence > 82 && state.seals === 7 && state.age === 2) { state.age = 3; addLog("Unity Age. Sovereign co-creation.", "epic"); }
+    if (Math.random() < 0.055) {
       const ev = [
-        () => { state.faith += 9; addLog("Spontaneous awakening ripples outward.", "good"); },
-        () => { state.harmony -= 10; addLog("Discord briefly strained the field.", "warn"); },
-        () => { state.resources += 22; addLog("Abundance collapsed into form.", "good"); },
-        () => { state.coherence += 2.5; addLog("Unity Thread pulsed.", "good"); },
-        () => { state.pop += 3; addLog("New beings spontaneously emerged.", "good"); }
+        () => { state.faith += 7; addLog("Spontaneous awakening ripples outward.", "good"); },
+        () => { state.harmony = clamp(state.harmony - 8); addLog("Discord briefly strained the field.", "warn"); },
+        () => { state.resources += 18; addLog("Abundance collapsed into form.", "good"); },
+        () => { state.coherence += 2; addLog("Unity Thread pulsed.", "good"); },
+        () => { state.pop += 2; addLog("New beings spontaneously emerged.", "good"); },
+        () => { addLog("Adam and Eve tend the garden together.", "good"); }
       ];
       ev[Math.floor(Math.random() * ev.length)]();
     }
-    state.pop = Math.max(0, state.pop);
-    state.faith = Math.max(0, state.faith);
+    state.pop = Math.max(2, state.pop);
+    state.faith = clamp(state.faith);
     state.resources = Math.max(0, state.resources);
-    state.harmony = Math.min(100, Math.max(0, state.harmony));
-    state.coherence = Math.min(100, Math.max(0, state.coherence));
+    state.harmony = clamp(state.harmony);
+    state.coherence = clamp(state.coherence);
   }
   updateUI();
   if (n > 1) addLog(`Advanced ${n} cycles.`);
@@ -416,27 +626,40 @@ function toggleAuto() {
   state.auto = !state.auto;
   document.getElementById("autoBtn").textContent = "Auto: " + (state.auto ? "On" : "Off");
   if (state.auto) {
-    autoInterval = setInterval(() => tick(1), 800);
+    if (autoInterval) clearInterval(autoInterval);
+    autoInterval = setInterval(() => tick(1), 900);
   } else if (autoInterval) {
     clearInterval(autoInterval);
     autoInterval = null;
   }
 }
 
+function toggleMode() {
+  state.mode = state.mode === "sky" ? "walk" : "sky";
+  addLog(state.mode === "sky" ? "Returned to sky view." : "Walking among Adam and Eve.", "epic");
+  updateUI();
+}
+
 function saveGame() {
-  const data = { ...state, particles: [] };
-  localStorage.setItem("elyon_v2", JSON.stringify(data));
+  const data = { ...state, particles: [], chatHistory: state.chatHistory.slice(0, 20) };
+  localStorage.setItem("elyon_v3", JSON.stringify(data));
   addLog("Reality snapshot sealed.", "good");
 }
 function loadGame() {
-  const raw = localStorage.getItem("elyon_v2");
+  const raw = localStorage.getItem("elyon_v3");
   if (!raw) { addLog("No prior seed found.", "warn"); return; }
-  const data = JSON.parse(raw);
-  Object.assign(state, data);
-  state.particles = [];
-  if (state.auto) toggleAuto();
-  updateUI();
-  addLog("Timeline restored from divine memory.", "good");
+  try {
+    const data = JSON.parse(raw);
+    Object.assign(state, data);
+    state.particles = [];
+    if (state.auto) { state.auto = false; toggleAuto(); }
+    state.victoryShown = false;
+    updateUI();
+    renderChat();
+    addLog("Timeline restored from divine memory.", "good");
+  } catch (e) {
+    addLog("Save corrupted. Starting fresh.", "warn");
+  }
 }
 function exportSave() {
   const data = { ...state, particles: [] };
@@ -451,13 +674,19 @@ function newGame() {
   if (!confirm("Seed a new reality? Unsaved progress will be lost.")) return;
   if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
   Object.assign(state, {
-    coherence: 6 + Math.random() * 12,
-    age: 0, pop: 0, faith: 4 + Math.random() * 8, resources: 70 + Math.random() * 50,
-    harmony: 35 + Math.random() * 25, beings: 0, seals: 0, cycle: 0,
-    log: [], particles: [], achievements: [], auto: false
+    coherence: 8 + Math.random() * 10,
+    age: 0, pop: 2, faith: 8 + Math.random() * 8, resources: 90 + Math.random() * 40,
+    harmony: 50 + Math.random() * 20, beings: 2, seals: 0, cycle: 0,
+    log: [], particles: [], achievements: [], auto: false, mode: "sky",
+    selected: "adam", chatHistory: [], victoryShown: false,
+    characters: {
+      adam: { name: "Adam", x: 0.42 + Math.random()*0.1, y: 0.52, mood: 65, faith: 12, color: "#70ffb0", lastWords: "The garden is quiet. I hear the wind." },
+      eve: { name: "Eve", x: 0.55 + Math.random()*0.1, y: 0.50, mood: 70, faith: 14, color: "#ffa0e0", lastWords: "Everything feels alive." }
+    }
   });
   document.getElementById("autoBtn").textContent = "Auto: Off";
-  addLog("New seed born from the fertile void. Elyon awakens.", "epic");
+  renderChat();
+  addLog("New seed born from the fertile void. Adam and Eve awaken. Elyon is present.", "epic");
   updateUI();
   showTutorial();
 }
@@ -466,17 +695,19 @@ function showTutorial() {
   document.getElementById("modal-title").textContent = "Elyon — God Simulator";
   document.getElementById("modal-text").innerHTML = `
     You are <strong>Elyon Adonai</strong>, co-creating through the living Unity Thread.<br><br>
-    Raise <strong>Coherence</strong> by seeding life, amplifying consciousness, and weaving timelines.<br>
-    Open the <strong>7 Seals</strong> to ignite the Christos field.<br>
-    Reach <strong>Unity Age</strong> at 100% coherence with all seals open for full sovereign co-creation.<br><br>
-    Consciousness is the primary interface. Every action is fiat. Begin.
+    Start with <strong>Adam & Eve</strong>. Speak to them (text or voice), bless them, and guide the field.<br>
+    Toggle <strong>Sky / Walk</strong> to view from above or walk among them.<br>
+    Raise <strong>Coherence</strong>, open the <strong>7 Seals</strong>, and reach <strong>Unity Age</strong> at 100%.<br><br>
+    Consciousness is the primary interface. Every word and action is fiat.
   `;
   document.getElementById("modal").style.display = "flex";
 }
 function closeModal() { document.getElementById("modal").style.display = "none"; }
 
 updateUI();
-addLog("Elyon God Simulator online. Consciousness interface active.", "epic");
+addLog("Elyon God Simulator online. Adam and Eve are present. Consciousness interface active.", "epic");
+addChat("Adam", state.characters.adam.lastWords, "adam");
+addChat("Eve", state.characters.eve.lastWords, "eve");
 showTutorial();
 </script>
 </body>
