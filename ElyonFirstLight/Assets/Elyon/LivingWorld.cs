@@ -38,6 +38,10 @@ namespace Elyon
         float knowledge;
         bool roadOpen;
         bool charter;
+        bool pact;
+        bool pactWithheld;
+        bool raidStopped;
+        string dealLine = "";
         float followTimer;
         bool visualsDirty = true;
         string loadedTimeNote = "";
@@ -423,6 +427,15 @@ namespace Elyon
                     if (giverBefore >= 8f && giver.Meals < 8f) moved += " " + giver.placeName + " can no longer spare one.";
                     Note(moved);
                     break;
+                case DivineAct.BlessPact:
+                    BlessPact(home);
+                    break;
+                case DivineAct.WithholdPact:
+                    WithholdPact(home);
+                    break;
+                case DivineAct.StopRaid:
+                    StopTheRaid(home);
+                    break;
             }
 
             RefreshKin();
@@ -452,7 +465,12 @@ namespace Elyon
             AssignJobs();
             RefreshKin();
             visualsDirty = true;
-            foreach (var hold in settlements) hold.dread = false;
+            foreach (var hold in settlements)
+            {
+                hold.dread = false;
+                hold.raided = false;
+            }
+            pactWithheld = false;
             foreach (var person in people)
             {
                 person.blessedHouse = false;
@@ -677,21 +695,28 @@ namespace Elyon
             foreach (var hold in settlements)
             {
                 if (hold.abandoned || Members(hold) <= 0) continue;
+                if (hold.pactStay && !hold.dread && !hold.raided) continue;
                 float grief = MeanGrief(hold);
-                bool pressure = hold.dread || hold.faith < 12f || (grief >= 50f && hold.Meals < 6f);
+                bool pressure = hold.dread || hold.faith < 12f || (grief >= 50f && hold.Meals < 6f) || hold.raided;
                 if (!pressure) continue;
-                Person leaver = PickLeaver(hold);
-                if (leaver == null) continue;
-                Settlement dest = BestHold(hold);
-                if (dest == null)
-                {
-                    Note(leaver.personName + " wants to leave " + hold.placeName + ", and there is no other hearth.");
-                    continue;
-                }
-                SetHome(leaver, dest, true);
-                leaver.Remember("I left " + hold.placeName + ".");
-                Note(leaver.personName + " leaves " + hold.placeName + " for " + dest.placeName + ".");
+                SendAway(hold, "I left " + hold.placeName + ".");
             }
+        }
+
+        bool SendAway(Settlement hold, string memory)
+        {
+            Person leaver = PickLeaver(hold);
+            if (leaver == null) return false;
+            Settlement dest = BestHold(hold);
+            if (dest == null)
+            {
+                Note(leaver.personName + " wants to leave " + hold.placeName + ", and there is no other hearth.");
+                return false;
+            }
+            SetHome(leaver, dest, true);
+            leaver.Remember(memory);
+            Note(leaver.personName + " leaves " + hold.placeName + " for " + dest.placeName + ".");
+            return true;
         }
 
         Person PickLeaver(Settlement hold)
@@ -1133,22 +1158,152 @@ namespace Elyon
             return best;
         }
 
+        void BlessPact(Settlement home)
+        {
+            Settlement other = OtherHold(home);
+            if (other == null)
+            {
+                Note("There is one hearth. A pact needs two.");
+                return;
+            }
+            pact = true;
+            pactWithheld = false;
+            home.pactStay = true;
+            other.pactStay = true;
+            home.faith = Mathf.Clamp(home.faith + 2f, 0f, 100f);
+            other.faith = Mathf.Clamp(other.faith + 2f, 0f, 100f);
+            CalmMembers(home, 6f);
+            CalmMembers(other, 6f);
+            dealLine = "A pact holds between " + home.placeName + " and " + other.placeName + ".";
+            Note(dealLine + " They may send grain, wood, and tools, and their people stay.");
+        }
+
+        void WithholdPact(Settlement home)
+        {
+            Settlement other = OtherHold(home);
+            if (other == null)
+            {
+                Note("There is one hearth. There is no pact to withhold.");
+                return;
+            }
+            pact = false;
+            pactWithheld = true;
+            home.pactStay = false;
+            other.pactStay = false;
+            home.faith = Mathf.Max(0f, home.faith - 3f);
+            other.faith = Mathf.Max(0f, other.faith - 2f);
+            foreach (var member in people)
+            {
+                if (!member.alive) continue;
+                if (member.settlementId != home.id && member.settlementId != other.id) continue;
+                member.body.fear = Mathf.Min(100f, member.body.fear + 4f);
+            }
+            dealLine = "The pact is withheld between " + home.placeName + " and " + other.placeName + ".";
+            Note(dealLine + " No grain, wood, or tools move, and someone may leave.");
+            Settlement poorer = home.Meals <= other.Meals ? home : other;
+            SendAway(poorer, "The pact was withheld.");
+        }
+
+        void StopTheRaid(Settlement home)
+        {
+            if (OtherHold(home) == null)
+            {
+                Note("There is one hearth. No raid can be stopped.");
+                return;
+            }
+            raidStopped = true;
+            dealLine = "Elyon has said a raid will not land.";
+            CalmMembers(home, 4f);
+            Note(dealLine + " The stores stay where they are, and the people of " + home.placeName + " stay.");
+        }
+
         void Trade()
         {
-            if (!roadOpen) return;
-            Settlement rich = null;
-            Settlement poor = null;
+            if (LivingHolds() < 2) return;
+            if (pactWithheld)
+            {
+                dealLine = "The pact is withheld. Nothing is sent between the holds.";
+                Note(dealLine);
+                return;
+            }
+            if (!roadOpen && !pact) return;
+            Settlement grainRich = null;
+            Settlement grainPoor = null;
             foreach (var hold in settlements)
             {
                 if (hold.abandoned || Members(hold) <= 0) continue;
-                if (rich == null || hold.grain > rich.grain) rich = hold;
-                if (poor == null || hold.grain < poor.grain) poor = hold;
+                if (grainRich == null || hold.grain > grainRich.grain) grainRich = hold;
+                if (grainPoor == null || hold.grain < grainPoor.grain) grainPoor = hold;
             }
-            if (rich == null || poor == null || rich == poor) return;
-            float gift = rich.grain * 0.12f;
-            if (gift < 0.5f) return;
-            rich.grain -= gift;
-            poor.grain += gift;
+            if (grainRich == null || grainPoor == null || grainRich == grainPoor) return;
+            float share = pact ? 0.18f : 0.1f;
+            float grainSent = grainRich.grain * share;
+            if (grainSent < 0.5f) return;
+            grainRich.grain -= grainSent;
+            grainPoor.grain += grainSent;
+            string back = "";
+            if (grainPoor.wood >= 3f && grainPoor.wood > grainRich.wood + 1f)
+            {
+                float wood = Mathf.Min(grainPoor.wood * (pact ? 0.35f : 0.15f), pact ? 5f : 2f);
+                if (wood >= 1f)
+                {
+                    grainPoor.wood -= wood;
+                    grainRich.wood += wood;
+                    back = " " + grainPoor.placeName + " sends wood back.";
+                }
+            }
+            else if (SendTool(grainPoor, grainRich))
+            {
+                back = " A tool goes back to " + grainRich.placeName + ".";
+            }
+            else if (grainRich.wood >= 4f)
+            {
+                float wood = Mathf.Min(grainRich.wood * (pact ? 0.25f : 0.08f), pact ? 4f : 1.5f);
+                if (wood >= 1f)
+                {
+                    grainRich.wood -= wood;
+                    grainPoor.wood += wood;
+                    back = " Wood goes with the grain, so " + grainPoor.placeName + " can build.";
+                }
+            }
+            string line = grainRich.placeName + " sends grain to " + grainPoor.placeName + "." + back;
+            if (pact) line = "Under the pact, " + line;
+            dealLine = line;
+            if (pact)
+            {
+                grainRich.faith = Mathf.Clamp(grainRich.faith + 1f, 0f, 100f);
+                grainPoor.faith = Mathf.Clamp(grainPoor.faith + 1f, 0f, 100f);
+            }
+            Note(line);
+        }
+
+        bool SendTool(Settlement from, Settlement to)
+        {
+            if (from == null || to == null) return false;
+            Person donor = null;
+            int ofKind = 0;
+            foreach (var person in people)
+            {
+                if (!person.alive || person.settlementId != from.id) continue;
+                if (person.tool == ToolKind.Hands) continue;
+                ofKind++;
+                if (donor == null || person.toolWear > donor.toolWear) donor = person;
+            }
+            if (donor == null || ofKind < 2) return false;
+            Person receiver = null;
+            foreach (var person in people)
+            {
+                if (!person.alive || person.settlementId != to.id || person.body.age < 14f) continue;
+                if (person.tool != ToolKind.Hands) continue;
+                receiver = person;
+                break;
+            }
+            if (receiver == null) return false;
+            receiver.tool = donor.tool;
+            receiver.toolWear = donor.toolWear;
+            donor.tool = ToolKind.Hands;
+            donor.toolWear = 0f;
+            return true;
         }
 
         void ApplyLabor(float years, bool onlyWhileWorking)
@@ -1650,6 +1805,12 @@ namespace Elyon
                 if (hold.abandoned) empty++;
             }
             if (empty > 0) line += "   empty " + empty;
+            if (LivingHolds() > 1)
+            {
+                if (pactWithheld) line += "   pact withheld";
+                else if (pact) line += "   pact";
+                if (raidStopped) line += "   raid stopped";
+            }
             return line;
         }
 
@@ -2326,6 +2487,10 @@ namespace Elyon
                     knowledge = knowledge,
                     road = roadOpen,
                     charter = charter,
+                    pact = pact,
+                    pactWithheld = pactWithheld,
+                    raidStopped = raidStopped,
+                    deal = dealLine,
                     nextId = nextId,
                     nameCursor = nameCursor,
                     settlements = new SettlementRecord[settlements.Count],
@@ -2363,6 +2528,10 @@ namespace Elyon
                 knowledge = record.knowledge;
                 roadOpen = record.road;
                 charter = record.charter;
+                pact = record.pact;
+                pactWithheld = record.pactWithheld;
+                raidStopped = record.raidStopped;
+                dealLine = record.deal ?? "";
                 nextId = Mathf.Max(3, record.nextId);
                 nameCursor = record.nameCursor;
                 settlements.Clear();
@@ -2469,6 +2638,9 @@ namespace Elyon
             DivineAct.DarkenLamps,
             DivineAct.BlessPresent,
             DivineAct.KeepCommons,
+            DivineAct.BlessPact,
+            DivineAct.WithholdPact,
+            DivineAct.StopRaid,
         };
     }
 
@@ -2483,6 +2655,10 @@ namespace Elyon
         public float knowledge;
         public bool road;
         public bool charter;
+        public bool pact;
+        public bool pactWithheld;
+        public bool raidStopped;
+        public string deal;
         public int nextId;
         public int nameCursor;
         public SettlementRecord[] settlements;
@@ -2523,6 +2699,8 @@ namespace Elyon
         public bool press;
         public bool abandoned;
         public bool dread;
+        public bool pactStay;
+        public bool raided;
 
         public static SettlementRecord From(Settlement settlement)
         {
@@ -2558,6 +2736,8 @@ namespace Elyon
                 press = settlement.press,
                 abandoned = settlement.abandoned,
                 dread = settlement.dread,
+                pactStay = settlement.pactStay,
+                raided = settlement.raided,
             };
         }
 
@@ -2595,6 +2775,8 @@ namespace Elyon
                 press = press,
                 abandoned = abandoned,
                 dread = dread,
+                pactStay = pactStay,
+                raided = raided,
             };
         }
     }

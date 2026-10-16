@@ -42,6 +42,9 @@ namespace Elyon
         DarkenLamps,
         BlessPresent,
         KeepCommons,
+        BlessPact,
+        WithholdPact,
+        StopRaid,
     }
 
     public struct AgeFacts
@@ -160,7 +163,7 @@ namespace Elyon
                 case AgeId.MetalTowns:
                     return "You may gift ore and mend a body at the smithy.";
                 case AgeId.Cities:
-                    return "You may proclaim a law, grant a harvest, or withhold one.";
+                    return "You may proclaim a law, grant a harvest, or withhold one. You may bless a pact, withhold it, or stop a raid.";
                 case AgeId.RoadsAndLetters:
                     return "You may open the road and kindle a lesson.";
                 case AgeId.Mills:
@@ -201,6 +204,10 @@ namespace Elyon
                 case DivineAct.KindleLamps: return "Kindle the lamps";
                 case DivineAct.DarkenLamps: return "Darken the lamps";
                 case DivineAct.BlessPresent: return "Bless the present";
+                case DivineAct.KeepCommons: return "Keep the commons";
+                case DivineAct.BlessPact: return "Bless the pact";
+                case DivineAct.WithholdPact: return "Withhold the pact";
+                case DivineAct.StopRaid: return "Stop the raid";
                 default: return "Keep the commons";
             }
         }
@@ -227,6 +234,9 @@ namespace Elyon
                 case DivineAct.Proclaim:
                 case DivineAct.GrantHarvest:
                 case DivineAct.WithholdHarvest:
+                case DivineAct.BlessPact:
+                case DivineAct.WithholdPact:
+                case DivineAct.StopRaid:
                     return age >= AgeId.Cities;
                 case DivineAct.OpenRoad:
                 case DivineAct.KindleLesson:
