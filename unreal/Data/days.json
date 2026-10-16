@@ -1,0 +1,61 @@
+{
+  "source": "js/content.js",
+  "days": [
+    {
+      "id": "light",
+      "numeral": "the first day",
+      "title": "Light",
+      "detail": "The deep is unformed. Speak light into it.",
+      "evening": "Evening came, and morning — the first day."
+    },
+    {
+      "id": "waters",
+      "numeral": "the second day",
+      "title": "Waters",
+      "detail": "Divide the waters. Let a sea, a river, and a lake take their places.",
+      "evening": "Evening came, and morning — the second day."
+    },
+    {
+      "id": "land",
+      "numeral": "the third day",
+      "title": "Dry land",
+      "detail": "Call the dry land up out of the dark, and let a garden floor appear.",
+      "evening": "Evening came, and morning — the third day."
+    },
+    {
+      "id": "grove",
+      "numeral": "the third day",
+      "title": "Seed",
+      "detail": "Bring forth grass and trees. Set the Tree of Life and the Tree of Knowledge in the midst.",
+      "evening": "The ground answered. Fruit took its color."
+    },
+    {
+      "id": "lights",
+      "numeral": "the fourth day",
+      "title": "Luminaries",
+      "detail": "Set a greater light and a lesser light, so the garden can tell its hours.",
+      "evening": "Evening came, and morning — the fourth day."
+    },
+    {
+      "id": "creatures",
+      "numeral": "the fifth and sixth days",
+      "title": "Living creatures",
+      "detail": "Fill the water, the air, and the grass with living things.",
+      "evening": "The garden began to move of its own accord."
+    },
+    {
+      "id": "humanity",
+      "numeral": "the sixth day",
+      "title": "Humanity",
+      "detail": "Form a man, speak with him, and then form his companion.",
+      "evening": "Two breaths moved in the garden, and neither was alone."
+    },
+    {
+      "id": "rest",
+      "numeral": "the seventh day",
+      "title": "Rest",
+      "detail": "Descend and draw near to each of them beneath the trees.",
+      "evening": "You rested, and the work did not unwind."
+    }
+  ]
+}

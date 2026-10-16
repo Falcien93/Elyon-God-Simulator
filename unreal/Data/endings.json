@@ -1,0 +1,98 @@
+{
+  "source": [
+    "js/content.js",
+    "js/sim.js"
+  ],
+  "handsRule": {
+    "whenChoiceFx": "ending:hands",
+    "ifFlagSilence": "wonder",
+    "otherwise": "exile",
+    "source": "js/sim.js resolveEnding"
+  },
+  "endings": [
+    {
+      "id": "harmony",
+      "title": "The garden kept",
+      "paragraphs": [
+        "They left the fruit on the branch. Not from dullness — Eve could still describe its color better than any praise you had spoken. They left it because you asked, and because you stayed beside the asking.",
+        "The serpent’s voice dried up like a creek in a careful summer. Order deepened. Wonder did not die; it narrowed into loyalty, which is a kind of sight. You walked the garden in the evening and the work did not unwind."
+      ],
+      "conditions": [
+        {
+          "node": "eve_choice",
+          "speaker": "eve",
+          "choice": "Leave the fruit. I am with you either way, and I ask you to trust me.",
+          "fx": "ending:harmony"
+        }
+      ]
+    },
+    {
+      "id": "exile",
+      "title": "East of the garden",
+      "paragraphs": [
+        "They ate, and knowing entered like weather. They did not become monsters. They became people who could not pretend the bite was someone else’s hand. Shame arrived, and so did skill.",
+        "You did not strike them. You clothed them, and you walked them toward the eastern grass where the river loosens into the wild. The garden remained behind them, beautiful and no longer simple. Love went with them past the gate."
+      ],
+      "conditions": [
+        {
+          "node": "eve_choice",
+          "speaker": "eve",
+          "choice": "I will not choose for you.",
+          "fx": "ending:hands",
+          "requires": {
+            "silence": false
+          },
+          "resolvesTo": "exile"
+        }
+      ]
+    },
+    {
+      "id": "wonder",
+      "title": "The open orchard",
+      "paragraphs": [
+        "You never drew the line. When they tasted the fruit, no law broke, because no law had been set. The bite did not exile them. It changed the grain of their seeing. Colors took on insides.",
+        "Some gardens are kept by fences and some by company. This one stayed, stranger and kinder, with you still able to descend. They were not innocent. They were uncondemned. The difference filled the evening like a second light."
+      ],
+      "conditions": [
+        {
+          "node": "eve_choice",
+          "speaker": "eve",
+          "choice": "I will not choose for you.",
+          "fx": "ending:hands",
+          "requires": {
+            "silence": true
+          },
+          "resolvesTo": "wonder"
+        }
+      ]
+    },
+    {
+      "id": "order",
+      "title": "The closed question",
+      "paragraphs": [
+        "You ended the trial. The low voice was driven out, and the fruit was put beyond desire — guarded, darkened, no longer a door. Nothing in the garden could fall. The evenings were very peaceful.",
+        "Adam slept easily. Eve loved you without rebellion and without the particular brightness rebellion makes room for. Order shone like polished stone. When you walked among the trees, one shape of wonder was missing, and you knew its name."
+      ],
+      "conditions": [
+        {
+          "node": "eve_choice",
+          "speaker": "eve",
+          "choice": "Then I will put the fruit out of reach.",
+          "fx": "ending:order"
+        },
+        {
+          "node": "serpent_meet",
+          "speaker": "serpent",
+          "choice": "Be gone from this garden.",
+          "fx": "ending:order"
+        },
+        {
+          "node": "serpent_why",
+          "speaker": "serpent",
+          "choice": "Be gone.",
+          "fx": "ending:order"
+        }
+      ]
+    }
+  ]
+}
