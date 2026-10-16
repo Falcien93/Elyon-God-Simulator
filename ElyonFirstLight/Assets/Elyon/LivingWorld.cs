@@ -22,6 +22,16 @@ namespace Elyon
             "Tova", "Itai", "Serah", "Hanan",
         };
 
+        static readonly string[] HerdNames =
+        {
+            "Carmel", "Sharon", "Gilead", "Bashan", "Nebo", "Hermon",
+        };
+
+        static readonly string[] FishNames =
+        {
+            "Kinneret", "Kishon", "Arnon", "Yarkon", "Zered", "Jabbok",
+        };
+
         readonly List<Person> people = new List<Person>();
         readonly List<Settlement> settlements = new List<Settlement>();
         readonly List<string> log = new List<string>();
@@ -48,6 +58,7 @@ namespace Elyon
         string pactLine = "";
         string raidLine = "";
         string woundLine = "";
+        string nameDraft = "";
         float followTimer;
         bool visualsDirty = true;
         string loadedTimeNote = "";
@@ -821,6 +832,16 @@ namespace Elyon
                 dest.ore += hold.ore;
                 dest.fish += hold.fish;
                 dest.herd = Mathf.Min(6, dest.herd + hold.herd);
+                if (dest.herd > 0 && string.IsNullOrEmpty(dest.herdName) && !string.IsNullOrEmpty(hold.herdName))
+                {
+                    dest.herdName = hold.herdName;
+                    hold.herdName = "";
+                }
+                if (dest.fish >= 1f && string.IsNullOrEmpty(dest.fishName) && !string.IsNullOrEmpty(hold.fishName))
+                {
+                    dest.fishName = hold.fishName;
+                    hold.fishName = "";
+                }
                 hold.fruit = 0f;
                 hold.meat = 0f;
                 hold.grain = 0f;
@@ -1321,8 +1342,8 @@ namespace Elyon
                 }
             }
             string carried = tool ? "grain, wood, and a tool" : "grain and wood";
-            if (fish >= 0.4f) carried += ", and fish";
-            if (herdTaken) carried += ", and a head of the herd";
+            if (fish >= 0.4f) carried += string.IsNullOrEmpty(victim.fishName) ? ", and fish" : ", and " + victim.fishName;
+            if (herdTaken) carried += ", and a head of " + (string.IsNullOrEmpty(victim.herdName) ? "the herd" : victim.herdName);
             string cause = "";
             if (attacker.sky == Sky.Drought && attacker.Meals >= 4f)
             {
@@ -1904,6 +1925,8 @@ namespace Elyon
             SetHome(garden.Eve, eden, false);
             garden.Adam.bornInto = Ages.Name(AgeId.FirstFamily);
             garden.Eve.bornInto = Ages.Name(AgeId.FirstFamily);
+            garden.Adam.givenName = true;
+            garden.Eve.givenName = true;
             garden.Adam.home = this;
             garden.Eve.home = this;
         }
@@ -2171,8 +2194,8 @@ namespace Elyon
                 + ", faith " + Mathf.RoundToInt(hold.faith)
                 + ". The season is " + SeasonName()
                 + ". The sky is " + SkyName(hold.sky)
-                + ". Herd " + hold.herd
-                + ". Fish " + Mathf.RoundToInt(hold.fish)
+                + ". " + HerdFact(hold)
+                + ". " + FishFact(hold)
                 + ". " + law + " " + bond + strife + between + born + lost;
         }
 
@@ -2259,7 +2282,8 @@ namespace Elyon
             if (home.sky == Sky.Rain && labor == Labor.Farm) return " in the rain";
             if (SeasonNow() == Season.Winter && outdoors) return " in the cold";
             if (SeasonNow() == Season.Autumn && labor == Labor.Farm) return " at the harvest";
-            if (home.herd > 0 && labor == Labor.Hunt) return " with the herd";
+            if (home.herd > 0 && labor == Labor.Hunt)
+                return string.IsNullOrEmpty(home.herdName) ? " with the herd" : " with " + home.herdName;
             return "";
         }
 
@@ -2276,7 +2300,7 @@ namespace Elyon
                     if (hold.herd > 0)
                     {
                         hold.herd--;
-                        Note("Drought takes a head from the herd at " + hold.placeName + ".");
+                        Note("Drought takes a head from " + HerdCalled(hold) + " at " + hold.placeName + ".");
                     }
                 }
                 else if (season == Season.Winter)
@@ -2290,14 +2314,14 @@ namespace Elyon
                         else
                         {
                             hold.herd--;
-                            Note("Winter takes a head from the herd at " + hold.placeName + ". The stores could not feed them.");
+                            Note("Winter takes a head from " + HerdCalled(hold) + " at " + hold.placeName + ". The stores could not feed them.");
                         }
                     }
                 }
                 else if ((season == Season.Summer || season == Season.Autumn) && hold.herd > 0 && hold.herd < 6 && hold.Meals >= 6f && hold.sky != Sky.Flood)
                 {
                     hold.herd++;
-                    Note("The herd at " + hold.placeName + " grows. They keep " + hold.herd + " head.");
+                    Note(HerdCalled(hold) + " at " + hold.placeName + " grows. They keep " + hold.herd + " head.");
                 }
             }
         }
@@ -2311,8 +2335,8 @@ namespace Elyon
             home.fish = Mathf.Min(12f, home.fish + 3f);
             home.faith = Mathf.Clamp(home.faith + 2f, 0f, 100f);
             Note(home.fields > 0
-                ? "Rain falls on the fields at " + home.placeName + ". The nets take fish."
-                : "Rain fills the stores at " + home.placeName + ". The nets take fish.");
+                ? "Rain falls on the fields at " + home.placeName + ". The nets take " + FishCalled(home) + "."
+                : "Rain fills the stores at " + home.placeName + ". The nets take " + FishCalled(home) + ".");
             TouchWork();
         }
 
@@ -2327,7 +2351,7 @@ namespace Elyon
             if (home.herd > 0)
             {
                 home.herd--;
-                Note("The drought thins the herd at " + home.placeName + ".");
+                Note("The drought thins " + HerdCalled(home) + " at " + home.placeName + ".");
             }
             foreach (var member in people)
             {
@@ -2336,7 +2360,8 @@ namespace Elyon
                     member.body.fear = Mathf.Min(100f, member.body.fear + 3f);
                 }
             }
-            Note("Drought lies on " + home.placeName + ". The fish are gone. Unless a house was blessed, no child is born, and a thin hold may raid.");
+            string fishGone = string.IsNullOrEmpty(home.fishName) ? "The fish are gone." : home.fishName + " is gone from the nets.";
+            Note("Drought lies on " + home.placeName + ". " + fishGone + " Unless a house was blessed, no child is born, and a thin hold may raid.");
             TouchWork();
         }
 
@@ -2351,7 +2376,7 @@ namespace Elyon
             if (home.herd > 0)
             {
                 home.herd--;
-                Note("The flood scatters a head of the herd at " + home.placeName + ".");
+                Note("The flood scatters a head of " + HerdCalled(home) + " at " + home.placeName + ".");
             }
             foreach (var member in people)
             {
@@ -2368,23 +2393,25 @@ namespace Elyon
         {
             if (home.sky == Sky.Drought)
             {
-                Note("The ground is dry at " + home.placeName + ". A herd will not stay.");
+                Note("The ground is dry at " + home.placeName + ". " + HerdCalled(home) + " will not stay.");
                 return;
             }
             if (home.sky == Sky.Flood)
             {
-                Note("The flood is on " + home.placeName + ". A herd will not stay.");
+                Note("The flood is on " + home.placeName + ". " + HerdCalled(home) + " will not stay.");
                 return;
             }
             int before = home.herd;
             home.herd = Mathf.Min(6, home.herd + 2);
             if (home.herd == before)
             {
-                Note("The herd at " + home.placeName + " is already as large as the grass will hold.");
+                Note(HerdCalled(home) + " at " + home.placeName + " is already as large as the grass will hold.");
                 return;
             }
             home.meat += 1f;
-            Note(home.placeName + " keeps a herd. " + home.herd + " head.");
+            Note(string.IsNullOrEmpty(home.herdName)
+                ? home.placeName + " keeps a herd. " + home.herd + " head."
+                : home.placeName + " keeps " + home.herdName + ". " + home.herd + " head.");
             TouchWork();
         }
 
@@ -2465,8 +2492,8 @@ namespace Elyon
                 if (hold.sky == Sky.Drought) drought = true;
                 if (hold.sky == Sky.Flood) flood = true;
             }
-            if (herd > 0) line += "   herd " + herd;
-            if (fish >= 1f) line += "   fish " + (int)fish;
+            if (herd > 0) line += "   herd " + herd + NamedStock(true);
+            if (fish >= 1f) line += "   fish " + (int)fish + NamedStock(false);
             if (drought) line += "   drought";
             else if (flood) line += "   flood";
             else if (rain) line += "   rain";
@@ -3133,7 +3160,7 @@ namespace Elyon
             for (int i = 0; i < Names.Length; i++)
             {
                 string candidate = Names[(nameCursor + i) % Names.Length];
-                if (!NameUsed(candidate))
+                if (!NameTaken(candidate))
                 {
                     nameCursor = (nameCursor + i + 1) % Names.Length;
                     return candidate;
@@ -3142,13 +3169,176 @@ namespace Elyon
             return "Young one " + nextId;
         }
 
+        string NextWildName(string[] pool)
+        {
+            for (int i = 0; i < pool.Length; i++)
+            {
+                if (!NameTaken(pool[i])) return pool[i];
+            }
+            return "";
+        }
+
         bool NameUsed(string personName)
         {
             foreach (var person in people)
             {
-                if (person.personName == personName) return true;
+                if (string.Equals(person.personName, personName, StringComparison.OrdinalIgnoreCase)) return true;
             }
             return false;
+        }
+
+        bool NameTaken(string name)
+        {
+            if (string.IsNullOrEmpty(name) || NameUsed(name)) return true;
+            foreach (var hold in settlements)
+            {
+                if (string.Equals(hold.herdName, name, StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(hold.fishName, name, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        static string CleanName(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+            var chars = new List<char>();
+            foreach (char c in raw.Trim())
+            {
+                if (char.IsLetter(c) || c == ' ' || c == '\'' || c == '-') chars.Add(c);
+                if (chars.Count >= 24) break;
+            }
+            string name = new string(chars.ToArray()).Trim();
+            while (name.Contains("  ")) name = name.Replace("  ", " ");
+            if (name.Length < 2) return "";
+            return name;
+        }
+
+        string ChosenName(System.Func<string> fallback)
+        {
+            string typed = CleanName(nameDraft);
+            if (string.IsNullOrEmpty(typed)) return fallback != null ? fallback() : "";
+            if (NameTaken(typed) || IsKey(typed)) return "";
+            return typed;
+        }
+
+        static bool IsKey(string name)
+        {
+            string key = GrokSpeech.LoadKey();
+            if (string.IsNullOrEmpty(key)) return false;
+            string trimmed = key.Trim();
+            if (string.Equals(trimmed, name, StringComparison.Ordinal)) return true;
+            return name.Length > 8 && trimmed.IndexOf(name, StringComparison.Ordinal) >= 0;
+        }
+
+        void GivePersonName(Person person)
+        {
+            if (person == null || !person.alive || person.givenName) return;
+            string name = ChosenName(NextName);
+            if (string.IsNullOrEmpty(name))
+            {
+                Note("That is not a name this valley can keep.");
+                return;
+            }
+            string before = person.personName;
+            person.personName = name;
+            person.givenName = true;
+            person.gameObject.name = name;
+            var label = person.GetComponentInChildren<TextMesh>();
+            if (label != null) label.text = name;
+            nameDraft = "";
+            Note("Elyon names " + before + " as " + name + ".");
+            RefreshKin();
+            Save();
+        }
+
+        void GiveHerdName(Settlement hold)
+        {
+            if (hold == null || hold.herd <= 0 || !string.IsNullOrEmpty(hold.herdName)) return;
+            string name = ChosenName(() => NextWildName(HerdNames));
+            if (string.IsNullOrEmpty(name))
+            {
+                Note("That is not a name this valley can keep.");
+                return;
+            }
+            hold.herdName = name;
+            nameDraft = "";
+            Note("Elyon names the herd at " + hold.placeName + ": " + name + ".");
+            RefreshKin();
+            Save();
+        }
+
+        void GiveFishName(Settlement hold)
+        {
+            if (hold == null || hold.fish < 1f || !string.IsNullOrEmpty(hold.fishName)) return;
+            string name = ChosenName(() => NextWildName(FishNames));
+            if (string.IsNullOrEmpty(name))
+            {
+                Note("That is not a name this valley can keep.");
+                return;
+            }
+            hold.fishName = name;
+            nameDraft = "";
+            Note("Elyon names the fish at " + hold.placeName + ": " + name + ".");
+            RefreshKin();
+            Save();
+        }
+
+        public string LivingNames(Person person)
+        {
+            Settlement hold = person == null ? null : HomeOf(person);
+            string line = "";
+            if (hold != null && !string.IsNullOrEmpty(hold.herdName))
+            {
+                line = hold.herd > 0
+                    ? hold.herdName + " is the herd"
+                    : hold.herdName + " is the herd, and they are not on the grass";
+            }
+            if (hold != null && !string.IsNullOrEmpty(hold.fishName))
+            {
+                string fish = hold.fish >= 1f
+                    ? hold.fishName + " are the fish"
+                    : hold.fishName + " are the fish, and the nets are empty";
+                line = string.IsNullOrEmpty(line) ? fish : line + ". " + fish;
+            }
+            return line;
+        }
+
+        static string HerdCalled(Settlement hold)
+        {
+            return hold != null && !string.IsNullOrEmpty(hold.herdName) ? hold.herdName : "the herd";
+        }
+
+        static string FishCalled(Settlement hold)
+        {
+            return hold != null && !string.IsNullOrEmpty(hold.fishName) ? hold.fishName : "the fish";
+        }
+
+        static string HerdFact(Settlement hold)
+        {
+            if (string.IsNullOrEmpty(hold.herdName)) return "Herd " + hold.herd;
+            return hold.herdName + " " + hold.herd;
+        }
+
+        static string FishFact(Settlement hold)
+        {
+            if (string.IsNullOrEmpty(hold.fishName)) return "Fish " + Mathf.RoundToInt(hold.fish);
+            return hold.fishName + " " + Mathf.RoundToInt(hold.fish);
+        }
+
+        string NamedStock(bool herd)
+        {
+            string names = "";
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned) continue;
+                string name = herd ? hold.herdName : hold.fishName;
+                if (string.IsNullOrEmpty(name)) continue;
+                if (herd && hold.herd <= 0) continue;
+                if (!herd && hold.fish < 1f) continue;
+                if (names.Length > 0) names += ", ";
+                names += name;
+            }
+            return names.Length == 0 ? "" : " (" + names + ")";
         }
 
         static Vector3 Dry(Vector3 point)
@@ -3325,6 +3515,20 @@ namespace Elyon
                 if (!Ages.Allows(age, act)) continue;
                 if (GUILayout.Button(Ages.Label(act), GUILayout.Height(24f))) Act(act);
             }
+            GUILayout.Space(6f);
+            GUILayout.Label("A name for what is still unnamed");
+            GUI.SetNextControlName("elyon-name");
+            nameDraft = GUILayout.TextField(nameDraft, 24, GUILayout.Height(22f));
+            Person namedPerson = TargetPerson();
+            Settlement namedHome = TargetSettlement();
+            if (namedPerson != null && !namedPerson.givenName && GUILayout.Button("Name " + namedPerson.personName, GUILayout.Height(22f)))
+                GivePersonName(namedPerson);
+            if (namedHome != null && age >= AgeId.Camps && namedHome.herd > 0 && string.IsNullOrEmpty(namedHome.herdName)
+                && GUILayout.Button("Name the herd", GUILayout.Height(22f)))
+                GiveHerdName(namedHome);
+            if (namedHome != null && age >= AgeId.Farming && namedHome.fish >= 1f && string.IsNullOrEmpty(namedHome.fishName)
+                && GUILayout.Button("Name the fish", GUILayout.Height(22f)))
+                GiveFishName(namedHome);
             GUILayout.Space(8f);
             GUILayout.Label("Chronicle");
             int start = Mathf.Max(0, log.Count - 5);
@@ -3435,6 +3639,8 @@ namespace Elyon
         public bool willRaid;
         public int herd;
         public float fish;
+        public string herdName;
+        public string fishName;
         public int sky;
 
         public static SettlementRecord From(Settlement settlement)
@@ -3477,6 +3683,8 @@ namespace Elyon
                 willRaid = settlement.willRaid,
                 herd = settlement.herd,
                 fish = settlement.fish,
+                herdName = settlement.herdName,
+                fishName = settlement.fishName,
                 sky = (int)settlement.sky,
             };
         }
@@ -3521,6 +3729,8 @@ namespace Elyon
                 willRaid = willRaid,
                 herd = herd,
                 fish = fish,
+                herdName = herdName ?? "",
+                fishName = fishName ?? "",
                 sky = (Sky)sky,
             };
         }
@@ -3553,6 +3763,7 @@ namespace Elyon
         public bool blessedHouse;
         public bool spokenWork;
         public int spokenLabor;
+        public bool givenName;
         public string[] memories;
         public float x;
         public float y;
@@ -3586,6 +3797,7 @@ namespace Elyon
                 blessedHouse = person.blessedHouse,
                 spokenWork = person.spokenWork,
                 spokenLabor = (int)person.spokenLabor,
+                givenName = person.givenName,
                 memories = person.MemoryLines(),
                 x = person.transform.position.x,
                 y = person.transform.position.y,
@@ -3621,6 +3833,7 @@ namespace Elyon
             person.blessedHouse = blessedHouse;
             person.spokenWork = spokenWork;
             person.spokenLabor = (Labor)spokenLabor;
+            person.givenName = givenName || person.personId == "adam" || person.personId == "eve";
             person.RestoreMemories(memories);
             var spot = person.transform.position;
             spot.x = x;

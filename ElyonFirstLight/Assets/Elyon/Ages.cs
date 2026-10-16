@@ -184,11 +184,11 @@ namespace Elyon
             switch (age)
             {
                 case AgeId.FirstFamily:
-                    return "You may bless, heal, set fruit, calm a fear, and turn the years.";
+                    return "You may bless, heal, set fruit, calm a fear, turn the years, and name an unnamed person.";
                 case AgeId.Camps:
-                    return "You may also send game, keep a herd, and raise a shelter from their wood.";
+                    return "You may also send game, keep a herd, name that herd, and raise a shelter from their wood.";
                 case AgeId.Farming:
-                    return "You may send rain, send a drought, send a flood, and bless a field.";
+                    return "You may send rain, send a drought, send a flood, bless a field, and name the fish.";
                 case AgeId.MetalTowns:
                     return "You may gift ore and mend a body at the smithy.";
                 case AgeId.Cities:

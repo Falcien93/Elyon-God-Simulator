@@ -136,7 +136,7 @@ namespace Elyon
             GUILayout.Label(selected == null || !selected.alive ? "Select a person" : "Speaking with " + selected.personName);
             GUI.SetNextControlName("say");
             line = GUILayout.TextField(line, 240, GUILayout.Height(28f));
-            typing = GUI.GetNameOfFocusedControl() == "say" || GUI.GetNameOfFocusedControl() == "key";
+            typing = GUI.GetNameOfFocusedControl() == "say" || GUI.GetNameOfFocusedControl() == "key" || GUI.GetNameOfFocusedControl() == "elyon-name";
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Speak", GUILayout.Height(28f)) && selected != null && selected.alive)
             {
@@ -204,6 +204,11 @@ namespace Elyon
             GUILayout.Label(person.personName + "  ·  " + person.ActLabel + mark);
             if (!string.IsNullOrEmpty(person.kinLine)) GUILayout.Label(person.kinLine);
             if (!string.IsNullOrEmpty(person.lineMemory)) GUILayout.Label(person.lineMemory);
+            if (person.home != null)
+            {
+                string called = person.home.LivingNames(person);
+                if (!string.IsNullOrEmpty(called)) GUILayout.Label(called);
+            }
             GUILayout.Label(person.body.CardLine());
             if (!string.IsNullOrEmpty(person.ToolLine())) GUILayout.Label(person.ToolLine());
             if (person.favor > 0) GUILayout.Label("blessed");

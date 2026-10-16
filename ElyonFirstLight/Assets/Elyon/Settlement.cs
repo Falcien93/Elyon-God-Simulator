@@ -81,6 +81,8 @@ namespace Elyon
         public bool willRaid;
         public int herd;
         public float fish;
+        public string herdName = "";
+        public string fishName = "";
         public Sky sky = Sky.Clear;
 
         public float Meals => fruit + meat + grain + fish;
@@ -121,6 +123,16 @@ namespace Elyon
             ore += other.ore;
             fish += other.fish;
             herd = Mathf.Min(6, herd + other.herd);
+            if (herd > 0 && string.IsNullOrEmpty(herdName) && !string.IsNullOrEmpty(other.herdName))
+            {
+                herdName = other.herdName;
+                other.herdName = "";
+            }
+            if (fish >= 1f && string.IsNullOrEmpty(fishName) && !string.IsNullOrEmpty(other.fishName))
+            {
+                fishName = other.fishName;
+                other.fishName = "";
+            }
             faith = Mathf.Max(faith, other.faith);
             other.fruit = 0f;
             other.fish = 0f;

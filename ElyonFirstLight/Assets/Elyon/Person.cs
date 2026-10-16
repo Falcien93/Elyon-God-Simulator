@@ -70,6 +70,7 @@ namespace Elyon
     {
         public string who = "adam";
         public string personName = "Adam";
+        public bool givenName;
         public string personId = "";
         public string partnerId = "";
         public string motherId = "";
