@@ -1,12 +1,29 @@
 # Elyon
 
-A single-player mythic simulator. You play as Elyon and shape the first garden: light, waters, land, the two trees, the lights of the sky, the creatures, and the first people. Then you walk among them, name what lives, speak or keep silent, and see which ending the garden keeps.
+Elyon: First Light is a Unity HDRP garden. Adam and Eve are already awake. You stay above them or walk among them, and you speak. They have bodies, they answer as those people through the xAI Responses API, and they live a day: wake, eat, drink, work, rest. They follow the shore. They do not walk through the lake. Only you can step on the water.
 
-This is an original telling, not a scripture.
+Unreal Engine 5 could not be installed or run on the machine that built this (no Epic account, no GPU device). The game is Unity 6000.0.64f1 with the High Definition Render Pipeline.
 
-## Play
+This is an original telling, not a scripture. Linen, no sexual content. "A child" on a body card is a burden, not a scene.
 
-Requirements: Node.js 20 or newer.
+## Play First Light
+
+Open `ElyonFirstLight` in Unity 6000.0.64f1 or newer with HDRP. Use **Elyon → Open First Light**, then press Play. The outdoors scene builds the garden when it starts.
+
+- **M**, or the Sky / Walk button, switches between the sky and walking among them.
+- Drag to look. **WASD** or the arrows move. In the sky that pans your presence. On the ground it walks, including across the lake.
+- Click Adam or Eve, type, and press Enter or **Speak**. **C** or **Come here** calls the chosen person along the shore.
+- Hunger, thirst, and fatigue change through the day. A tired person moves slowly, and the card says so.
+
+Paste an xAI key into the panel and press **Keep the key here**. It is written only to `elyon-xai-key.txt` in the app's persistent data folder (`Application.persistentDataPath`). A file named `xai-key.local.txt` next to the Unity project is also read and is gitignored. The garden record never contains the key. With no key, the day still runs and the panel explains that a key is needed.
+
+Speech uses `POST https://api.x.ai/v1/responses` with model `grok-4.7`. Adam and Eve are instructed to believe they are those people. They do not say they are an assistant, a language model, or Grok. A new line can start before the last one finishes, and they can talk while they walk.
+
+Ground, sand, bark, and rock photographs are CC0 maps from Poly Haven. See `ElyonFirstLight/Assets/Elyon/THIRD-PARTY.txt`.
+
+## Earlier eight-day campaign
+
+The Electron window is an earlier campaign, not this game. Requirements: Node.js 20 or newer.
 
 ```bash
 npm install
@@ -30,7 +47,7 @@ Windows NSIS and macOS DMG targets are declared in `package.json`. Build those o
 
 You can also open `index.html` from a local static server (`npx serve .`). Opening the file directly in a browser blocks ES modules on some systems. The desktop app does not have that limit.
 
-## How to play
+## Campaign controls
 
 1. **Begin** (or **Continue** if a record already exists).
 2. **Open your eyes**, then follow the gold action at the bottom of the screen through the days of making.
@@ -41,7 +58,7 @@ You can also open `index.html` from a local static server (`npx serve .`). Openi
 
 The campaign has four endings: harmony, exile, wonder, and order. After an ending you may keep walking the garden.
 
-Eden is drawn in real time with Three.js: lit ground, water, trees, a day and night sun, and people who read as bodies. Drag to orbit the sky. On the ground, drag looks around and movement follows your gaze. Click a person to reach them, or click open ground to move your presence. Deeds they invent appear as objects in the garden.
+The campaign window still draws with Three.js. That view is the earlier campaign, not First Light.
 
 Adam, Eve, and the creatures can answer through Grok on the current xAI Responses API (`POST https://api.x.ai/v1/responses`, model `grok-4.7` unless you choose another). Each one is instructed to believe they really are that person in Eden. They do not admit to being a model. **Hear them** on the action bar opens that conversation. The campaign's own dialogue still carries the eight days and the four endings.
 
