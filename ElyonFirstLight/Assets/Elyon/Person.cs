@@ -88,6 +88,7 @@ namespace Elyon
         public bool eveShape;
         public Labor labor = Labor.Gather;
         public ToolKind tool = ToolKind.Hands;
+        public float toolWear;
         public LivingWorld home;
         public Body body = new Body();
         public int trust = 40;
@@ -121,6 +122,14 @@ namespace Elyon
         float gait;
 
         public string LatestLine => said.Count == 0 ? "" : said[said.Count - 1];
+
+        public string ToolLine()
+        {
+            if (tool == ToolKind.Hands) return "";
+            string name = tool == ToolKind.Axe ? "axe" : tool == ToolKind.Hoe ? "hoe" : "hammer";
+            int edge = Mathf.RoundToInt(100f - Mathf.Clamp(toolWear, 0f, 40f) * 2.5f);
+            return name + "   edge " + edge;
+        }
 
         public string Persona => personName + ", " + (string.IsNullOrEmpty(kinLine) ? "awake and speaking with Elyon" : kinLine);
 

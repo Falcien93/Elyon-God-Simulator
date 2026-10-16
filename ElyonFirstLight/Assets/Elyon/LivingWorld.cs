@@ -410,6 +410,7 @@ namespace Elyon
             BuildPlaces();
             if (Ages.ReadyForNext(age, Facts())) Advance();
             Trade();
+            KeepRite();
             foreach (var person in people) person.arrived = false;
             year++;
             if (director != null) director.dayNumber = year;
@@ -688,6 +689,7 @@ namespace Elyon
                     if (farmer == null) break;
                     home.wood -= 2f;
                     farmer.tool = ToolKind.Hoe;
+                    farmer.toolWear = 0f;
                     hoes++;
                     Note(farmer.personName + " keeps a hoe.");
                 }
@@ -705,6 +707,7 @@ namespace Elyon
                     home.ore -= 2f;
                     home.wood -= 1f;
                     smith.tool = ToolKind.Hammer;
+                    smith.toolWear = 0f;
                     home.metalTools++;
                     hammers++;
                     Note(smith.personName + " lifts a hammer.");
@@ -891,6 +894,7 @@ namespace Elyon
                         break;
                     case Labor.Smith:
                         home.ore += 1.4f * effort;
+                        MendTools(home, 22f * effort);
                         break;
                     case Labor.Tend:
                         home.faith = Mathf.Clamp(home.faith + 3.5f * effort, 0f, 100f);
@@ -921,6 +925,11 @@ namespace Elyon
                         knowledge += (home.press ? 3.2f : 2.4f) * effort;
                         home.faith = Mathf.Clamp(home.faith + 0.4f * effort, 0f, 100f);
                         break;
+                }
+
+                if (person.tool != ToolKind.Hands)
+                {
+                    person.toolWear = Mathf.Min(40f, person.toolWear + 5f * years);
                 }
             }
         }
@@ -984,9 +993,14 @@ namespace Elyon
                         ? parent.transform.position
                         : hearth != null ? Dry(hearth.Hearth) : person.transform.position;
                 }
-                else
+                else if (person.body.age >= 8f)
                 {
-                    SetDuty(person, Labor.Gather);
+                    Labor young = Labor.Gather;
+                    if (age >= AgeId.Present) young = Labor.Keep;
+                    else if (age >= AgeId.ElectricLight) young = Labor.Wire;
+                    else if (age >= AgeId.Industry) young = Labor.Engine;
+                    else if (age >= AgeId.Farming) young = Labor.Farm;
+                    SetDuty(person, young);
                 }
             }
         }
@@ -1749,10 +1763,45 @@ namespace Elyon
 
         static float ToolFactor(Person person)
         {
-            if (person.tool == ToolKind.Axe && person.labor == Labor.Gather) return 1.35f;
-            if (person.tool == ToolKind.Hoe && person.labor == Labor.Farm) return 1.45f;
-            if (person.tool == ToolKind.Hammer && person.labor == Labor.Smith) return 1.35f;
-            return 1f;
+            float factor = 1f;
+            if (person.tool == ToolKind.Axe && person.labor == Labor.Gather) factor = 1.35f;
+            else if (person.tool == ToolKind.Hoe && person.labor == Labor.Farm) factor = 1.45f;
+            else if (person.tool == ToolKind.Hammer && person.labor == Labor.Smith) factor = 1.35f;
+            if (person.tool != ToolKind.Hands)
+            {
+                factor *= Mathf.Lerp(1f, 0.72f, Mathf.Clamp01(person.toolWear / 40f));
+            }
+            return factor;
+        }
+
+        void MendTools(Settlement home, float amount)
+        {
+            Person worst = null;
+            foreach (var person in people)
+            {
+                if (!person.alive || person.settlementId != home.id || person.tool == ToolKind.Hands) continue;
+                if (worst == null || person.toolWear > worst.toolWear) worst = person;
+            }
+            if (worst != null) worst.toolWear = Mathf.Max(0f, worst.toolWear - amount);
+        }
+
+        void KeepRite()
+        {
+            foreach (var home in settlements)
+            {
+                if (!home.temple || home.faith < 28f || !home.TakeMeal(1f)) continue;
+                int eased = 0;
+                foreach (var person in people)
+                {
+                    if (!person.alive || person.settlementId != home.id || person.body.grief < 1f) continue;
+                    person.body.grief = Mathf.Max(0f, person.body.grief - 6f);
+                    eased++;
+                }
+                if (eased > 0)
+                {
+                    Note("A temple rite in " + home.placeName + " eases grief. It costs a meal.");
+                }
+            }
         }
 
         Person TargetPerson()
@@ -2184,6 +2233,7 @@ namespace Elyon
         public float fear;
         public int trust;
         public int tool;
+        public float toolWear;
         public float x;
         public float y;
         public float z;
@@ -2210,6 +2260,7 @@ namespace Elyon
                 fear = person.body.fear,
                 trust = person.trust,
                 tool = (int)person.tool,
+                toolWear = person.toolWear,
                 x = person.transform.position.x,
                 y = person.transform.position.y,
                 z = person.transform.position.z,
@@ -2236,6 +2287,7 @@ namespace Elyon
             person.body.fear = fear;
             person.trust = trust;
             person.tool = (ToolKind)tool;
+            person.toolWear = toolWear;
             var spot = person.transform.position;
             spot.x = x;
             spot.z = z;
