@@ -35,6 +35,8 @@ namespace Elyon
         readonly List<Person> people = new List<Person>();
         readonly List<Settlement> settlements = new List<Settlement>();
         readonly List<string> log = new List<string>();
+        readonly List<string> ageBook = new List<string>();
+        readonly List<string> eventBook = new List<string>();
 
         GardenWorld garden;
         GardenDirector director;
@@ -113,6 +115,7 @@ namespace Elyon
             if (!TryLoad())
             {
                 Note("Adam and Eve are awake at the fire.");
+                RememberAge();
                 AssignJobs();
                 RefreshKin();
             }
@@ -513,6 +516,9 @@ namespace Elyon
             if (fromGod && (log.Count == 0 || !log[log.Count - 1].StartsWith("Year " + (year - 1), StringComparison.Ordinal)))
             {
                 Note("Year " + (year - 1) + " turns. " + Ages.Name(age) + ". " + SeasonName() + " opens.");
+                Chronicle(LastEvent);
+                string book = ChronicleText();
+                foreach (var person in people) person.chronicle = book;
             }
             Save();
         }
@@ -609,6 +615,7 @@ namespace Elyon
                 Note(person.personName + " dies. The house grieves.");
                 KeepBook(ref lostLine, person.personName + " is lost from " + place + ".");
                 KeepBook(ref woundLine, person.personName + " dies in " + Ages.Name(age) + ", and the line grieves.");
+                Chronicle(person.personName + " dies in " + Ages.Name(age) + ", and the line grieves.");
             }
         }
 
@@ -712,6 +719,7 @@ namespace Elyon
                 two.body.child = true;
                 string line = name + " is born into the house of " + one.personName + " and " + two.personName + " in " + child.bornInto + ".";
                 Note(line);
+                Chronicle(line);
                 KeepBook(ref bornLine, line);
                 one.Remember(line);
                 two.Remember(line);
@@ -939,6 +947,7 @@ namespace Elyon
             }
 
             string lived = Ages.Living(age);
+            RememberAge();
             foreach (var person in people)
             {
                 if (person.alive) person.Remember(lived);
@@ -1295,6 +1304,7 @@ namespace Elyon
                 CalmMembers(victim, 6f);
                 dealLine = "Elyon stops the raid from " + attacker.placeName + ". " + victim.placeName + " keeps its stores, and its people stay.";
                 Note(dealLine);
+                Chronicle(dealLine);
                 return;
             }
             float grain = Mathf.Min(victim.grain * 0.22f, 8f);
@@ -1355,6 +1365,7 @@ namespace Elyon
             }
             dealLine = attacker.placeName + " raids " + victim.placeName + " and carries " + carried + "." + cause;
             Note(dealLine + " " + victim.placeName + " may not build this year, and someone may leave.");
+            Chronicle(dealLine);
         }
 
         void BlessPact(Settlement home)
@@ -1376,6 +1387,7 @@ namespace Elyon
             dealLine = "A pact holds between " + home.placeName + " and " + other.placeName + ".";
             KeepBook(ref pactLine, dealLine);
             Note(dealLine + " They may send grain, wood, and tools, and their people stay.");
+            Chronicle(dealLine);
         }
 
         void WithholdPact(Settlement home)
@@ -1401,6 +1413,7 @@ namespace Elyon
             dealLine = "The pact is withheld between " + home.placeName + " and " + other.placeName + ".";
             KeepBook(ref pactLine, dealLine);
             Note(dealLine + " No grain, wood, or tools move, and someone may leave.");
+            Chronicle(dealLine);
             Settlement poorer = home.Meals <= other.Meals ? home : other;
             SendAway(poorer, "The pact was withheld.");
         }
@@ -2044,6 +2057,7 @@ namespace Elyon
                 person.holdFacts = HoldFacts(kinHome);
                 person.kinLine = KinLine(person);
                 person.lineMemory = FamilyMemory();
+                person.chronicle = ChronicleText();
                 person.worldLine = LastEvent;
             }
         }
@@ -2165,6 +2179,36 @@ namespace Elyon
             int space = cut.IndexOf(' ');
             if (space >= 0 && space < 24) return cut.Substring(space + 1).Trim();
             return cut;
+        }
+
+        void RememberAge()
+        {
+            string line = "The age of " + Ages.Name(age) + " begins.";
+            for (int i = 0; i < ageBook.Count; i++)
+            {
+                if (ageBook[i] == line) return;
+            }
+            ageBook.Add(line);
+        }
+
+        void Chronicle(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line)) return;
+            string trimmed = line.Trim();
+            if (eventBook.Count > 0 && eventBook[eventBook.Count - 1] == trimmed) return;
+            eventBook.Add(trimmed);
+            if (eventBook.Count > 24) eventBook.RemoveAt(0);
+        }
+
+        public string ChronicleText()
+        {
+            string text = string.IsNullOrEmpty(gardenLine)
+                ? "Adam and Eve woke at the garden fire."
+                : gardenLine.Trim();
+            for (int i = 0; i < ageBook.Count; i++) text += " " + ageBook[i];
+            int start = eventBook.Count > 8 ? eventBook.Count - 8 : 0;
+            for (int i = start; i < eventBook.Count; i++) text += " " + eventBook[i];
+            return text;
         }
 
         void MarkDarkYear(Settlement home)
@@ -2337,6 +2381,7 @@ namespace Elyon
             Note(home.fields > 0
                 ? "Rain falls on the fields at " + home.placeName + ". The nets take " + FishCalled(home) + "."
                 : "Rain fills the stores at " + home.placeName + ". The nets take " + FishCalled(home) + ".");
+            Chronicle(LastEvent);
             TouchWork();
         }
 
@@ -2352,6 +2397,7 @@ namespace Elyon
             {
                 home.herd--;
                 Note("The drought thins " + HerdCalled(home) + " at " + home.placeName + ".");
+                Chronicle(LastEvent);
             }
             foreach (var member in people)
             {
@@ -2362,6 +2408,7 @@ namespace Elyon
             }
             string fishGone = string.IsNullOrEmpty(home.fishName) ? "The fish are gone." : home.fishName + " is gone from the nets.";
             Note("Drought lies on " + home.placeName + ". " + fishGone + " Unless a house was blessed, no child is born, and a thin hold may raid.");
+            Chronicle(LastEvent);
             TouchWork();
         }
 
@@ -2377,6 +2424,7 @@ namespace Elyon
             {
                 home.herd--;
                 Note("The flood scatters a head of " + HerdCalled(home) + " at " + home.placeName + ".");
+                Chronicle(LastEvent);
             }
             foreach (var member in people)
             {
@@ -2386,6 +2434,7 @@ namespace Elyon
                 }
             }
             Note("A flood runs through " + home.placeName + ". Grain and wood are carried off. Unless a house was blessed, no child is born.");
+            Chronicle(LastEvent);
             TouchWork();
         }
 
@@ -3247,6 +3296,7 @@ namespace Elyon
             if (label != null) label.text = name;
             nameDraft = "";
             Note("Elyon names " + before + " as " + name + ".");
+            Chronicle(LastEvent);
             RefreshKin();
             Save();
         }
@@ -3263,6 +3313,7 @@ namespace Elyon
             hold.herdName = name;
             nameDraft = "";
             Note("Elyon names the herd at " + hold.placeName + ": " + name + ".");
+            Chronicle(LastEvent);
             RefreshKin();
             Save();
         }
@@ -3279,6 +3330,7 @@ namespace Elyon
             hold.fishName = name;
             nameDraft = "";
             Note("Elyon names the fish at " + hold.placeName + ": " + name + ".");
+            Chronicle(LastEvent);
             RefreshKin();
             Save();
         }
@@ -3390,6 +3442,8 @@ namespace Elyon
                     pactMemory = pactLine,
                     raidMemory = raidLine,
                     wound = woundLine,
+                    chronicleAges = ageBook.ToArray(),
+                    chronicleEvents = eventBook.ToArray(),
                     nextId = nextId,
                     nameCursor = nameCursor,
                     settlements = new SettlementRecord[settlements.Count],
@@ -3442,6 +3496,23 @@ namespace Elyon
                     gardenLine = age >= AgeId.Camps
                         ? "Adam and Eve woke at the garden fire. The family left the garden fire and raised a camp on the eastern meadow."
                         : "Adam and Eve woke at the garden fire.";
+                }
+                ageBook.Clear();
+                if (record.chronicleAges != null)
+                {
+                    foreach (var line in record.chronicleAges)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line)) ageBook.Add(line);
+                    }
+                }
+                if (ageBook.Count == 0) RememberAge();
+                eventBook.Clear();
+                if (record.chronicleEvents != null)
+                {
+                    foreach (var line in record.chronicleEvents)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line)) eventBook.Add(line);
+                    }
                 }
                 nextId = Mathf.Max(3, record.nextId);
                 nameCursor = record.nameCursor;
@@ -3593,6 +3664,8 @@ namespace Elyon
         public string pactMemory;
         public string raidMemory;
         public string wound;
+        public string[] chronicleAges;
+        public string[] chronicleEvents;
         public int nextId;
         public int nameCursor;
         public SettlementRecord[] settlements;

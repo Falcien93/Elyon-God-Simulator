@@ -209,6 +209,7 @@ namespace Elyon
                 string called = person.home.LivingNames(person);
                 if (!string.IsNullOrEmpty(called)) GUILayout.Label(called);
             }
+            if (person == selected && !string.IsNullOrEmpty(person.chronicle)) GUILayout.Label(person.chronicle);
             GUILayout.Label(person.body.CardLine());
             if (!string.IsNullOrEmpty(person.ToolLine())) GUILayout.Label(person.ToolLine());
             if (person.favor > 0) GUILayout.Label("blessed");
