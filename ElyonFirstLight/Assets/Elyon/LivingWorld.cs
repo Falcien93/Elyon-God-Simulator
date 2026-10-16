@@ -2074,6 +2074,14 @@ namespace Elyon
                     break;
                 }
             }
+            foreach (var hold in settlements)
+            {
+                if (hold.willRaid && !hold.abandoned && Members(hold) > 0)
+                {
+                    line += "   will raid";
+                    break;
+                }
+            }
             return line;
         }
 
