@@ -177,11 +177,23 @@ export function primaryAction(state) {
   if (!state.flags.adam_made) return { type: "ritual", id: "form_adam", label: "Form Adam", confirm: true };
   if (!state.flags.adam_asked_companion) {
     if (state.mode !== "walk") return { type: "walk", label: "Descend and speak with Adam" };
-  } else if (!state.flags.eve_made) {
-    return { type: "ritual", id: "form_eve", label: "Form Eve", confirm: true };
+    return { type: "talk", who: "adam", label: "Speak with Adam" };
   }
-  if (DAYS[state.dayIndex]?.id === "rest" && state.mode !== "walk") {
-    return { type: "walk", label: "Walk with them" };
+  if (!state.flags.eve_made) return { type: "ritual", id: "form_eve", label: "Form Eve", confirm: true };
+  if (DAYS[state.dayIndex]?.id === "rest" && !(state.flags.rest_adam && state.flags.rest_eve)) {
+    if (state.mode !== "walk") return { type: "walk", label: "Walk with them" };
+    return { type: "near", label: "Draw near to them" };
+  }
+  if (!state.flags.beasts_named) {
+    if (state.mode !== "walk") return { type: "walk", label: "Descend and name the creatures" };
+    return { type: "talk", who: "adam", label: "Name the creatures with Adam" };
+  }
+  if (!state.flags.commandment_spoken && !state.flags.silence) {
+    return { type: "word", label: "Speak a word, or keep silent" };
+  }
+  if (!state.ending && state.flags.serpent_present) {
+    if (state.mode !== "walk") return { type: "walk", label: "Descend to the choice" };
+    return { type: "talk", who: "eve", label: "Speak with Eve" };
   }
   if (state.mode === "walk") return { type: "sky", label: "Ascend to the sky" };
   return { type: "walk", label: "Descend into the garden" };
@@ -665,6 +677,14 @@ function resolveEnding(state, id) {
   unlockCodex(state, "choice");
 }
 
+export function linePending(state, reveal, textSpeed) {
+  const node = currentNode(state);
+  if (!node || !state?.talk) return false;
+  if (textSpeed === "fast") return false;
+  const full = formatLine(state, node.lines[state.talk.line] || "");
+  return (reveal || 0) < full.length;
+}
+
 export function formatLine(state, text) {
   const cmd = state.commandments[0] || (state.flags.silence ? "You kept silent, and set no prohibition." : "the word not yet spoken");
   return String(text)
@@ -768,6 +788,27 @@ export function submitTalkInput(state, raw) {
   }
   applyFxList(state, node.fx || []);
   return gotoNode(state, node.then || "close");
+}
+
+export function drawNear(state) {
+  if (DAYS[state.dayIndex]?.id !== "rest" || state.mode !== "walk") return { ok: false, reason: "locked" };
+  const pending = ["adam", "eve"]
+    .filter((who) => !state.flags[`rest_${who}`])
+    .map((who) => findKind(state.world, who))
+    .filter(Boolean);
+  const target = pending[0];
+  if (!target) return { ok: false, reason: "already" };
+  const besideX = target.x;
+  const besideY = target.y + 0.75;
+  if (!blocksFoot(state.world, besideX, besideY)) {
+    state.player.x = besideX;
+    state.player.y = besideY;
+  } else {
+    state.player.x = target.x;
+    state.player.y = target.y;
+  }
+  const day = noteRestIfNear(state);
+  return { ok: true, day, cue: "ui", achievements: noteAchievements(state) };
 }
 
 export function noteRestIfNear(state) {

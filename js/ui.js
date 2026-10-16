@@ -9,6 +9,7 @@ import {
   currentObjective,
   derivedStats,
   formatLine,
+  linePending,
   nearestTalkTarget,
   phaseName,
   primaryAction,
@@ -204,7 +205,8 @@ function buildTalk(state, view) {
   const choices = visibleChoices(state, node);
   const full = formatLine(state, node.lines[state.talk.line] || "");
   text("line", shownLine(full, view));
-  const key = `${state.talk.nodeId}:${state.talk.line}:${choices.map((choice) => choice.label).join("~")}`;
+  const pending = linePending(state, view.reveal, view.settings?.textSpeed);
+  const key = `${state.talk.nodeId}:${state.talk.line}:${pending ? 0 : 1}:${choices.map((choice) => choice.label).join("~")}`;
   if (key === talkKey) return;
   talkKey = key;
   const who = node.speaker;
@@ -217,7 +219,7 @@ function buildTalk(state, view) {
   const slot = document.getElementById("choice-slot");
   slot.replaceChildren();
   const last = state.talk.line >= node.lines.length - 1;
-  if (!last || node.next || (!node.input && choices.length === 0)) {
+  if (!last || pending || node.next || (!node.input && choices.length === 0)) {
     const next = button(node.next && last ? "Continue" : "Continue", "primary");
     next.id = "btn-advance";
     next.addEventListener("click", () => handlers.advance());

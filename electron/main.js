@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, ipcMain } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isGameSender, navigationAllowed, windowPreferences } from "./guards.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
@@ -75,12 +76,9 @@ function createSplash() {
     show: true,
     backgroundColor: "#07060c",
     icon: path.join(root, "assets", "icon.png"),
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
+    webPreferences: windowPreferences(),
   });
+  contain(splash.webContents);
   const version = app.getVersion();
   splash.loadFile(path.join(root, "splash.html"), { query: { version } });
   return splash;
@@ -101,12 +99,11 @@ function createWindow() {
     icon: path.join(root, "assets", "icon.png"),
     autoHideMenuBar: true,
     webPreferences: {
+      ...windowPreferences(),
       preload: path.join(__dirname, "preload.cjs"),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
     },
   });
+  contain(win.webContents);
   const reveal = () => {
     if (revealed || win.isDestroyed()) return;
     revealed = true;
@@ -123,9 +120,25 @@ function createWindow() {
   windowRef = win;
 }
 
-ipcMain.handle("get-about", () => aboutPayload());
+function contain(contents) {
+  contents.setWindowOpenHandler(() => ({ action: "deny" }));
+  const block = (event, url) => {
+    if (!navigationAllowed(url)) event.preventDefault();
+  };
+  contents.on("will-navigate", block);
+  contents.on("will-redirect", block);
+  contents.on("will-attach-webview", (event) => event.preventDefault());
+}
 
-ipcMain.handle("load-save", () => {
+function fromGame(event) {
+  if (!windowRef || windowRef.isDestroyed()) return false;
+  return isGameSender(event.sender.id, windowRef.webContents.id);
+}
+
+ipcMain.handle("get-about", (event) => (fromGame(event) ? aboutPayload() : null));
+
+ipcMain.handle("load-save", (event) => {
+  if (!fromGame(event)) return null;
   try {
     return fs.readFileSync(saveFile(), "utf8");
   } catch {
@@ -133,18 +146,23 @@ ipcMain.handle("load-save", () => {
   }
 });
 
-ipcMain.handle("write-save", (_event, text) => {
+ipcMain.handle("write-save", (event, text) => {
+  if (!fromGame(event)) return false;
   if (!validJsonText(text, 1_500_000)) return false;
   writeText(saveFile(), text);
   return true;
 });
 
-ipcMain.handle("load-library", () => ({
-  library: readText(libraryFile()),
-  legacy: readText(saveFile()),
-}));
+ipcMain.handle("load-library", (event) => {
+  if (!fromGame(event)) return { library: null, legacy: null };
+  return {
+    library: readText(libraryFile()),
+    legacy: readText(saveFile()),
+  };
+});
 
-ipcMain.handle("write-library", (_event, text) => {
+ipcMain.handle("write-library", (event, text) => {
+  if (!fromGame(event)) return false;
   if (!validJsonText(text, 1_500_000)) return false;
   let parsed;
   try {
@@ -158,9 +176,10 @@ ipcMain.handle("write-library", (_event, text) => {
   return true;
 });
 
-ipcMain.handle("load-settings", () => readText(settingsFile()));
+ipcMain.handle("load-settings", (event) => (fromGame(event) ? readText(settingsFile()) : null));
 
-ipcMain.handle("write-settings", (_event, text) => {
+ipcMain.handle("write-settings", (event, text) => {
+  if (!fromGame(event)) return false;
   if (!validJsonText(text, 20_000)) return false;
   let parsed;
   try {
@@ -174,14 +193,14 @@ ipcMain.handle("write-settings", (_event, text) => {
   return true;
 });
 
-ipcMain.handle("toggle-fullscreen", () => {
-  if (!windowRef) return false;
+ipcMain.handle("toggle-fullscreen", (event) => {
+  if (!fromGame(event) || !windowRef) return false;
   windowRef.setFullScreen(!windowRef.isFullScreen());
   return windowRef.isFullScreen();
 });
 
-ipcMain.handle("set-fullscreen", (_event, value) => {
-  if (!windowRef) return false;
+ipcMain.handle("set-fullscreen", (event, value) => {
+  if (!fromGame(event) || !windowRef) return false;
   windowRef.setFullScreen(Boolean(value));
   return windowRef.isFullScreen();
 });
