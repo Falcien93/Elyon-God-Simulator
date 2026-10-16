@@ -6,6 +6,8 @@ from garden_logic import (
     MESH_CANDIDATES,
     ROLE_MATERIAL,
     SEQUENCE_PATH,
+    NANITE_ROLES,
+    WATER_ROLES,
     plan_level,
     planned_labels,
     resolve_candidate,
@@ -110,9 +112,38 @@ def _author_material(ue, asset_path, desc):
     rough_expr = library.create_material_expression(material, ue.MaterialExpressionConstant, -350, 180)
     rough_expr.set_editor_property("r", float(desc["roughness"]))
     library.connect_material_property(rough_expr, "", ue.MaterialProperty.MP_ROUGHNESS)
+    if desc.get("blend") == "translucent" and hasattr(ue, "BlendMode"):
+        _try_set(material, "blend_mode", ue.BlendMode.BLEND_TRANSLUCENT, ue)
     library.recompile_material(material)
     ue.EditorAssetLibrary.save_asset(asset_path, False)
     return material
+
+
+def _enable_nanite(ue, mesh_path):
+    """Enable Nanite on project meshes for the forest, rocks, and terrain."""
+    if not mesh_path or mesh_path.startswith("/Engine/") or not hasattr(ue, "MeshNaniteSettings"):
+        return False
+    try:
+        asset = ue.EditorAssetLibrary.load_asset(mesh_path)
+    except Exception as exc:
+        _warn(ue, f"Elyon could not load {mesh_path} for Nanite: {exc}")
+        return False
+    if asset is None or not hasattr(asset, "set_editor_property"):
+        return False
+    settings = ue.MeshNaniteSettings()
+    settings.set_editor_property("enabled", True)
+    try:
+        asset.set_editor_property("nanite_settings", settings)
+    except Exception as exc:
+        _warn(ue, f"Elyon could not enable Nanite on {mesh_path}: {exc}")
+        return False
+    save = getattr(ue.EditorAssetLibrary, "save_asset", None)
+    if save:
+        try:
+            save(mesh_path, False)
+        except Exception as exc:
+            _warn(ue, f"Elyon could not save Nanite on {mesh_path}: {exc}")
+    return True
 
 
 def _load_material(ue, path, available):
@@ -156,10 +187,16 @@ def _place(actor, ue, spec, available):
     if scale:
         actor.set_actor_scale3d(_vec(ue, scale[0], scale[1], scale[2]))
     mesh = spec.get("mesh")
+    role = spec.get("role")
     if mesh:
         asset = ue.EditorAssetLibrary.load_asset(mesh)
         comp = actor.get_component_by_class(ue.StaticMeshComponent)
         comp.set_static_mesh(asset)
+        if role in NANITE_ROLES:
+            _try_set(comp, "disallow_nanite", False, ue)
+            _enable_nanite(ue, mesh)
+        if role in WATER_ROLES:
+            _try_set(comp, "visible_in_ray_tracing", True, ue)
         material_path = spec.get("material")
         if material_path:
             material = _load_material(ue, material_path, available)
@@ -170,7 +207,7 @@ def _place(actor, ue, spec, available):
     if spec["kind"] == "cine_camera":
         comp = actor.get_component_by_class(ue.CineCameraComponent)
         comp.set_editor_property("current_focal_length", 24.0)
-        comp.set_editor_property("current_aperture", 2.8)
+        comp.set_editor_property("current_aperture", 8.0)
 
 
 def _apply_light(ue, light):
@@ -240,7 +277,7 @@ def _apply_light(ue, light):
 
 
 def _apply_exposure(actor, ue, light):
-    """Clamp auto exposure so golden hour stays out of the grey fog wash."""
+    """Clamp auto exposure. Keep bloom, fringe, vignette, and flares quiet."""
     actor.set_editor_property("unbound", True)
     actor.set_editor_property("priority", 10.0)
     settings = ue.PostProcessSettings()
@@ -256,8 +293,16 @@ def _apply_exposure(actor, ue, light):
     settings.set_editor_property("bloom_intensity", light["bloom_intensity"])
     settings.set_editor_property("override_vignette_intensity", True)
     settings.set_editor_property("vignette_intensity", light["vignette_intensity"])
+    settings.set_editor_property("override_scene_fringe_intensity", True)
+    settings.set_editor_property("scene_fringe_intensity", light["scene_fringe_intensity"])
+    settings.set_editor_property("override_lens_flare_intensity", True)
+    settings.set_editor_property("lens_flare_intensity", light["lens_flare_intensity"])
     settings.set_editor_property("override_white_temp", True)
     settings.set_editor_property("white_temp", light["white_temp"])
+    _try_set(settings, "override_screen_space_reflection_intensity", True, ue)
+    _try_set(settings, "screen_space_reflection_intensity", 70.0, ue)
+    _try_set(settings, "override_screen_space_reflection_quality", True, ue)
+    _try_set(settings, "screen_space_reflection_quality", 50.0, ue)
     actor.set_editor_property("settings", settings)
 
 

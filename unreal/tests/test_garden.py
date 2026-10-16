@@ -283,9 +283,17 @@ class GardenLogicTests(unittest.TestCase):
             if sample["x"] > 1000.0 and sample["yaw"] < -90.0:
                 toward_sun = True
         self.assertTrue(toward_sun)
-        self.assertTrue(garden_logic.light_state(True)["enable_volumetric_fog"])
-        self.assertTrue(garden_logic.light_state(True)["enable_light_shaft_bloom"])
-        self.assertFalse(garden_logic.light_state(False)["enable_light_shaft_bloom"])
+        dawn = garden_logic.light_state(True)
+        dark = garden_logic.light_state(False)
+        self.assertFalse(dawn["enable_volumetric_fog"])
+        self.assertFalse(dark["enable_volumetric_fog"])
+        self.assertFalse(dawn["enable_light_shaft_bloom"])
+        self.assertFalse(dark["enable_light_shaft_bloom"])
+        self.assertEqual(dawn["vignette_intensity"], 0.0)
+        self.assertEqual(dawn["scene_fringe_intensity"], 0.0)
+        self.assertEqual(dawn["lens_flare_intensity"], 0.0)
+        self.assertLess(dawn["fog_max_opacity"], 0.25)
+        self.assertLess(dawn["bloom_intensity"], 0.15)
 
     def test_free_meshes_prefer_starter_then_engine_shapes(self):
         starter = {
@@ -341,9 +349,10 @@ class LevelBuildTests(unittest.TestCase):
         fog = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Fog")
         fog_comp = fog.get_component_by_class(ue.ExponentialHeightFogComponent)
         self.assertIsInstance(fog_comp.props["fog_inscattering_luminance"], LinearColor)
-        self.assertEqual(fog_comp.props["fog_inscattering_luminance"].rgba, (0.62, 0.36, 0.16, 1.0))
-        self.assertEqual(fog_comp.props["fog_density"], 0.002)
-        self.assertEqual(fog_comp.props["start_distance"], 3500.0)
+        self.assertEqual(fog_comp.props["fog_inscattering_luminance"].rgba, (0.75, 0.78, 0.82, 1.0))
+        self.assertEqual(fog_comp.props["fog_density"], 0.0008)
+        self.assertEqual(fog_comp.props["start_distance"], 8000.0)
+        self.assertEqual(fog_comp.props["fog_max_opacity"], 0.15)
         with self.assertRaises(TypeError):
             fog_comp.set_editor_property("fog_inscattering_luminance", ue.Color(158, 92, 41, 255))
         terrain = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Terrain")
@@ -361,21 +370,28 @@ class LevelBuildTests(unittest.TestCase):
         self.assertEqual(settings.props["auto_exposure_min_brightness"], 12.0)
         self.assertEqual(settings.props["auto_exposure_max_brightness"], 14.0)
         self.assertEqual(settings.props["auto_exposure_bias"], 0.35)
-        self.assertEqual(settings.props["bloom_intensity"], 0.55)
-        self.assertEqual(settings.props["white_temp"], 4900.0)
-        self.assertTrue(fog_comp.props["enable_volumetric_fog"])
+        self.assertEqual(settings.props["bloom_intensity"], 0.05)
+        self.assertEqual(settings.props["vignette_intensity"], 0.0)
+        self.assertEqual(settings.props["scene_fringe_intensity"], 0.0)
+        self.assertEqual(settings.props["lens_flare_intensity"], 0.0)
+        self.assertEqual(settings.props["screen_space_reflection_intensity"], 70.0)
+        self.assertEqual(settings.props["white_temp"], 5200.0)
+        self.assertFalse(fog_comp.props["enable_volumetric_fog"])
         self.assertIsInstance(fog_comp.props["volumetric_fog_albedo"], ByteColor)
         self.assertIsInstance(fog_comp.props["volumetric_fog_emissive"], LinearColor)
         self.assertIsInstance(fog_comp.props["directional_inscattering_luminance"], LinearColor)
-        self.assertTrue(sun_comp.props["cast_volumetric_shadow"])
-        self.assertTrue(sun_comp.props["enable_light_shaft_bloom"])
+        self.assertFalse(sun_comp.props["cast_volumetric_shadow"])
+        self.assertFalse(sun_comp.props["enable_light_shaft_bloom"])
         self.assertIsInstance(sun_comp.props["bloom_tint"], ByteColor)
-        self.assertEqual(sun_comp.props["bloom_tint"].rgba, (255, 184, 102, 255))
+        self.assertEqual(sun_comp.props["bloom_tint"].rgba, (255, 230, 191, 255))
+        self.assertFalse(tree_mesh.props["disallow_nanite"])
+        self.assertNotIn("SkySphere", labels(ue))
         with self.assertRaises(TypeError):
             fog_comp.set_editor_property("volumetric_fog_albedo", ue.LinearColor(1, 1, 1, 1))
         camera = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.GodCamera")
         lens = camera.get_component_by_class(ue.CineCameraComponent)
         self.assertEqual(lens.props["current_focal_length"], 24.0)
+        self.assertEqual(lens.props["current_aperture"], 8.0)
         self.assertGreaterEqual(camera.location.z, 1200.0)
         lake = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Lake")
         lake_mesh = lake.get_component_by_class(ue.StaticMeshComponent)
@@ -400,9 +416,10 @@ class LevelBuildTests(unittest.TestCase):
         dark_settings = exposure.props["settings"]
         self.assertEqual(dark_settings.props["auto_exposure_min_brightness"], -1.0)
         self.assertEqual(dark_settings.props["auto_exposure_max_brightness"], 2.0)
-        self.assertEqual(fog_comp.props["fog_density"], 0.02)
+        self.assertEqual(fog_comp.props["fog_density"], 0.0025)
         self.assertFalse(sun_comp.props["enable_light_shaft_bloom"])
-        self.assertEqual(settings.props["white_temp"], 4900.0)
+        self.assertEqual(dark_settings.props["vignette_intensity"], 0.0)
+        self.assertEqual(settings.props["white_temp"], 5200.0)
         self.assertEqual(dark_settings.props["white_temp"], 9000.0)
 
     def test_starter_content_replaces_engine_shapes(self):
@@ -423,6 +440,45 @@ class LevelBuildTests(unittest.TestCase):
         rock = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Rock.01")
         rock_mesh = rock.get_component_by_class(ue.StaticMeshComponent)
         self.assertEqual(rock_mesh.mesh, "/Game/StarterContent/Props/SM_Rock")
+
+    def test_project_forest_and_rocks_enable_nanite(self):
+        ue = FakeUnreal()
+
+        class MeshAsset:
+            def __init__(self):
+                self.props = {}
+
+            def set_editor_property(self, name, value):
+                self.props[name] = value
+
+        class NaniteSettings:
+            def __init__(self):
+                self.props = {}
+
+            def set_editor_property(self, name, value):
+                self.props[name] = value
+
+        ue.MeshNaniteSettings = NaniteSettings
+        loaded = {}
+
+        def load_asset(path):
+            loaded.setdefault(path, MeshAsset())
+            return loaded[path]
+
+        ue.EditorAssetLibrary.load_asset = load_asset
+        ue.EditorAssetLibrary.present.update(
+            {
+                "/Game/Fab/Foliage/SM_Tree",
+                "/Game/Fab/Foliage/SM_Rock",
+            }
+        )
+        level_build.build(dawn=True, ue=ue)
+        self.assertTrue(loaded["/Game/Fab/Foliage/SM_Tree"].props["nanite_settings"].props["enabled"])
+        self.assertTrue(loaded["/Game/Fab/Foliage/SM_Rock"].props["nanite_settings"].props["enabled"])
+        self.assertNotIn("nanite_settings", loaded["/Engine/BasicShapes/Plane"].props)
+        plant = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Plant.01")
+        plant_mesh = plant.get_component_by_class(ue.StaticMeshComponent)
+        self.assertNotIn("disallow_nanite", plant_mesh.props)
 
     def test_flythrough_failure_still_saves_the_garden(self):
         ue = FakeUnreal()

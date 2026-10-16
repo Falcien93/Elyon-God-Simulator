@@ -12,11 +12,15 @@ If `UnrealEditor.exe` is not on your PATH, use the full path, usually `Engine\Bi
 
 The script builds the level `/Game/Maps/Day1_Garden` and saves it, then leaves the editor open. Running it again updates the same actors instead of stacking copies. An older `Elyon.Ground` actor from a previous run is removed. The garden is saved at dawn. Darkness and dawn are the two states of `let_there_be_light` in `Scripts/level_build.py` (false, then true). Sun and sky light colors are `unreal.Color` values (0–255). Fog inscattering is a `unreal.LinearColor`.
 
-## Golden hour
+## Sky, haze, and the 4060 preset
 
-UE 5.8 warns that cached Lumen and real-time sky capture lighting will be clipped when exposure sits above about EV 12. The default pre-exposure of 4 leaves that window too narrow for daylight. `Config/DefaultEngine.ini` sets `r.EyeAdaptation.CachedLightingPreExposure=8` so a golden-hour exposure near EV 13 stays inside the cache. Volumetric fog and light shafts are turned on in that same file.
+The sky is a `SkyAtmosphere` plus a `VolumetricCloud`. The script does not spawn a sky sphere. Clouds sit at a normal altitude (layer bottom about 1.6 km). UE 5.8 warns that cached Lumen and real-time sky capture lighting will be clipped when exposure sits above about EV 12. `Config/DefaultEngine.ini` sets `r.EyeAdaptation.CachedLightingPreExposure=8` so daylight near EV 13 stays inside the cache.
 
-The level places an unbound `PostProcessVolume` labeled `Elyon.Exposure`. Dawn uses histogram auto exposure clamped from EV 12 to EV 14, a warm white balance, a little bloom, and a light vignette. Darkness uses a low window from EV -1 to EV 2 so night is not crushed by the day clamp. Height fog stays thin (density 0.002) so the garden does not become a grey wall. Volumetric fog, directional inscattering, and the sun's light-shaft bloom are what carry the god rays. The sun is a low amber light at intensity 8, with a wider source angle, volumetric shadows, and atmosphere sun light so the sky disk and the rays agree. Volumetric clouds sit low for a late-afternoon sky.
+`Elyon.Exposure` is an unbound post-process volume. Dawn clamps histogram auto exposure from EV 12 to EV 14. Bloom stays at 0.05. Vignette, chromatic aberration, and lens flares are 0. Light shafts and volumetric fog are off. `Elyon.Fog` is a subtle exponential height fog: dawn density 0.0008, starting 8000 units out, max opacity 0.15. Darkness dims the sun. It does not drop a thick fog in front of the camera.
+
+Water uses Lumen reflections with screen traces on the opaque world, and screen-space reflections for the translucent river and lake (`r.SSR.Quality=2`). Hardware ray tracing is off. Software Lumen (mesh distance fields) is the global illumination path.
+
+The Steam target is an RTX 4060 laptop at 1080p to 1440p with TSR, running smoothly. The project default is the 1440p end of that range: 2560×1440, TSR, screen percentage 67, in `Config/DefaultEngine.ini`, `Config/DefaultScalability.ini` (`[RTX4060_1440p]`), and `Config/DefaultGameUserSettings.ini`. Scalability stays at Epic for view distance, shadows, Lumen, reflections, textures, foliage, and shading. Post and effects stay at High. Nanite is how the forest and rocks stay dense. Cinematic scalability, volumetric fog grids, and hardware ray tracing are left off. 1080p uses the same quality groups and costs less than 1440p.
 
 ## God view
 
@@ -38,7 +42,9 @@ Foliage uses only free assets. The script checks these paths in order and uses t
 | Rock material | | `/Game/StarterContent/Materials/M_Rock_Basalt` | `/Game/Materials/M_Elyon_Rock` |
 | Water material | | `/Game/StarterContent/Materials/M_Water_Lake` | `/Game/Materials/M_Elyon_Water` |
 
-`Elyon.River` is the long channel. `Elyon.Lake` is a still body of water on the west side. Both use the water material above. Foliage is kept off the river and the lake. The scatter is dense (48 trees, 28 rocks, and 200 plants) and deterministic, so the same run always places the same objects.
+`Elyon.River` is the long channel. `Elyon.Lake` is a still body of water on the west side. Both use the water material above. The authored water fallback is translucent, with low roughness, so screen-space reflections have a surface to hit. Foliage is kept off the river and the lake. The scatter is 48 trees, 28 rocks, and 200 plants, and it is deterministic.
+
+Trees, rocks, and the terrain mesh are Nanite. On a project mesh (Fab or any copied Starter mesh under `/Game`), the script turns Nanite on and saves the asset. Engine Basic Shapes are left untouched; in UE 5.8 those shapes already ship as Nanite meshes. Plants stay ordinary cards, because masked grass often costs more as Nanite than it saves.
 
 Nothing paid is required. A real Starter or Fab mesh keeps its own materials. Engine shapes get a material only when one of the free materials above is already in the project, or when the script can author the `M_Elyon_*` fallback.
 
@@ -54,11 +60,11 @@ The PCG plugin is enabled for later work and is not used by this script.
 
 What else the level contains:
 
-- Sky atmosphere, a directional sun, a real-time sky light, exponential height fog with volumetric fog, volumetric clouds, light shafts, and the exposure volume.
+- SkyAtmosphere, VolumetricCloud, a directional sun, a real-time sky light, a thin exponential height fog, and the exposure volume.
 - The river, the lake, a player start, and a sphere marker labeled Adam.
 - The god camera and the flythrough sequence.
 
-Graphics defaults in `Config/DefaultEngine.ini` and `Config/DefaultScalability.ini` are the high end of the engine: Lumen for global illumination and reflections, Nanite, virtual shadow maps, hardware ray tracing when the GPU has it, TSR, DirectX 12, and cinematic scalability. Foliage density is raised so a later PCG garden can read as dense. Surfaces should use high-quality free engine and Starter Content materials only.
+Graphics defaults are Lumen global illumination, Lumen reflections with screen traces, Nanite, virtual shadow maps, TSR, and DirectX 12, tuned for an RTX 4060 laptop at 1440p. Surfaces should use high-quality free engine and Starter Content materials only.
 
 The game and the best free local LLM for intelligent NPCs ship as one install package. The model runs on the player's machine. It is not a paid API and not a separate download. This slice does not contain the model yet.
 
