@@ -1,0 +1,5 @@
+Elyon is a single-player mythic simulator you can install. You play as Elyon and shape the first garden: light, waters, dry land, the grove, the lights of the sky, the creatures, and Adam and Eve. Sky View looks down on the work. Walk Among puts you on the ground beside them.
+
+Speak with Adam and Eve, name what lives, and give a word or keep silent. Text chat always reaches them. Voice uses the window's speech when it exists, and the reply stays in the log when it does not. The garden can end in harmony, exile, wonder, or order.
+
+This is an original telling, not a scripture. The page is https://www.elyongame.com. Elyon is a Foundry game: https://foundryjr.com.

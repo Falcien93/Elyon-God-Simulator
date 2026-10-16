@@ -1,0 +1,11 @@
+Title: Elyon
+Canonical URL: https://www.elyongame.com
+Tagline: A mythic simulator of the first garden.
+Version: 1.0.0
+Players: 1
+Platforms: Windows, Linux, and macOS. The desktop builds are unsigned.
+Play: Eight days of creation, Sky View and Walk Among, the garden, Adam and Eve, four endings, and voice chat.
+Endings: The garden kept (harmony), East of the garden (exile), The open orchard (wonder), The closed question (order).
+Note: An original telling, not a scripture.
+Studio: A Foundry game — https://foundryjr.com
+Press contact: use the address published on https://foundryjr.com
