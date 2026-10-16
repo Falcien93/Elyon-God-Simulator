@@ -309,6 +309,7 @@ namespace Elyon
                         break;
                     }
                     SetMills(true);
+                    TouchWork();
                     Note("The mill turns. Harvest labor grows.");
                     break;
                 case DivineAct.RestMill:
@@ -326,6 +327,7 @@ namespace Elyon
                         }
                     }
                     Note("The mill rests. The farmers breathe.");
+                    TouchWork();
                     break;
                 case DivineAct.SetEngine:
                     if (!home.engine)
@@ -343,6 +345,7 @@ namespace Elyon
                     home.drive += 2f;
                     visualsDirty = true;
                     Note("The engine is set. It drinks wood and makes drive.");
+                    TouchWork();
                     break;
                 case DivineAct.BankEngine:
                     if (!home.engine)
@@ -357,6 +360,7 @@ namespace Elyon
                     }
                     home.engineOn = false;
                     Note("The engine is banked. Drive stops, the fields lose its help, and no other hold can copy it while it is cold.");
+                    TouchWork();
                     break;
                 case DivineAct.KindleLamps:
                     if (home.power < 4f)
@@ -368,6 +372,7 @@ namespace Elyon
                     home.lights = true;
                     visualsDirty = true;
                     Note("Lamps kindle over " + home.placeName + ".");
+                    TouchWork();
                     break;
                 case DivineAct.DarkenLamps:
                     if (!home.lights)
@@ -387,6 +392,7 @@ namespace Elyon
                         }
                     }
                     Note("The lamps go dark. Faith falls. Unless a house was blessed, no child is born here, and someone may leave.");
+                    TouchWork();
                     break;
                 case DivineAct.BlessPresent:
                     charter = true;
@@ -1228,6 +1234,12 @@ namespace Elyon
             }
         }
 
+        void TouchWork()
+        {
+            jobStamp = -1;
+            AssignJobs();
+        }
+
         void AssignJobs()
         {
             int stamp = ((int)age * 1000) + year * 10 + AliveCount();
@@ -1389,9 +1401,11 @@ namespace Elyon
                     if (age >= AgeId.ElectricLight) return home.lights ? "watching the lamps" : "watching a dark street";
                     return "keeping watch by the hall";
                 case Labor.Engine:
+                    if (!home.engine) return "waiting on an engine house";
                     return home.engineOn ? "keeping the engine" : "standing by a banked engine";
                 case Labor.Wire:
-                    return home.lights ? "drawing power for the lamps" : "drawing power in the dark";
+                    if (!home.lights) return "drawing power in the dark";
+                    return "drawing power for the lamps";
                 case Labor.Keep:
                     return "keeping the press and the commons";
                 default:
