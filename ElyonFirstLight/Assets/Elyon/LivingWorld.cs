@@ -451,6 +451,7 @@ namespace Elyon
             AgeBodies();
             Mishaps();
             Deaths();
+            Strife();
             Departures();
             FounderHolds();
             Newcomer();
@@ -1168,6 +1169,96 @@ namespace Elyon
             return best;
         }
 
+        void Strife()
+        {
+            if (LivingHolds() < 2) return;
+            Settlement attacker = null;
+            Settlement peacemaker = null;
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned || Members(hold) <= 0) continue;
+                bool hungry = hold.Meals < 4f && hold.faith < 22f;
+                bool grieving = MeanGrief(hold) >= 55f && hold.Meals < 8f;
+                if (!hungry && !grieving) continue;
+                if (hold.lawKept || hold.pactStay)
+                {
+                    if (peacemaker == null) peacemaker = hold;
+                    continue;
+                }
+                if (attacker == null || hold.Meals < attacker.Meals) attacker = hold;
+            }
+            if (attacker == null)
+            {
+                if (peacemaker != null)
+                {
+                    Settlement other = OtherHold(peacemaker);
+                    if (other != null)
+                    {
+                        dealLine = peacemaker.placeName + " is thin and keeps the peace with " + other.placeName + ".";
+                        Note(dealLine);
+                        CalmMembers(peacemaker, 4f);
+                        other.faith = Mathf.Clamp(other.faith + 1f, 0f, 100f);
+                    }
+                }
+                raidStopped = false;
+                return;
+            }
+            Settlement victim = BestHold(attacker);
+            if (victim == null)
+            {
+                raidStopped = false;
+                return;
+            }
+            if (raidStopped)
+            {
+                raidStopped = false;
+                attacker.faith = Mathf.Clamp(attacker.faith + 1f, 0f, 100f);
+                victim.faith = Mathf.Clamp(victim.faith + 2f, 0f, 100f);
+                CalmMembers(victim, 6f);
+                dealLine = "Elyon stops the raid from " + attacker.placeName + ". " + victim.placeName + " keeps its stores, and its people stay.";
+                Note(dealLine);
+                return;
+            }
+            float grain = Mathf.Min(victim.grain * 0.22f, 8f);
+            float wood = Mathf.Min(victim.wood * 0.3f, 4f);
+            if (grain < 0.4f && wood < 0.4f)
+            {
+                dealLine = attacker.placeName + " wanted to raid " + victim.placeName + ", and there was nothing to carry.";
+                Note(dealLine);
+                return;
+            }
+            victim.grain = Mathf.Max(0f, victim.grain - grain);
+            attacker.grain += grain;
+            victim.wood = Mathf.Max(0f, victim.wood - wood);
+            attacker.wood += wood;
+            bool tool = StealTool(victim, attacker);
+            if (tool && victim.metalTools > 0) victim.metalTools--;
+            if (tool) attacker.metalTools++;
+            victim.raided = true;
+            victim.dread = true;
+            victim.faith = Mathf.Max(0f, victim.faith - 4f);
+            attacker.faith = Mathf.Max(0f, attacker.faith - 2f);
+            string memory = attacker.placeName + " raided " + victim.placeName + ".";
+            foreach (var member in people)
+            {
+                if (!member.alive) continue;
+                if (member.settlementId == victim.id)
+                {
+                    member.body.fear = Mathf.Min(100f, member.body.fear + 10f);
+                    member.body.grief = Mathf.Min(100f, member.body.grief + 3f);
+                    member.Remember(memory);
+                }
+                else if (member.settlementId == attacker.id)
+                {
+                    member.body.fear = Mathf.Min(100f, member.body.fear + 4f);
+                    member.Remember(memory);
+                }
+            }
+            string carried = tool ? "grain, wood, and a tool" : "grain and wood";
+            dealLine = attacker.placeName + " raids " + victim.placeName + " and carries " + carried + ".";
+            Note(dealLine + " " + victim.placeName + " may not build this year, and someone may leave.");
+        }
+
         void BlessPact(Settlement home)
         {
             Settlement other = OtherHold(home);
@@ -1287,7 +1378,17 @@ namespace Elyon
             Note(line);
         }
 
+        bool StealTool(Settlement from, Settlement to)
+        {
+            return MoveTool(from, to, 1);
+        }
+
         bool SendTool(Settlement from, Settlement to)
+        {
+            return MoveTool(from, to, 2);
+        }
+
+        bool MoveTool(Settlement from, Settlement to, int minKeep)
         {
             if (from == null || to == null) return false;
             Person donor = null;
@@ -1299,7 +1400,7 @@ namespace Elyon
                 ofKind++;
                 if (donor == null || person.toolWear > donor.toolWear) donor = person;
             }
-            if (donor == null || ofKind < 2) return false;
+            if (donor == null || ofKind < minKeep) return false;
             Person receiver = null;
             foreach (var person in people)
             {
@@ -1720,7 +1821,8 @@ namespace Elyon
                 }
 
                 person.ageName = ageName;
-                person.ageVoice = Ages.Voice(age);
+                person.ageVoice = Ages.Voice(age) + " " + Ages.Between(age);
+                if (!string.IsNullOrEmpty(dealLine)) person.ageVoice += " Between the holds: " + dealLine;
                 Settlement kinHome = HomeOf(person);
                 if (kinHome != null) person.homeName = kinHome.placeName;
                 person.kinLine = KinLine(person);
@@ -1822,6 +1924,14 @@ namespace Elyon
                 if (pactWithheld) line += "   pact withheld";
                 else if (pact) line += "   pact";
                 if (raidStopped) line += "   raid stopped";
+            }
+            foreach (var hold in settlements)
+            {
+                if (hold.lawKept && !hold.abandoned)
+                {
+                    line += "   law";
+                    break;
+                }
             }
             return line;
         }

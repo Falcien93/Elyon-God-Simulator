@@ -150,6 +150,32 @@ namespace Elyon
             }
         }
 
+        public static string Between(AgeId age)
+        {
+            switch (age)
+            {
+                case AgeId.FirstFamily:
+                case AgeId.Camps:
+                    return "If a pact or a raid is named, say it as one hearth speaking of the other, in few words.";
+                case AgeId.Farming:
+                    return "If a pact or a raid is named, say it as grain or wood that did or did not come to the field.";
+                case AgeId.MetalTowns:
+                    return "If a pact or a raid is named, say it as a tool taken or given.";
+                case AgeId.Cities:
+                    return "If a pact or a raid is named, say it as law between the holds.";
+                case AgeId.RoadsAndLetters:
+                    return "If a pact or a raid is named, say it as news carried on the road.";
+                case AgeId.Mills:
+                    return "If a pact or a raid is named, say it as grain that did or did not reach the mill.";
+                case AgeId.Industry:
+                    return "If a pact or a raid is named, say it as wood or drive that did or did not arrive.";
+                case AgeId.ElectricLight:
+                    return "If a pact or a raid is named, say it as a thing seen under the lamps, or in the dark.";
+                default:
+                    return "If a pact or a raid is named, say it as a matter for the press and the commons.";
+            }
+        }
+
         public static string Hand(AgeId age)
         {
             switch (age)

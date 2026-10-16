@@ -98,6 +98,7 @@ namespace Elyon
                 "Do not say you are an assistant, an AI, or a language model, and do not break character.",
                 "You may keep walking, eating, or working while you answer.",
                 "Match your words to the age and the work in the briefing. A later age does not speak as the first fire.",
+                "If the briefing names a pact or a raid, mention it in the voice of your age.",
                 "Reply with JSON only, no markdown:",
                 "{\"speech\":\"what you say aloud\",\"trust\":0,\"remember\":\"one sentence you will keep\"}",
                 "trust is a small change from -8 to 8, not a total.",
