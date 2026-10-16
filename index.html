@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Elyon — God Simulator</title>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#0a0a0a;color:#f0e6d2;overflow:hidden}
+#sky,#walk{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity .5s}
+#sky{background:linear-gradient(#1a2a4a,#3a5a2a,#8a6a3a);display:flex;align-items:center;justify-content:center;font-size:2em;opacity:1}
+#walk{background:linear-gradient(#2a4a1a,#5a3a1a);display:none;opacity:0}
+#ui{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:10}
+button{background:#c9a227;color:#1a1a1a;border:none;padding:12px 20px;border-radius:8px;cursor:pointer;font-weight:bold}
+#chat{position:absolute;right:20px;top:20px;width:300px;background:rgba(0,0,0,.8);padding:15px;border-radius:12px;display:none}
+#log{position:absolute;left:20px;top:20px;max-width:300px;background:rgba(0,0,0,.7);padding:10px;border-radius:8px;font-size:.9em}
+.portrait{width:80px;height:80px;border-radius:50%;background:#d4af37;margin:5px;cursor:pointer;display:inline-block}
+</style>
+</head>
+<body>
+<div id="sky">Eden from the Sky — You are Elyon</div>
+<div id="walk">Walking among the trees of Eden</div>
+<div id="ui">
+<button onclick="toggleMode()">Toggle Sky / Walk</button>
+<button onclick="createLight()">Create Light</button>
+<button onclick="bless()">Bless Creation</button>
+<button onclick="speakCommand()">Speak Commandment</button>
+<button onclick="newCreation()">New Creation</button>
+</div>
+<div id="chat">
+<h3>Speak with Adam & Eve</h3>
+<div id="messages"></div>
+<input id="input" placeholder="Speak..." onkeypress="if(event.key==='Enter')send()">
+</div>
+<div id="log"><strong>Divine Log</strong><br>The beginning...</div>
+<div style="position:absolute;bottom:100px;left:20px">
+<div class="portrait" onclick="openChat('Adam')">Adam</div>
+<div class="portrait" onclick="openChat('Eve')">Eve</div>
+</div>
+<script>
+let mode='sky';
+let current=null;
+function toggleMode(){
+  mode=mode==='sky'?'walk':'sky';
+  document.getElementById('sky').style.opacity=mode==='sky'?1:0;
+  document.getElementById('walk').style.opacity=mode==='walk'?1:0;
+  document.getElementById('walk').style.display=mode==='walk'?'block':'none';
+  log('Mode: '+mode);
+}
+function openChat(who){
+  current=who;
+  document.getElementById('chat').style.display='block';
+  log('Speaking with '+who);
+}
+function send(){
+  const t=document.getElementById('input').value;
+  if(!t||!current)return;
+  const m=document.getElementById('messages');
+  m.innerHTML+='<p><b>You:</b> '+t+'</p>';
+  const replies={'garden':'It is beautiful, Elyon.','fruit':'We have not yet eaten of the tree.','hello':'Peace be with you.','love':'We love one another.'};
+  let r=replies[t.toLowerCase().split(' ')[0]]||'We hear you, Elyon.';
+  m.innerHTML+='<p><b>'+current+':</b> '+r+'</p>';
+  document.getElementById('input').value='';
+  log(current+' responded');
+}
+function createLight(){document.body.style.background='#ffd700';setTimeout(()=>document.body.style.background='#0a0a0a',800);log('Let there be light.');}
+function bless(){log('Creation is blessed. Harmony multiplies.');}
+function speakCommand(){const c=prompt('Speak a commandment:');if(c)log('Commandment: '+c);}
+function newCreation(){if(confirm('Begin anew?')){localStorage.clear();location.reload();}}
+function log(m){document.getElementById('log').innerHTML+='<br>'+m;localStorage.setItem('log',document.getElementById('log').innerHTML);}
+// persistence stub
+if(localStorage.getItem('log'))document.getElementById('log').innerHTML=localStorage.getItem('log');
+</script>
+</body>
+</html>
