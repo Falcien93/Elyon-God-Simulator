@@ -52,11 +52,13 @@
       <p class="sub">God Most High</p>
       <h1>Elyon</h1>
       <p class="tag">A mythic simulator of the first garden.</p>
+      <div id="slot-list" class="slot-list"></div>
       <div class="actions">
         <button id="btn-begin" class="primary" type="button">Begin</button>
         <button id="btn-continue" type="button" disabled>Continue</button>
+        <button id="btn-title-settings" type="button">Settings</button>
       </div>
-      <p class="fine">A telling, not a scripture. Your creation is kept on this computer.</p>
+      <p class="fine">A telling, not a scripture. Three gardens are kept on this computer.</p>
     </div>
   </section>
 
@@ -77,6 +79,8 @@
       <h2>The work can wait</h2>
       <div class="menu">
         <button id="btn-resume" class="primary" type="button">Resume</button>
+        <button id="btn-settings" type="button">Settings</button>
+        <div id="pause-slots" class="slot-list"></div>
         <label>Music <input id="music" type="range" min="0" max="100" value="32"></label>
         <label>Effects <input id="sfx" type="range" min="0" max="100" value="70"></label>
         <button id="btn-fullscreen" type="button">Fullscreen</button>
@@ -87,6 +91,25 @@
         <button id="btn-new" type="button">New creation</button>
         <button id="btn-title" type="button">Return to the title</button>
       </div>
+    </div>
+  </section>
+
+  <section id="panel-settings" class="scrim" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="panel">
+      <p class="sub">Settings</p>
+      <h2 id="settings-title">How the garden is heard</h2>
+      <div class="menu">
+        <label>Master volume <input id="master-volume" type="range" min="0" max="100" value="80"></label>
+        <label>Fullscreen <input id="opt-fullscreen" type="checkbox"></label>
+        <div class="speed-row" role="group" aria-label="Text speed">
+          <span>Text speed</span>
+          <button id="speed-slow" type="button">Slow</button>
+          <button id="speed-normal" type="button" aria-pressed="true">Normal</button>
+          <button id="speed-fast" type="button">Fast</button>
+        </div>
+        <label>Voice <input id="opt-voice" type="checkbox" checked></label>
+      </div>
+      <div class="actions"><button id="btn-settings-close" class="primary" type="button">Close</button></div>
     </div>
   </section>
 
@@ -135,7 +158,7 @@
         <button id="btn-send-chat" class="primary" type="button">Send</button>
       </div>
       <p id="address-achievements" class="fine"></p>
-      <p class="fine">Voice input uses the Web Speech API when this window has it. In the desktop app it often does not; typing still reaches them, and a missing spoken voice does not discard the reply.</p>
+      <p class="fine">Voice input uses the Web Speech API when this window has it. In the desktop app it often does not; typing still reaches them, and a missing spoken voice does not discard the reply. Settings can turn voice off.</p>
       <div class="actions"><button id="btn-address-close" class="primary" type="button">Close</button></div>
     </div>
   </section>
@@ -166,6 +189,7 @@
       <p>Descend to walk. Draw near to Adam and Eve and press <b>E</b>, or click them when you are close. In the sky, click them from anywhere.</p>
       <p>After they have names for the beasts, inscribe a commandment or keep silent. Then speak with Eve. The garden will keep one of four endings, and it will remain open afterward.</p>
       <p>Once Adam is formed, <b>Address</b> opens a free conversation with Adam or Eve. Replies follow the garden and the Unity Thread: age, coherence, seals, and what you just said. <b>Voice</b> types from speech when this window can hear you. If it cannot, type instead. <b>Speak</b> reads the last reply aloud when a voice is available; otherwise the reply stays in the log.</p>
+      <p>Three gardens are kept on this computer. An empty garden starts a new creation in that slot. Continue resumes the active garden, or the newest one. Settings remembers master volume, fullscreen, text speed, and whether voice is on.</p>
       <p><b>M</b> ascend or descend · <b>1–8</b> tools · <b>E</b> speak · <b>Esc</b> pause · <b>H</b> help · <b>F</b> fullscreen · scroll to look closer</p>
       <div class="actions"><button id="btn-help-close" class="primary" type="button">Return</button></div>
     </div>

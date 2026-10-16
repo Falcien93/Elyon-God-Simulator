@@ -2,6 +2,7 @@
 
 import { achievementText, threadSummary } from "./converse.js";
 import { CODEX, SHAPES, BEAST_CYCLE } from "./content.js";
+import { slotLabel } from "./slots.js";
 import {
   availableShapes,
   currentNode,
@@ -20,11 +21,21 @@ let talkKey = "";
 let codexKey = "";
 let journalKey = "";
 let logKey = "";
+const slotKeys = { "slot-list": "", "pause-slots": "" };
 
 export function mount(next) {
   handlers = next;
   on("btn-begin", "click", () => handlers.begin());
   on("btn-continue", "click", () => handlers.continue());
+  on("btn-title-settings", "click", () => handlers.openSettings());
+  on("btn-settings", "click", () => handlers.openSettings());
+  on("btn-settings-close", "click", () => handlers.closeOverlay());
+  on("master-volume", "input", (event) => handlers.setMaster(Number(event.target.value) / 100));
+  on("opt-fullscreen", "change", (event) => handlers.setFullscreen(event.target.checked));
+  on("opt-voice", "change", (event) => handlers.setVoice(event.target.checked));
+  on("speed-slow", "click", () => handlers.setTextSpeed("slow"));
+  on("speed-normal", "click", () => handlers.setTextSpeed("normal"));
+  on("speed-fast", "click", () => handlers.setTextSpeed("fast"));
   on("btn-prologue", "click", () => handlers.finishPrologue());
   on("btn-resume", "click", () => handlers.resume());
   on("btn-fullscreen", "click", () => handlers.fullscreen());
@@ -73,9 +84,13 @@ export function sync(state, view) {
   document.body.dataset.screen = view.screen;
   show("screen-title", view.screen === "title");
   show("screen-prologue", view.screen === "prologue");
-  show("screen-pause", view.pause);
+  show("screen-pause", view.pause && view.overlay !== "settings");
+  show("panel-settings", view.overlay === "settings");
   show("panel-confirm", Boolean(view.confirm));
   show("screen-ending", view.overlay === "ending");
+  renderSlots("slot-list", view.library, "title");
+  renderSlots("pause-slots", view.library, "pause");
+  paintSettings(view.settings);
   show("panel-help", view.overlay === "help");
   show("panel-codex", view.overlay === "codex");
   show("panel-journal", view.overlay === "journal");
@@ -127,7 +142,7 @@ export function sync(state, view) {
     buildDock(state, view, primary, shapes, beast);
   }
 
-  if (talking) buildTalk(state);
+  if (talking) buildTalk(state, view);
   if (view.overlay === "codex") buildCodex(state);
   if (view.overlay === "journal") buildJournal(state);
   if (view.overlay === "voice") buildVoice(state);
@@ -179,10 +194,12 @@ function buildDock(state, view, primary, shapes, beast) {
   utilitySlot.append(actionButton("Help", () => handlers.openOverlay("help")));
 }
 
-function buildTalk(state) {
+function buildTalk(state, view) {
   const node = currentNode(state);
   if (!node || !state.talk) return;
   const choices = visibleChoices(state, node);
+  const full = formatLine(state, node.lines[state.talk.line] || "");
+  text("line", shownLine(full, view));
   const key = `${state.talk.nodeId}:${state.talk.line}:${choices.map((choice) => choice.label).join("~")}`;
   if (key === talkKey) return;
   talkKey = key;
@@ -193,7 +210,6 @@ function buildTalk(state) {
   text("speaker-name", who === "serpent" ? "The serpent" : who === "eve" ? state.names.eve : state.names.adam);
   const rel = state.relations[who];
   text("speaker-meta", rel ? `Trust ${Math.round(rel.trust)} · Wonder ${Math.round(rel.wonder)}` : "A question with scales");
-  text("line", formatLine(state, node.lines[state.talk.line] || ""));
   const slot = document.getElementById("choice-slot");
   slot.replaceChildren();
   const last = state.talk.line >= node.lines.length - 1;
@@ -231,6 +247,52 @@ function buildTalk(state) {
     control.addEventListener("click", () => handlers.choose(index));
     slot.append(control);
   });
+}
+
+function shownLine(full, view) {
+  if (!view?.settings || view.settings.textSpeed === "fast") return full;
+  const count = Math.max(0, Math.floor(view.reveal || 0));
+  if (count >= full.length) return full;
+  return full.slice(0, count);
+}
+
+function renderSlots(id, library, mode) {
+  const root = document.getElementById(id);
+  if (!root || !library?.slots) return;
+  const key = `${library.active}|${library.slots.map((slot) => slot?.savedAt || 0).join(",")}`;
+  if (slotKeys[id] === key) return;
+  slotKeys[id] = key;
+  root.replaceChildren();
+  for (let index = 0; index < library.slots.length; index += 1) {
+    const slot = library.slots[index];
+    const label = mode === "pause"
+      ? `Save into garden ${index + 1}${slot ? ` · ${slotLabel(slot)}` : ""}`
+      : (slot ? `Garden ${index + 1} · ${slotLabel(slot)}` : `Garden ${index + 1} · Empty`);
+    const control = button(label);
+    if (slot && library.active === index) control.setAttribute("aria-current", "true");
+    control.addEventListener("click", () => {
+      if (mode === "pause") handlers.saveSlot(index);
+      else handlers.openSlot(index);
+    });
+    root.append(control);
+  }
+}
+
+function paintSettings(settings) {
+  if (!settings) return;
+  const master = document.getElementById("master-volume");
+  if (master && document.activeElement !== master) {
+    const next = String(Math.round(settings.master * 100));
+    if (master.value !== next) master.value = next;
+  }
+  const fullscreen = document.getElementById("opt-fullscreen");
+  if (fullscreen) fullscreen.checked = Boolean(settings.fullscreen);
+  const voice = document.getElementById("opt-voice");
+  if (voice) voice.checked = settings.voice !== false;
+  for (const speed of ["slow", "normal", "fast"]) {
+    const control = document.getElementById(`speed-${speed}`);
+    if (control) control.setAttribute("aria-pressed", settings.textSpeed === speed ? "true" : "false");
+  }
 }
 
 function buildCodex(state) {

@@ -5,6 +5,15 @@ export function createAudio() {
   let musicGain = null;
   let sfxGain = null;
   let started = false;
+  let masterLevel = 0.8;
+  let musicLevel = 0.32;
+  let sfxLevel = 0.7;
+
+  function apply() {
+    if (!musicGain || !sfxGain) return;
+    musicGain.gain.value = musicLevel * masterLevel;
+    sfxGain.gain.value = sfxLevel * masterLevel;
+  }
 
   function ensure() {
     if (ctx) return ctx;
@@ -13,10 +22,9 @@ export function createAudio() {
     ctx = new AudioCtx();
     musicGain = ctx.createGain();
     sfxGain = ctx.createGain();
-    musicGain.gain.value = 0.32;
-    sfxGain.gain.value = 0.7;
     musicGain.connect(ctx.destination);
     sfxGain.connect(ctx.destination);
+    apply();
     return ctx;
   }
 
@@ -63,10 +71,14 @@ export function createAudio() {
       if (audio.state === "suspended") audio.resume();
       startMusic();
     },
+    setMaster(master) {
+      if (Number.isFinite(master)) masterLevel = Math.max(0, Math.min(1, master));
+      apply();
+    },
     setVolumes(music, sfx) {
-      if (!musicGain || !sfxGain) return;
-      musicGain.gain.value = music;
-      sfxGain.gain.value = sfx;
+      if (Number.isFinite(music)) musicLevel = music;
+      if (Number.isFinite(sfx)) sfxLevel = sfx;
+      apply();
     },
     cue(kind) {
       this.resume();

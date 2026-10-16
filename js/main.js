@@ -1,7 +1,21 @@
 import { createAudio } from "./audio.js";
 import { ENDINGS } from "./content.js";
 import { render, screenToWorld } from "./render.js";
-import { clearLocal, loadBest, normalize, serialize, writeBest } from "./save.js";
+import { STORAGE_KEY, normalize, serialize } from "./save.js";
+import {
+  LIBRARY_KEY,
+  SETTINGS_KEY,
+  TEXT_SPEEDS,
+  assembleLibrary,
+  charsPerSecond,
+  defaultSettings,
+  emptyLibrary,
+  normalizeSettings,
+  pickSettings,
+  readSlot,
+  serializeLibrary,
+  writeSlot,
+} from "./slots.js";
 import {
   REASONS,
   availableShapes,
@@ -36,6 +50,8 @@ for (const id of ["light", "waters", "land", "grove", "lights", "creatures"]) pe
 
 let state = null;
 let live = false;
+let library = emptyLibrary();
+let settings = defaultSettings();
 const view = {
   screen: "title",
   pause: false,
@@ -49,6 +65,10 @@ const view = {
   endingText: null,
   listening: false,
   voiceWarned: false,
+  library,
+  settings,
+  reveal: 0,
+  talkSig: "",
 };
 
 let camX = WORLD_W / 2;
@@ -80,6 +100,10 @@ function sendAddressMessage(text) {
   const input = document.getElementById("chat-input");
   if (input) input.value = "";
   applyResult(result);
+  if (settings.voice === false) {
+    resetPanels();
+    return;
+  }
   const voice = speakText(result.reply, result.who, window);
   if (!voice.ok && !view.voiceWarned) {
     view.voiceWarned = true;
@@ -90,30 +114,65 @@ function sendAddressMessage(text) {
 
 mount({
   begin() {
-    state = createNewGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0 || 1);
-    live = true;
-    view.screen = "prologue";
-    view.pause = false;
-    view.overlay = null;
-    view.tool = null;
-    resetPanels();
-    writeBest(state);
-  },
-  async continue() {
-    const saved = await loadBest();
-    if (!saved) {
-      setStatus("No record was found on this computer.");
-      setContinueEnabled(false);
+    const empty = library.slots.findIndex((slot) => !slot);
+    if (empty >= 0) {
+      startInSlot(empty);
       return;
     }
-    adopt(saved);
+    view.confirm = {
+      text: "All three gardens are written. Begin again in the active one? Export a record first if you want to keep it.",
+      action: "new",
+      slot: library.active,
+    };
+  },
+  continue() {
+    resumeGarden();
+  },
+  openSlot(index) {
+    openGarden(index);
+  },
+  saveSlot(index) {
+    if (!state) return;
+    writeSlot(library, index, state);
+    view.library = library;
+    persistLibrary();
+    setToast(`Saved into garden ${index + 1}.`);
+  },
+  openSettings() {
+    view.overlay = "settings";
+  },
+  setMaster(value) {
+    settings.master = value;
+    view.settings = settings;
+    audio.setMaster(settings.master);
+    if (state?.settings) audio.setVolumes(state.settings.music, state.settings.sfx);
+    commitSettings();
+  },
+  setFullscreen(on) {
+    settings.fullscreen = Boolean(on);
+    view.settings = settings;
+    applyFullscreen(settings.fullscreen);
+    commitSettings();
+  },
+  setTextSpeed(speed) {
+    if (!TEXT_SPEEDS.includes(speed)) return;
+    settings.textSpeed = speed;
+    view.settings = settings;
+    if (speed === "fast") view.reveal = 1e9;
+    commitSettings();
+  },
+  setVoice(on) {
+    settings.voice = Boolean(on);
+    view.settings = settings;
+    if (!settings.voice) stopListening();
+    commitSettings();
   },
   finishPrologue() {
     if (!state) return;
     state.flags.seen_intro = true;
     view.screen = "play";
     resetPanels();
-    writeBest(state);
+    saveActive();
     audio.resume();
   },
   resume() {
@@ -141,7 +200,7 @@ mount({
         return;
       }
       adopt(next);
-      writeBest(state);
+      saveActive();
       setToast("The record is restored.");
     };
     reader.readAsText(file);
@@ -152,18 +211,22 @@ mount({
     openEnding();
   },
   requestNew() {
+    const empty = library.slots.findIndex((slot) => !slot);
+    const index = library.slots[library.active] ? library.active : (empty >= 0 ? empty : library.active);
     view.confirm = {
-      text: "Begin a new creation? The garden on this computer will be replaced. Export a record first if you want to keep it.",
+      text: "Begin a new creation in this garden? Only this slot is replaced. The other gardens stay on this computer.",
       action: "new",
+      slot: index,
     };
   },
   toTitle() {
-    if (state && live) writeBest(state);
+    if (state && live) saveActive();
     view.pause = false;
     view.overlay = null;
     view.confirm = null;
     view.screen = "title";
     live = false;
+    setContinueEnabled(library.slots.some(Boolean));
   },
   primary() {
     if (!state) return;
@@ -207,11 +270,19 @@ mount({
       setStatus("They have not answered yet.");
       return;
     }
+    if (settings.voice === false) {
+      setStatus("Voice is off. Turn it on in Settings to hear them.");
+      return;
+    }
     const voice = speakText(words, state.address, window);
     if (!voice.ok) setStatus("Spoken voice is not available here. The reply is in the address log.");
   },
   toggleVoice() {
     if (!state) return;
+    if (settings.voice === false) {
+      setStatus("Voice is off. Turn it on in Settings.");
+      return;
+    }
     if (listener) {
       stopListening();
       setStatus("Voice stopped.");
@@ -255,17 +326,10 @@ mount({
   },
   confirmYes() {
     const action = view.confirm?.action;
+    const slot = Number.isInteger(view.confirm?.slot) ? view.confirm.slot : library.active;
     view.confirm = null;
     if (action === "new") {
-      state = createNewGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0 || 1);
-      live = true;
-      view.screen = "prologue";
-      view.pause = false;
-      view.overlay = null;
-      view.tool = null;
-      resetPanels();
-      clearLocal();
-      writeBest(state);
+      startInSlot(slot);
     } else if (action === "primary") {
       runPrimary(primaryAction(state));
     }
@@ -290,14 +354,120 @@ mount({
     if (!state) return;
     state.flags.ending_seen = true;
     view.overlay = null;
-    writeBest(state);
+    saveActive();
   },
   volume(channel, value) {
     if (!state) return;
     state.settings[channel] = value;
+    audio.setMaster(settings.master);
     audio.setVolumes(state.settings.music, state.settings.sfx);
   },
 });
+
+function freshGame() {
+  return createNewGame((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0 || 1);
+}
+
+function startInSlot(index) {
+  const slot = Math.max(0, Math.min(2, index));
+  state = freshGame();
+  live = true;
+  view.screen = "prologue";
+  view.pause = false;
+  view.overlay = null;
+  view.confirm = null;
+  view.tool = null;
+  resetPanels();
+  writeSlot(library, slot, state);
+  view.library = library;
+  persistLibrary();
+  audio.resume();
+}
+
+function openGarden(index) {
+  const game = readSlot(library, index);
+  if (!game) {
+    startInSlot(index);
+    return;
+  }
+  library.active = index;
+  adopt(game);
+  persistLibrary();
+}
+
+function resumeGarden() {
+  let index = library.slots[library.active] ? library.active : -1;
+  if (index < 0) {
+    let best = -1;
+    let stamp = -1;
+    library.slots.forEach((slot, i) => {
+      if (slot && (slot.savedAt || 0) >= stamp) {
+        best = i;
+        stamp = slot.savedAt || 0;
+      }
+    });
+    index = best;
+  }
+  if (index < 0) {
+    setStatus("No record was found on this computer.");
+    setContinueEnabled(false);
+    return;
+  }
+  openGarden(index);
+}
+
+function saveActive() {
+  if (!state) return;
+  const index = Number.isInteger(library.active) ? library.active : 0;
+  writeSlot(library, index, state);
+  view.library = library;
+  persistLibrary();
+}
+
+function persistLibrary() {
+  const text = serializeLibrary(library);
+  view.library = library;
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(LIBRARY_KEY, text);
+  } catch {
+    /* ignore quota and private-mode failures */
+  }
+  const desktop = window.elyonDesktop;
+  if (desktop?.writeLibrary) desktop.writeLibrary(text);
+}
+
+function commitSettings() {
+  const next = normalizeSettings({ ...settings, version: 1 }) || defaultSettings();
+  next.updatedAt = Date.now();
+  settings = next;
+  view.settings = settings;
+  audio.setMaster(settings.master);
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    /* ignore quota and private-mode failures */
+  }
+  const desktop = window.elyonDesktop;
+  if (desktop?.writeSettings) desktop.writeSettings(JSON.stringify(settings));
+}
+
+function storageGet(key) {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_resolve, reject) => {
+      setTimeout(() => reject(new Error("timeout")), ms);
+    }),
+  ]);
+}
 
 function adopt(next) {
   state = next;
@@ -309,6 +479,7 @@ function adopt(next) {
   view.screen = next.flags.seen_intro ? "play" : "prologue";
   document.getElementById("music").value = String(Math.round(next.settings.music * 100));
   document.getElementById("sfx").value = String(Math.round(next.settings.sfx * 100));
+  audio.setMaster(settings.master);
   audio.setVolumes(next.settings.music, next.settings.sfx);
   resetPanels();
   if (next.ending && !next.flags.ending_seen && view.screen === "play") openEnding();
@@ -359,12 +530,27 @@ function setToast(message) {
 }
 
 function toggleFullscreen() {
-  if (window.elyonDesktop?.toggleFullscreen) {
-    window.elyonDesktop.toggleFullscreen();
+  settings.fullscreen = !settings.fullscreen;
+  view.settings = settings;
+  applyFullscreen(settings.fullscreen);
+  commitSettings();
+}
+
+function applyFullscreen(on) {
+  const desktop = window.elyonDesktop;
+  if (desktop?.setFullscreen) {
+    desktop.setFullscreen(Boolean(on));
     return;
   }
-  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-  else document.exitFullscreen?.();
+  if (on) {
+    if (!document.fullscreenElement) {
+      const pending = document.documentElement.requestFullscreen?.();
+      if (pending && typeof pending.catch === "function") pending.catch(() => {});
+    }
+  } else if (document.fullscreenElement) {
+    const pending = document.exitFullscreen?.();
+    if (pending && typeof pending.catch === "function") pending.catch(() => {});
+  }
 }
 
 function resize() {
@@ -513,7 +699,7 @@ function handlersFallbackPrologue() {
   if (state) {
     state.flags.seen_intro = true;
     view.screen = "play";
-    writeBest(state);
+    saveActive();
   }
 }
 
@@ -529,6 +715,15 @@ function loop(now) {
       const beat = tick(state, dt);
       if (beat) announce(beat.day, beat.achievements);
       if (!state.talk && state.mode === "walk") steer(dt);
+      if (state.talk) {
+        const sig = `${state.talk.nodeId}:${state.talk.line}`;
+        if (sig !== view.talkSig) {
+          view.talkSig = sig;
+          view.reveal = settings.textSpeed === "fast" ? 1e9 : 0;
+        } else if (settings.textSpeed !== "fast") {
+          view.reveal += dt * charsPerSecond(settings.textSpeed);
+        }
+      }
       if (state.ending && !state.flags.ending_seen && !state.talk && !view.overlay) openEnding();
     }
     if (view.status && now > view.statusUntil) view.status = "";
@@ -564,18 +759,54 @@ function steer(dt) {
 }
 
 setInterval(() => {
-  if (live && state && view.screen === "play") writeBest(state);
+  if (live && state && view.screen === "play") saveActive();
 }, 5000);
 
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && live && state) writeBest(state);
+  if (document.hidden && live && state) saveActive();
 });
 window.addEventListener("beforeunload", () => {
-  if (live && state) writeBest(state);
+  if (live && state) saveActive();
 });
 
-loadBest().then((saved) => {
-  setContinueEnabled(Boolean(saved));
-});
+async function bootSaves() {
+  let diskLibrary = null;
+  let diskLegacy = null;
+  let diskSettings = null;
+  const desktop = window.elyonDesktop;
+  if (desktop?.loadLibrary) {
+    try {
+      const payload = await withTimeout(desktop.loadLibrary(), 2500);
+      diskLibrary = payload?.library || null;
+      diskLegacy = payload?.legacy || null;
+    } catch {
+      diskLibrary = null;
+      diskLegacy = null;
+    }
+  }
+  if (desktop?.loadSettings) {
+    try {
+      diskSettings = await withTimeout(desktop.loadSettings(), 2500);
+    } catch {
+      diskSettings = null;
+    }
+  }
+  library = assembleLibrary({
+    diskText: diskLibrary,
+    legacyText: diskLegacy,
+    browserText: storageGet(LIBRARY_KEY),
+    localText: storageGet(STORAGE_KEY),
+  });
+  view.library = library;
+  setContinueEnabled(library.slots.some(Boolean));
+  settings = pickSettings(normalizeSettings(diskSettings), normalizeSettings(storageGet(SETTINGS_KEY))) || defaultSettings();
+  view.settings = settings;
+  audio.setMaster(settings.master);
+  if (settings.fullscreen && desktop?.setFullscreen) desktop.setFullscreen(true);
+  persistLibrary();
+  commitSettings();
+}
+
+bootSaves();
 
 requestAnimationFrame(loop);

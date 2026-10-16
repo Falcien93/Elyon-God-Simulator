@@ -223,6 +223,11 @@ h1 {
 .menu { display: grid; gap: 10px; }
 .menu label { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 input[type="range"] { width: 160px; }
+.slot-list { display: grid; gap: 8px; margin: 8px 0 4px; }
+.slot-list button { text-align: left; width: 100%; }
+.slot-list button[aria-current="true"] { border-color: var(--gold); color: var(--gold); }
+.speed-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.speed-row button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
 
 #panel-dialogue { align-items: end; padding-bottom: 150px; background: transparent; pointer-events: none; }
 #panel-dialogue .panel { pointer-events: auto; margin-bottom: 8px; }
