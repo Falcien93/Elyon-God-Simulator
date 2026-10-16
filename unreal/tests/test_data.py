@@ -2,7 +2,8 @@ import json
 import unittest
 from pathlib import Path
 
-DATA = Path(__file__).resolve().parents[1] / "Data"
+UNREAL = Path(__file__).resolve().parents[1]
+DATA = UNREAL / "Data"
 
 DAY_IDS = ["light", "waters", "land", "grove", "lights", "creatures", "humanity", "rest"]
 ENDING_TITLES = {
@@ -61,6 +62,18 @@ class DataTests(unittest.TestCase):
         self.assertEqual(order_fx, {"ending:order"})
         order_nodes = {item["node"] for item in endings["order"]["conditions"]}
         self.assertEqual(order_nodes, {"eve_choice", "serpent_meet", "serpent_why"})
+
+    def test_high_end_defaults_and_bundled_llm_note(self):
+        engine = (UNREAL / "Config" / "DefaultEngine.ini").read_text(encoding="utf-8")
+        scale = (UNREAL / "Config" / "DefaultScalability.ini").read_text(encoding="utf-8")
+        readme = (UNREAL / "README.md").read_text(encoding="utf-8")
+        self.assertIn("r.DynamicGlobalIlluminationMethod=1", engine)
+        self.assertIn("r.ReflectionMethod=1", engine)
+        self.assertIn("r.Nanite.ProjectEnabled=True", engine)
+        self.assertIn("r.Shadow.Virtual.Enable=1", engine)
+        self.assertIn("foliage.DensityScale=2.5", scale)
+        self.assertIn("one install package", readme)
+        self.assertIn("free local LLM", readme)
 
 
 if __name__ == "__main__":
