@@ -1310,7 +1310,16 @@ namespace Elyon
             string carried = tool ? "grain, wood, and a tool" : "grain and wood";
             if (fish >= 0.4f) carried += ", and fish";
             if (herdTaken) carried += ", and a head of the herd";
-            dealLine = attacker.placeName + " raids " + victim.placeName + " and carries " + carried + ".";
+            string cause = "";
+            if (attacker.sky == Sky.Drought && attacker.Meals >= 4f)
+            {
+                cause = " The drought made " + attacker.placeName + " look hungry.";
+            }
+            else if (SeasonNow() == Season.Winter && attacker.Meals >= 4f && SeenMeals(attacker) < 4f)
+            {
+                cause = " The cold made " + attacker.placeName + " look hungry.";
+            }
+            dealLine = attacker.placeName + " raids " + victim.placeName + " and carries " + carried + "." + cause;
             Note(dealLine + " " + victim.placeName + " may not build this year, and someone may leave.");
         }
 
