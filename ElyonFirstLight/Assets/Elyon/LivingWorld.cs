@@ -193,9 +193,12 @@ namespace Elyon
                     Note(person.personName + " is healed.");
                     break;
                 case DivineAct.SetFruit:
+                    float mealsBefore = home.Meals;
                     home.fruit += 6f;
                     if (person != null) person.body.hunger = Mathf.Max(0f, person.body.hunger - 10f);
-                    Note("Fruit is set at " + home.placeName + ".");
+                    Note(mealsBefore < 8f && home.Meals >= 8f
+                        ? "Fruit is set at " + home.placeName + ". The stores can spare a birth."
+                        : "Fruit is set at " + home.placeName + ".");
                     break;
                 case DivineAct.Calm:
                     if (person == null) { Note("No one is here to calm."); break; }
@@ -404,8 +407,15 @@ namespace Elyon
                         Note("There is one hearth. The commons is already the whole house.");
                         break;
                     }
+                    Settlement giver = home.Meals >= other.Meals ? home : other;
+                    Settlement taker = giver == home ? other : home;
+                    float takerBefore = taker.Meals;
+                    float giverBefore = giver.Meals;
                     ShareMeals(home, other, 0.1f);
-                    Note("A tenth of the richer store moves to the poorer hold. A failing hearth can be fed, or a thin one can be asked to give.");
+                    string moved = "A tenth of the richer store moves to the poorer hold.";
+                    if (takerBefore < 8f && taker.Meals >= 8f) moved += " " + taker.placeName + " can spare a birth.";
+                    if (giverBefore >= 8f && giver.Meals < 8f) moved += " " + giver.placeName + " can no longer spare one.";
+                    Note(moved);
                     break;
             }
 
@@ -723,6 +733,16 @@ namespace Elyon
                     SetHome(person, dest, true);
                     person.Remember(hold.placeName + " foundered.");
                 }
+                dest.fruit += hold.fruit;
+                dest.meat += hold.meat;
+                dest.grain += hold.grain;
+                dest.wood += hold.wood * 0.5f;
+                dest.ore += hold.ore;
+                hold.fruit = 0f;
+                hold.meat = 0f;
+                hold.grain = 0f;
+                hold.wood *= 0.5f;
+                hold.ore = 0f;
                 hold.abandoned = true;
                 hold.engineOn = false;
                 hold.millOn = false;
@@ -1566,6 +1586,7 @@ namespace Elyon
             float faithWeight = 0f;
             foreach (var settlement in settlements)
             {
+                if (settlement.abandoned) continue;
                 int members = Members(settlement);
                 if (members > 0)
                 {
