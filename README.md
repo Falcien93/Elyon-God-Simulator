@@ -54,7 +54,15 @@ What changes:
 
 An age begins only when its facts are true: enough years, people, meals, wood, shelter, tools, faith, learning, drive, or power. The right-hand panel says what is still missing. **The years turn** resolves one year of labor, kinship, and building, so later ages can be reached without watching every day. Divine acts that lack the wood, the field, the smithy, the hall, the mill, the engine, or the power say so and change nothing.
 
-The record is `elyon-first-light.json` in the persistent data folder, version 2. It keeps the people, their parents, the age they were born into, the names Elyon has given, the line's memory, the chronicle, and the settlements. It does not keep the key. Older tiny records are ignored.
+The record is `elyon-first-light.json` in the persistent data folder, version 3. It keeps the people, their parents, the age they were born into, the names Elyon has given, the line's memory, the chronicle, and the settlements. Year lines stay apart from the garden, the ages, and the landmarks, so a long history does not drop them. It does not keep the key. Older tiny records are ignored.
+
+The ages can be proven without opening the editor:
+
+```bash
+dotnet run --project ElyonFirstLight/Headless/Elyon.Headless.csproj
+```
+
+That run starts with Adam and Eve and turns the years through the present: a birth, a name, a pact, a raid Elyon stops, rain and a drought, a herd, and a death. It fails if an age never opens, the line back to Adam or Eve breaks, the chronicle drops the garden, or the key is written into the save.
 
 This machine has no Unity editor license and no GPU, so the valley was not rendered here. Open the project in a licensed Unity 6000 editor and press Play to see it.
 

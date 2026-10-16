@@ -8,6 +8,7 @@
 /[Mm]emoryCaptures/
 .vs/
 *.csproj
+!Headless/*.csproj
 *.unityproj
 *.sln
 *.suo

@@ -37,6 +37,7 @@ namespace Elyon
         readonly List<string> log = new List<string>();
         readonly List<string> ageBook = new List<string>();
         readonly List<string> eventBook = new List<string>();
+        readonly List<string> recentBook = new List<string>();
 
         GardenWorld garden;
         GardenDirector director;
@@ -2195,9 +2196,19 @@ namespace Elyon
         {
             if (string.IsNullOrWhiteSpace(line)) return;
             string trimmed = line.Trim();
-            if (eventBook.Count > 0 && eventBook[eventBook.Count - 1] == trimmed) return;
-            eventBook.Add(trimmed);
-            if (eventBook.Count > 24) eventBook.RemoveAt(0);
+            if (trimmed.StartsWith("Year ", StringComparison.Ordinal))
+            {
+                KeepLine(recentBook, trimmed, 8);
+                return;
+            }
+            KeepLine(eventBook, trimmed, 64);
+        }
+
+        static void KeepLine(List<string> book, string line, int cap)
+        {
+            if (book.Count > 0 && book[book.Count - 1] == line) return;
+            book.Add(line);
+            if (book.Count > cap) book.RemoveAt(0);
         }
 
         public string ChronicleText()
@@ -2206,8 +2217,8 @@ namespace Elyon
                 ? "Adam and Eve woke at the garden fire."
                 : gardenLine.Trim();
             for (int i = 0; i < ageBook.Count; i++) text += " " + ageBook[i];
-            int start = eventBook.Count > 8 ? eventBook.Count - 8 : 0;
-            for (int i = start; i < eventBook.Count; i++) text += " " + eventBook[i];
+            for (int i = 0; i < eventBook.Count; i++) text += " " + eventBook[i];
+            for (int i = 0; i < recentBook.Count; i++) text += " " + recentBook[i];
             return text;
         }
 
@@ -2461,6 +2472,7 @@ namespace Elyon
             Note(string.IsNullOrEmpty(home.herdName)
                 ? home.placeName + " keeps a herd. " + home.herd + " head."
                 : home.placeName + " keeps " + home.herdName + ". " + home.herd + " head.");
+            Chronicle(LastEvent);
             TouchWork();
         }
 
@@ -3424,7 +3436,7 @@ namespace Elyon
             {
                 var record = new ChronicleRecord
                 {
-                    version = 2,
+                    version = 3,
                     year = year,
                     age = (int)age,
                     dayTime = director != null ? director.timeOfDay : 0.1f,
@@ -3444,6 +3456,7 @@ namespace Elyon
                     wound = woundLine,
                     chronicleAges = ageBook.ToArray(),
                     chronicleEvents = eventBook.ToArray(),
+                    chronicleRecent = recentBook.ToArray(),
                     nextId = nextId,
                     nameCursor = nameCursor,
                     settlements = new SettlementRecord[settlements.Count],
@@ -3507,11 +3520,22 @@ namespace Elyon
                 }
                 if (ageBook.Count == 0) RememberAge();
                 eventBook.Clear();
+                recentBook.Clear();
                 if (record.chronicleEvents != null)
                 {
                     foreach (var line in record.chronicleEvents)
                     {
-                        if (!string.IsNullOrWhiteSpace(line)) eventBook.Add(line);
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        string trimmed = line.Trim();
+                        if (trimmed.StartsWith("Year ", StringComparison.Ordinal)) KeepLine(recentBook, trimmed, 8);
+                        else eventBook.Add(trimmed);
+                    }
+                }
+                if (record.chronicleRecent != null)
+                {
+                    foreach (var line in record.chronicleRecent)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line)) KeepLine(recentBook, line.Trim(), 8);
                     }
                 }
                 nextId = Mathf.Max(3, record.nextId);
@@ -3666,6 +3690,7 @@ namespace Elyon
         public string wound;
         public string[] chronicleAges;
         public string[] chronicleEvents;
+        public string[] chronicleRecent;
         public int nextId;
         public int nameCursor;
         public SettlementRecord[] settlements;
