@@ -61,6 +61,7 @@ namespace Elyon
         public bool dread;
         public bool pactStay;
         public bool raided;
+        public bool lawKept;
 
         public float Meals => fruit + meat + grain;
 

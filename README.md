@@ -35,7 +35,7 @@ What changes:
 - **Camps.** The household moves to the eastern meadow, hunts, and sleeps in lean-tos. You may send game and raise a shelter from their wood.
 - **Farming.** Fields, houses, grain, and hoes. You may send rain and bless a field.
 - **Metal and towns.** Ore, a smithy, and hammers. The camp is a town on the ridge. You may gift ore and mend a body at the smithy.
-- **Cities and empires.** A hall, a temple, and the far hold across the valley. You may proclaim a law, grant a harvest, or withhold one. Withholding the harvest darkens the year: no child is born there unless a house was blessed, and someone may leave.
+- **Cities and empires.** A hall, a temple, and the far hold across the valley. You may proclaim a law, grant a harvest, or withhold one. A kept commandment puts people on the fields instead of the watch, eases fear, and opens the road for less wood. If faith fails, the commandment breaks and fear returns. Withholding the harvest darkens the year: no child is born there unless a house was blessed, and someone may leave. You may bless a pact, withhold it, or stop a raid.
 - **Roads and letters.** Someone teaches. A road can join the holds, and grain can move along it. You may open the road and kindle a lesson.
 - **Mills.** A mill multiplies the harvest. You may turn it or let it rest. Once the road is open, a north hold can be planted.
 - **Industry and engines.** An engine house burns wood into drive and speeds the fields. Gatherers haul wood to it. You may set the engine or bank it. A banked engine makes no drive, and the other holds cannot copy it while it is cold.

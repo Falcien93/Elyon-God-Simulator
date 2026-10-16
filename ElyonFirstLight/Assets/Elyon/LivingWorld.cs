@@ -263,8 +263,11 @@ namespace Elyon
                         break;
                     }
                     home.faith = Mathf.Clamp(home.faith + 6f, 0f, 100f);
+                    home.lawKept = true;
                     CalmMembers(home, 10f);
-                    Note("A law is proclaimed in the hall. Fear eases.");
+                    TouchWork();
+                    dealLine = "A commandment is kept in " + home.placeName + ". They work, and they are less afraid.";
+                    Note(dealLine);
                     break;
                 case DivineAct.GrantHarvest:
                     home.grain += 8f;
@@ -457,6 +460,7 @@ namespace Elyon
             BuildPlaces();
             if (Ages.ReadyForNext(age, Facts())) Advance();
             Trade();
+            KeepLaw();
             KeepRite();
             foreach (var person in people) person.arrived = false;
             year++;
@@ -1002,11 +1006,17 @@ namespace Elyon
                 Note("A house of letters is kept.");
             }
 
-            if (age >= AgeId.RoadsAndLetters && !roadOpen && home.letters && knowledge >= 8f && home.wood >= 6f && settlements.Count >= 2)
+            if (age >= AgeId.RoadsAndLetters && !roadOpen && home.letters && knowledge >= 8f && settlements.Count >= 2)
             {
-                home.wood -= 6f;
-                roadOpen = true;
-                Note("The people open the road.");
+                float roadCost = home.lawKept ? 4f : 6f;
+                if (home.wood >= roadCost)
+                {
+                    home.wood -= roadCost;
+                    roadOpen = true;
+                    Note(home.lawKept
+                        ? "The commandment keeps the road. It opens for less wood."
+                        : "The people open the road.");
+                }
             }
 
             if (age >= AgeId.Mills && !home.mill && home.wood >= 8f && home.grain >= 4f)
@@ -1342,7 +1352,9 @@ namespace Elyon
                         float engine = home.engine && home.engineOn && home.drive > 0f ? 1.3f : 1f;
                         float field = home.fields > 0 ? 1f : 0.35f;
                         float night = age >= AgeId.ElectricLight && !home.lights ? 0.85f : 1f;
-                        home.grain += 9f * effort * mill * engine * field * night;
+                        float law = home.lawKept ? 1.12f : 1f;
+                        home.grain += 9f * effort * mill * engine * field * night * law;
+                        if (home.lawKept) person.body.fear = Mathf.Max(0f, person.body.fear - 2f * years);
                         break;
                     case Labor.Smith:
                         home.ore += 1.4f * effort;
@@ -1439,7 +1451,7 @@ namespace Elyon
                 if (smiths > 0) { labor = Labor.Smith; smiths--; }
                 else if (tenders > 0) { labor = Labor.Tend; tenders--; }
                 else if (teachers > 0) { labor = Labor.Teach; teachers--; }
-                else if (guards > 0) { labor = Labor.Guard; guards--; }
+                else if (guards > 0 && !HoldHas(person, place => place.lawKept)) { labor = Labor.Guard; guards--; }
                 else if (engineers > 0 && HoldHas(person, s => s.engine)) { labor = Labor.Engine; engineers--; }
                 else if (wirers > 0 && HoldHas(person, s => s.engine)) { labor = Labor.Wire; wirers--; }
                 else if (keepers > 0) { labor = Labor.Keep; keepers--; }
@@ -2324,6 +2336,28 @@ namespace Elyon
             if (worst != null) worst.toolWear = Mathf.Max(0f, worst.toolWear - amount);
         }
 
+        void KeepLaw()
+        {
+            foreach (var home in settlements)
+            {
+                if (!home.lawKept || home.abandoned || Members(home) <= 0) continue;
+                if (home.faith < 12f || home.dread)
+                {
+                    home.lawKept = false;
+                    foreach (var member in people)
+                    {
+                        if (!member.alive || member.settlementId != home.id) continue;
+                        member.body.fear = Mathf.Min(100f, member.body.fear + 8f);
+                    }
+                    dealLine = "The commandment breaks in " + home.placeName + ". Fear returns, and the work is no longer kept.";
+                    Note(dealLine);
+                    continue;
+                }
+                CalmMembers(home, 6f);
+                dealLine = "The commandment is kept in " + home.placeName + ". The fields are worked, and fear stays low.";
+            }
+        }
+
         void KeepRite()
         {
             foreach (var home in settlements)
@@ -2701,6 +2735,7 @@ namespace Elyon
         public bool dread;
         public bool pactStay;
         public bool raided;
+        public bool lawKept;
 
         public static SettlementRecord From(Settlement settlement)
         {
@@ -2738,6 +2773,7 @@ namespace Elyon
                 dread = settlement.dread,
                 pactStay = settlement.pactStay,
                 raided = settlement.raided,
+                lawKept = settlement.lawKept,
             };
         }
 
@@ -2777,6 +2813,7 @@ namespace Elyon
                 dread = dread,
                 pactStay = pactStay,
                 raided = raided,
+                lawKept = lawKept,
             };
         }
     }
