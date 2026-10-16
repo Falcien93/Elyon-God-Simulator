@@ -102,6 +102,7 @@ namespace Elyon
         public bool godHere;
         public bool turnedAway;
         public int seasonsUnder;
+        public bool inValley = true;
         public string holdFacts = "";
         public bool spokenWork;
         public Labor spokenLabor = Labor.Gather;

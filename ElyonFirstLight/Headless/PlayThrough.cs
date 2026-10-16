@@ -206,6 +206,20 @@ namespace Elyon.Headless
             {
                 failures.Add("The chronicle drops the choice to keep the people in the valley.");
             }
+            if (living.ValleyCount() <= 0) failures.Add("A later year shows no one still in the valley after they were kept.");
+            if (living.ValleyLine().IndexOf("In the valley: ", StringComparison.Ordinal) != 0
+                || living.ValleyLine().IndexOf("no one", StringComparison.Ordinal) >= 0)
+            {
+                failures.Add("A later year does not name who was kept in the valley. " + living.ValleyLine());
+            }
+            foreach (var person in living.People)
+            {
+                if (person == null || !person.alive) continue;
+                if (!person.inValley)
+                {
+                    failures.Add(person.personName + " was kept, but a later year does not show them in the valley.");
+                }
+            }
             bool seasonMoved = false;
             bool laterAgeSpeaks = false;
             foreach (var person in living.People)
@@ -230,6 +244,9 @@ namespace Elyon.Headless
             if (scene.IndexOf("weather", StringComparison.Ordinal) < 0) failures.Add("The scene drops the weather.");
             if (scene.IndexOf("lights", StringComparison.Ordinal) < 0) failures.Add("The scene drops the lamps.");
             if (scene.IndexOf("personName", StringComparison.Ordinal) < 0) failures.Add("The scene drops the people.");
+            if (scene.IndexOf("inValley", StringComparison.Ordinal) < 0) failures.Add("The scene does not say who is in the valley.");
+            if (scene.IndexOf("In the valley:", StringComparison.Ordinal) < 0) failures.Add("The scene drops who is still in the valley.");
+            if (scene.IndexOf("no one", StringComparison.Ordinal) >= 0) failures.Add("The scene says the valley is empty after the people were kept.");
             if (scene.IndexOf(SentinelKey, StringComparison.Ordinal) >= 0) failures.Add("The key is written into the scene.");
             if (book.IndexOf("returns to the nets", StringComparison.Ordinal) < 0)
             {
@@ -288,14 +305,17 @@ namespace Elyon.Headless
         {
             if (!attended)
             {
+                Press(living, "Rest on Adam");
+                Person adam = FindId(living, "adam");
                 Person eve = FindId(living, "eve");
-                if (eve != null)
-                {
-                    director.selected = eve;
-                    living.Act(DivineAct.Attend);
-                    attended = eve.godHere
-                        && living.LastEvent.IndexOf("Elyon is here", StringComparison.Ordinal) >= 0;
-                }
+                bool choseAdam = adam != null && adam.godHere && (eve == null || !eve.godHere);
+                Press(living, "Rest on Eve");
+                attended = choseAdam
+                    && eve != null
+                    && eve.godHere
+                    && adam != null
+                    && !adam.godHere
+                    && living.LastEvent.IndexOf("Elyon is here", StringComparison.Ordinal) >= 0;
             }
 
             if (attended && !blessed)
@@ -442,7 +462,20 @@ namespace Elyon.Headless
             }
 
             living.Act(DivineAct.SendOut);
+            if (living.ValleyCount() != 0)
+            {
+                failures.Add("Sending them out left people in the valley. " + living.ValleyLine());
+            }
             living.Act(DivineAct.TurnYears);
+            if (living.ValleyCount() != 0 || living.ValleyLine().IndexOf("no one", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("A later year still shows people in the valley after they were sent out. " + living.ValleyLine());
+            }
+            Person sentEve = FindId(living, "eve");
+            if (sentEve == null || !sentEve.alive || sentEve.inValley)
+            {
+                failures.Add("Eve is still in the valley a year after she was sent out.");
+            }
             string book = living.ChronicleText();
             if (book.IndexOf("sends the people out of the valley", StringComparison.Ordinal) < 0)
             {
@@ -471,6 +504,10 @@ namespace Elyon.Headless
                 || saved.IndexOf(SentinelKey, StringComparison.Ordinal) >= 0)
             {
                 failures.Add("The key is written into the sending.");
+            }
+            if (scene.IndexOf("no one", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The scene for a later year does not show the valley empty.");
             }
         }
 
@@ -521,6 +558,16 @@ namespace Elyon.Headless
             while (end < stock.Length && stock[end] >= '0' && stock[end] <= '9') end++;
             if (end == start) return 0;
             return int.Parse(stock.Substring(start, end - start));
+        }
+
+        static void Press(LivingWorld living, string button)
+        {
+            HeadlessInput.Button = button;
+            HeadlessInput.UseDraft = false;
+            HeadlessInput.Used = false;
+            MethodInfo onGui = typeof(LivingWorld).GetMethod("OnGUI", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (onGui == null) throw new MissingMethodException("LivingWorld.OnGUI");
+            onGui.Invoke(living, null);
         }
 
         static void Press(LivingWorld living, string button, string draft)
