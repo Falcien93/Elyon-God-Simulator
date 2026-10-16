@@ -39,6 +39,7 @@ import {
 } from "./sim.js";
 import { speakText, startListening } from "./voice.js";
 import { WORLD_H, WORLD_W } from "./world.js";
+import { RELEASE } from "./release.js";
 import { mount, nearestHint, resetPanels, setContinueEnabled, sync } from "./ui.js";
 
 const canvas = document.getElementById("view");
@@ -140,6 +141,9 @@ mount({
   },
   openSettings() {
     view.overlay = "settings";
+  },
+  openAbout() {
+    view.overlay = "about";
   },
   setMaster(value) {
     settings.master = value;
@@ -808,5 +812,39 @@ async function bootSaves() {
 }
 
 bootSaves();
+paintRelease();
 
 requestAnimationFrame(loop);
+
+function paintAbout(info) {
+  const version = `Version ${info.version}`;
+  const versionNode = document.getElementById("app-version");
+  if (versionNode) versionNode.textContent = version;
+  const aboutVersion = document.getElementById("about-version");
+  if (aboutVersion) aboutVersion.textContent = version;
+  const title = document.getElementById("about-title");
+  if (title) title.textContent = info.name || RELEASE.name;
+  const description = document.getElementById("about-description");
+  if (description) description.textContent = info.description || RELEASE.description;
+  const meta = document.getElementById("about-meta");
+  if (meta) meta.textContent = `${info.license || RELEASE.license} · ${info.appId || RELEASE.appId} · not code-signed`;
+}
+
+async function paintRelease() {
+  let info = RELEASE;
+  const desktop = window.elyonDesktop;
+  if (desktop?.getAbout) {
+    try {
+      const about = await desktop.getAbout();
+      if (about && typeof about.version === "string") info = about;
+    } catch {
+      info = RELEASE;
+    }
+  }
+  paintAbout(info);
+  if (desktop?.onOpenAbout) {
+    desktop.onOpenAbout(() => {
+      view.overlay = "about";
+    });
+  }
+}

@@ -9,9 +9,11 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/game.test.js test/campaign.test.js test/saves.test.js",
+    "test": "node --test test/game.test.js test/campaign.test.js test/saves.test.js test/release.test.js",
     "dist": "electron-builder --linux dir AppImage",
-    "dist:dir": "electron-builder --linux dir"
+    "dist:dir": "electron-builder --linux dir",
+    "dist:win": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac dmg"
   },
   "devDependencies": {
     "electron": "^33.4.11",
@@ -21,11 +23,13 @@
     "appId": "com.elyon.garden",
     "productName": "Elyon",
     "asar": true,
+    "forceCodeSigning": false,
     "directories": {
       "output": "dist"
     },
     "files": [
       "index.html",
+      "splash.html",
       "css/**/*",
       "js/**/*",
       "assets/**/*",
@@ -46,13 +50,26 @@
       "target": [
         "nsis"
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Elyon"
     },
     "mac": {
       "target": [
         "dmg"
       ],
-      "icon": "assets/icon.png",
+      "icon": "assets/icon.icns",
+      "identity": null,
+      "notarize": false,
+      "gatekeeperAssess": false,
       "category": "public.app-category.games"
     }
   }

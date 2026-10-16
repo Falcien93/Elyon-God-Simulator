@@ -48,15 +48,17 @@
 
   <section id="screen-title" class="scrim">
     <div class="screen-card">
-      <div class="mark" aria-hidden="true">א</div>
+      <img class="title-mark" src="assets/icon.png" width="72" height="72" alt="">
       <p class="sub">God Most High</p>
       <h1>Elyon</h1>
       <p class="tag">A mythic simulator of the first garden.</p>
+      <p id="app-version" class="fine version-line">Version 1.0.0</p>
       <div id="slot-list" class="slot-list"></div>
       <div class="actions">
         <button id="btn-begin" class="primary" type="button">Begin</button>
         <button id="btn-continue" type="button" disabled>Continue</button>
         <button id="btn-title-settings" type="button">Settings</button>
+        <button id="btn-title-about" type="button">About</button>
       </div>
       <p class="fine">A telling, not a scripture. Three gardens are kept on this computer.</p>
     </div>
@@ -80,6 +82,7 @@
       <div class="menu">
         <button id="btn-resume" class="primary" type="button">Resume</button>
         <button id="btn-settings" type="button">Settings</button>
+        <button id="btn-pause-about" type="button">About</button>
         <div id="pause-slots" class="slot-list"></div>
         <label>Music <input id="music" type="range" min="0" max="100" value="32"></label>
         <label>Effects <input id="sfx" type="range" min="0" max="100" value="70"></label>
@@ -110,6 +113,17 @@
         <label>Voice <input id="opt-voice" type="checkbox" checked></label>
       </div>
       <div class="actions"><button id="btn-settings-close" class="primary" type="button">Close</button></div>
+    </div>
+  </section>
+
+  <section id="panel-about" class="scrim" hidden role="dialog" aria-modal="true" aria-labelledby="about-title">
+    <div class="panel">
+      <img class="about-mark" src="assets/icon.png" width="72" height="72" alt="">
+      <h2 id="about-title">Elyon</h2>
+      <p id="about-version" class="fine">Version 1.0.0</p>
+      <p id="about-description"></p>
+      <p id="about-meta" class="fine"></p>
+      <div class="actions"><button id="btn-about-close" class="primary" type="button">Close</button></div>
     </div>
   </section>
 

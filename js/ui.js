@@ -28,6 +28,9 @@ export function mount(next) {
   on("btn-begin", "click", () => handlers.begin());
   on("btn-continue", "click", () => handlers.continue());
   on("btn-title-settings", "click", () => handlers.openSettings());
+  on("btn-title-about", "click", () => handlers.openAbout());
+  on("btn-pause-about", "click", () => handlers.openAbout());
+  on("btn-about-close", "click", () => handlers.closeOverlay());
   on("btn-settings", "click", () => handlers.openSettings());
   on("btn-settings-close", "click", () => handlers.closeOverlay());
   on("master-volume", "input", (event) => handlers.setMaster(Number(event.target.value) / 100));
@@ -84,8 +87,9 @@ export function sync(state, view) {
   document.body.dataset.screen = view.screen;
   show("screen-title", view.screen === "title");
   show("screen-prologue", view.screen === "prologue");
-  show("screen-pause", view.pause && view.overlay !== "settings");
+  show("screen-pause", view.pause && view.overlay !== "settings" && view.overlay !== "about");
   show("panel-settings", view.overlay === "settings");
+  show("panel-about", view.overlay === "about");
   show("panel-confirm", Boolean(view.confirm));
   show("screen-ending", view.overlay === "ending");
   renderSlots("slot-list", view.library, "title");
