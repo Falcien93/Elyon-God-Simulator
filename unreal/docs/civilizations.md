@@ -4,7 +4,7 @@ Design sketch for the layer that begins once humanity is in the world and the ga
 
 The garden already tracks `order` and `wonder` (0–100), plus trust, wonder, and will on Adam and Eve. Faith, prosperity, fear, and population are new stats for tribes. They sit beside the garden stats. They do not replace them.
 
-Incarnation, a later mode in which God walks among the people, is specified in (f). It is not in the Python sketch.
+Incarnation, a later mode in which God walks among the people, is specified in (f). Quantum miracles, a later layer of paired outcomes, are specified in (g). Neither is in the Python sketch.
 
 A pure-Python sketch of the rules lives in `unreal/Scripts/civ_sim.py`. It does not import Unreal and it does not call a model. Tests in `unreal/tests/test_civ.py` run with the existing `python3 -m unittest discover -s unreal/tests -v` step.
 
@@ -109,6 +109,15 @@ Incarnation waits until that first list exists. The rules are (f). The build its
 4. The return, the `incarnate_returned` flag, and the stat changes in (f).
 5. Spoken lines for the meeting and for the dead, still `needs_voice` until Qwen is in the install.
 
+**Later layer, after the core civ sim**
+
+Quantum miracles wait until the first list is playing one locked ending. They are not part of that core tick. The rules are (g). Incarnation should already be able to walk, reach the crucifixion fail state, descend, and return, because this layer reads those states. The layer itself is four steps:
+
+1. One paired cast, held as a marker: healing or plague, or a bountiful or barren harvest.
+2. The first NPC who sees it collapses it from that NPC's faith versus fear or doubt.
+3. Write the result into faith, power, and wrath.
+4. Then let wrath and the collapse touch Incarnation: hostility on the walk, the seizure beat, the pause in the underworld, and the bias after the return.
+
 **Later**
 
 - Mass Entity crowds and Mass AI, carrying the attitude band from (f) as a tag.
@@ -181,7 +190,84 @@ Not in the first slice. The stat tick, one settlement, the four impulses, the lo
 
 The five steps are listed under build order. Chaos does not simulate the death. Niagara can carry the return's light later. Neither is required for the mode to change the civilization's state.
 
-## (g) Open questions for John
+Quantum miracles, in (g), are the layer after this. They can push a walk toward seizure or away from it. They do not replace the death or the return with a second undecided outcome.
+
+## (g) Quantum miracles
+
+A miracle God casts can be held in superposition: two possible outcomes at once, until an NPC observes it. This is a later layer. It is not a fifth ending, and it is not a rewrite of the four interventions in the core sim. Flood, blessing, punishment, and divine force stay single outcomes there. A quantum miracle is an extra cast, added only after that sim is playing one locked ending.
+
+The telling stays original to Elyon. The pair is a choice the world has not made yet. It is not a joke about the crucifixion, and it is not a quotation of scripture.
+
+### Superposition
+
+God casts one miracle. Until a person sees it, both branches are true and neither has landed:
+
+- A healing, or a plague.
+- A bountiful harvest, or a barren one.
+
+Only one superposition is active in a settlement. A second cast waits. The marker stores the pair, the place, and that it is still unobserved. No NPC has faith, power, or wrath changed yet. God, in the sky or in the incarnate body, is not an observer. Casting it does not collapse it.
+
+### The observer effect
+
+The first NPC who sees it collapses it. Leaders and crowd members both count. Whoever is first decides. Later witnesses live in the world that already landed. They do not get a second collapse.
+
+Belief at that moment is faith versus fear or doubt. Doubt here means faith under 40. It is a reading of the faith stat, not a new stored meter.
+
+- If faith is greater than fear, and faith is at least 40, the life-giving branch lands: healing, or a bountiful harvest.
+- If fear is greater than or equal to faith, or faith is under 40, fear or doubt decides, and the harsh branch lands: plague, or a barren harvest.
+
+The comparison is numbers. The observer does not call Qwen3 4B to pick the branch. If that observer is a leader or a prophet, they may emit `needs_voice` afterward, to speak about what they saw. A crowd member who collapses it stays silent. The crowd tick still does not call the model.
+
+### Faith, power, and wrath
+
+The collapse writes back into three stats. Faith is the tribe stat the core sim already has. Power and wrath are new, 0–100, and they belong to this layer. Power starts at 50. Wrath starts at 10. They are not prosperity and they are not fear. Prosperity, fear, and population stay on the core tick until a later tune says otherwise.
+
+| Landed state | Faith | Power | Wrath |
+| --- | --- | --- | --- |
+| Healing, or a bountiful harvest | +10 | +8 | −8, floor 0 |
+| Plague, or a barren harvest | −8 | −6 | +12 |
+
+Clamp each result from 0 to 100. These are a starting tune.
+
+Power is capacity for the next cast. It does not choose the branch. A high power makes the landed result larger (a deeper healing, a wider plague, a fuller store, a harder barren year). Wrath is the harsh residue. It does not pick the branch either. It is what a harsh landing leaves in the people, and what a life-giving landing eases.
+
+### Incarnation
+
+On the walk, God may still cast one paired miracle. The human pawn does not observe it. The first other NPC who sees it collapses it, using that NPC's faith versus fear or doubt.
+
+A life-giving landing adds 10 faith and subtracts 15 from hostility, on top of the walk's usual movement. Wrath falls with the table above, so the people are harder to push toward seizure.
+
+A harsh landing subtracts 8 faith, adds 12 wrath, and adds 15 hostility. Hostility still caps at 60 under harmony and under order. Under wonder and exile, that extra hostility can cross 81 and fire the crucifixion fail state. The miracle did not kill God. The people's turn did, and only where clash was already allowed.
+
+### The crucifixion fail state
+
+The crucifixion is not a superposition. "Alive or dead" is not a pair an NPC collapses. Seizure is the committed fail state from (f): hostility at 81 or higher, on an ending that allows clash, one beat, no player verb for the killing.
+
+What this layer adds is a path into that fail state. Wrath from a plague or a barren harvest makes the walk more dangerous. It does not leave the death undecided. Once seizure fires, the miracle that led there has already collapsed. There is no remaining branch in which the crucifixion did not happen.
+
+Harmony still cannot seize. Order still refuses. A harsh collapse in those endings changes faith, power, and wrath, and stops there.
+
+### The underworld
+
+The descent is the passage after that committed death. It is not the harsh branch of a miracle, and it is not still waiting on an observer.
+
+No living NPC is there to collapse anything. The dead do not observe a miracle in the settlement above. The living utility tick is paused, so no new witness walks up to an uncollapsed marker. A superposition that was still open when God died waits. God does not cast a new quantum miracle below. Interventions are already unavailable there, and a cast with no living observer would have nothing to land in.
+
+### The resurrection
+
+The return is committed. It is not a pair of "stays dead" and "rises" that the first witness collapses. The human form is back because (f) already brought them back. The ending id stays locked.
+
+Before anyone looks at a waiting miracle, the return applies its own stat changes from (f), then power +6 and wrath −10. The first living NPC who then sees a miracle that waited through the underworld collapses it with that gentler belief. Faith is higher and fear is lower, so the life-giving branch is the likely landing. That is the feedback: the return changes the observer, and the observer lands the miracle that was held open.
+
+A new cast after the return works the same as any other cast. It does not reopen silence, move exile back through the gate, or restore wonder under order.
+
+### Where it sits in the build
+
+After the core civ sim, as a later layer. The utility tick, the four deterministic interventions, the locked ending, and one settlement come first. This layer does not enter `civ_sim.py` in that slice.
+
+The four steps are listed under build order. They sit after Incarnation in that order because wrath has to have a walk, a fail state, a descent, and a return to touch. Mass, Niagara, and the model binary are still later. A marker and a stat write are enough for the collapse to be real.
+
+## (h) Open questions for John
 
 1. Is "falls" the closed question (wonder falls, the people remain) or exile (the people leave)? The shipped text has no collapse ending.
 2. Do civilizations only play out the locked garden ending, or can a long sim drift into another? `resolveEnding` keeps the first one.
@@ -195,3 +281,6 @@ The five steps are listed under build order. Chaos does not simulate the death. 
 10. Order already omits clash. This sketch also omits crucifixion there, and calls the attitude refusal. Should order ever seize?
 11. Resurrection under order changes faith and fear and leaves the ending id locked. Should `incarnate_returned` be allowed to bring wonder back, or must the closed question stay closed?
 12. Is the underworld one small map with a few of the dead, or a World Partition cell under the settlement?
+13. Do power and wrath stay their own stats, or should power stand in for prosperity and wrath for fear?
+14. Do the four core interventions stay single outcomes, with quantum miracles as an extra cast only?
+15. Is one uncollapsed miracle per settlement the right limit?
