@@ -1767,7 +1767,13 @@ namespace Elyon
             if (person == null || !person.alive) return;
             string token = (act ?? "").Trim().ToLowerInvariant();
             if (token == "keep peace" || token == "keeppeace" || token == "keep_peace") token = "peace";
-            if (token.Length == 0 || token == "none") return;
+            if (token == "send rain" || token == "sendrain") token = "rain";
+            if (token == "dry" || token == "send drought" || token == "send a drought") token = "drought";
+            if (token.Length == 0 || token == "none" || token == "nothing" || token == "rain" || token == "drought")
+            {
+                AnswerElyon(person, token.Length == 0 ? "none" : token);
+                return;
+            }
             Settlement hold = HomeOf(person);
             if (hold == null) return;
             switch (token)
@@ -1828,12 +1834,6 @@ namespace Elyon
                     dealLine = person.personName + " says " + hold.placeName + " will raid.";
                     Note(dealLine + " At the year's end grain, wood, and a spare tool may be carried off.");
                     jobStamp = -1;
-                    break;
-                case "rain":
-                    SendTheRain(hold);
-                    break;
-                case "drought":
-                    DryTheGround(hold);
                     break;
                 case "herd":
                     KeepTheHerd(hold);
@@ -2442,7 +2442,41 @@ namespace Elyon
                 Note(person.personName + " is not the one Elyon is resting on.");
                 return;
             }
-            int asked = SeasonIndex(words);
+            string token = (words ?? "").Trim().ToLowerInvariant();
+            if (token == "send rain" || token == "sendrain") token = "rain";
+            if (token == "dry" || token == "send drought" || token == "send a drought") token = "drought";
+            if (token.Length == 0 || token == "none" || token == "nothing")
+            {
+                Note(person.personName + " asks for nothing. The sky is left alone.");
+                Chronicle(LastEvent);
+                Save();
+                return;
+            }
+            if (token == "rain" || token == "drought")
+            {
+                if (person.turnedAway)
+                {
+                    Note("Elyon withholds an answer from " + person.personName + ". The sky does not change.");
+                    Chronicle(LastEvent);
+                    person.HearLocal("Elyon withholds an answer.", false);
+                    Save();
+                    return;
+                }
+                Settlement skyHold = HomeOf(person);
+                if (skyHold == null)
+                {
+                    Note(person.personName + " has no hearth, so the sky is left alone.");
+                    Chronicle(LastEvent);
+                    Save();
+                    return;
+                }
+                if (token == "rain") SendTheRain(skyHold);
+                else DryTheGround(skyHold);
+                person.Remember(token == "rain" ? "I asked Elyon for rain." : "I asked Elyon for a drought.");
+                Save();
+                return;
+            }
+            int asked = SeasonIndex(token);
             if (asked < 0)
             {
                 Note(person.personName + " answers Elyon, and the next season is unchanged.");
@@ -3998,6 +4032,9 @@ namespace Elyon
                 if (GUILayout.Button("Ask for summer", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "summer");
                 if (GUILayout.Button("Ask for autumn", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "autumn");
                 if (GUILayout.Button("Ask for winter", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "winter");
+                if (GUILayout.Button("Ask for rain", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "rain");
+                if (GUILayout.Button("Ask for drought", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "drought");
+                if (GUILayout.Button("Ask for nothing", GUILayout.Height(22f))) AnswerElyon(attendedPerson, "none");
             }
             if (namedPerson != null && namedPerson.alive && GUILayout.Button("Withhold this person", GUILayout.Height(22f)))
                 Act(DivineAct.WithholdPerson);

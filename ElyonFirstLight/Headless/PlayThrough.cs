@@ -283,6 +283,7 @@ namespace Elyon.Headless
             ProveSentOut(failures);
             ProveAnswer(failures);
             ProveRefusal(failures);
+            ProveSky(failures);
 
             if (failures.Count > 0)
             {
@@ -502,6 +503,93 @@ namespace Elyon.Headless
             {
                 failures.Add("The year did not fall back to the land's own season. It is " + living.SeasonName() + ".");
             }
+        }
+
+        static void ProveSky(List<string> failures)
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "elyon-sky-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            Application.persistentDataPath = dir;
+            Application.dataPath = Path.Combine(dir, "ElyonFirstLight");
+            Directory.CreateDirectory(Application.dataPath);
+
+            var root = new GameObject("SkyWorld").transform;
+            var world = new GardenWorld
+            {
+                Fire = new Vector3(150f, 0f, 100f),
+                Adam = PersonOn("Adam", "adam", false),
+                Eve = PersonOn("Eve", "eve", true),
+            };
+            var director = new GardenDirector();
+            var living = new GameObject("SkyLiving").AddComponent<LivingWorld>();
+            living.Begin(world, root, director);
+
+            Press(living, "Rest on Eve");
+            Person eve = FindId(living, "eve");
+            Person adam = FindId(living, "adam");
+            if (eve == null || !eve.godHere)
+            {
+                failures.Add("Eve was not chosen before the sky was asked.");
+                return;
+            }
+
+            Press(living, "Ask for nothing");
+            if (living.LastEvent.IndexOf("asks for nothing", StringComparison.Ordinal) < 0
+                || living.LastEvent.IndexOf("left alone", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("A reply that asks for nothing did not leave the sky alone. " + living.LastEvent);
+            }
+            if (SkyWord(living) != "")
+            {
+                failures.Add("Asking for nothing still changed the sky. " + living.StockLine());
+            }
+            living.AnswerElyon(adam, "rain");
+            if (living.LastEvent.IndexOf("not the one", StringComparison.Ordinal) < 0 || SkyWord(living) != "")
+            {
+                failures.Add("Someone else asked for rain and the sky moved. " + living.LastEvent);
+            }
+
+            Press(living, "Ask for rain");
+            if (living.LastEvent.IndexOf("Rain", StringComparison.Ordinal) < 0 || SkyWord(living) != "rain")
+            {
+                failures.Add("The spoken reply did not ask for rain. " + living.LastEvent + " " + living.StockLine());
+            }
+            Press(living, "Ask for drought");
+            if (living.LastEvent.IndexOf("Drought", StringComparison.Ordinal) < 0 || SkyWord(living) != "drought")
+            {
+                failures.Add("The spoken reply did not ask for a drought. " + living.LastEvent + " " + living.StockLine());
+            }
+            string book = living.ChronicleText();
+            if (book.IndexOf("Rain", StringComparison.Ordinal) < 0 || book.IndexOf("Drought", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The chronicle does not keep the rain and the drought she asked for.");
+            }
+
+            director.selected = eve;
+            living.Act(DivineAct.WithholdPerson);
+            Press(living, "Ask for rain");
+            if (living.LastEvent.IndexOf("withholds an answer", StringComparison.Ordinal) < 0
+                || living.LastEvent.IndexOf("sky does not change", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("A withheld person still changed the sky. " + living.LastEvent);
+            }
+            if (SkyWord(living) != "drought")
+            {
+                failures.Add("The withheld rain replaced the drought. " + living.StockLine());
+            }
+            if (living.ChronicleText().IndexOf("sky does not change", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The chronicle does not say the withheld reply left the sky alone.");
+            }
+        }
+
+        static string SkyWord(LivingWorld living)
+        {
+            string stock = living.StockLine();
+            if (stock.IndexOf("   drought", StringComparison.Ordinal) >= 0) return "drought";
+            if (stock.IndexOf("   flood", StringComparison.Ordinal) >= 0) return "flood";
+            if (stock.IndexOf("   rain", StringComparison.Ordinal) >= 0) return "rain";
+            return "";
         }
 
         static void ProveAnswer(List<string> failures)
