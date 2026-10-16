@@ -1,6 +1,7 @@
 /** Three save slots and global settings. Pure data: no Electron, no DOM. */
 
 import { DAYS, ENDINGS } from "./content.js";
+import { sanitizeModelName, sanitizeWhisperSize } from "./living.js";
 import { normalize } from "./save.js";
 
 export const STORE_FORMAT = 1;
@@ -27,6 +28,10 @@ export function defaultSettings() {
     fullscreen: false,
     textSpeed: "normal",
     voice: true,
+    livingVoices: false,
+    livingConsent: false,
+    ollamaModel: "llama3.2:3b",
+    whisperSize: "base",
     updatedAt: 0,
   };
 }
@@ -54,6 +59,10 @@ export function normalizeSettings(raw) {
     fullscreen: Boolean(data.fullscreen),
     textSpeed: TEXT_SPEEDS.includes(data.textSpeed) ? data.textSpeed : "normal",
     voice: data.voice === undefined ? true : Boolean(data.voice),
+    livingVoices: data.livingVoices === true,
+    livingConsent: data.livingConsent === true,
+    ollamaModel: sanitizeModelName(data.ollamaModel),
+    whisperSize: sanitizeWhisperSize(data.whisperSize),
     updatedAt: Number.isFinite(Number(data.updatedAt)) ? Number(data.updatedAt) : 0,
   };
 }

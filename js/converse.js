@@ -37,14 +37,16 @@ export function emptyBeings() {
   return {
     adam: { mood: 62, faith: 40, lastWords: "" },
     eve: { mood: 64, faith: 42, lastWords: "" },
+    people: { mood: 60, faith: 38, lastWords: "" },
   };
 }
 
 export function ensureAddress(state) {
   if (!state.beings?.adam || !state.beings?.eve) state.beings = emptyBeings();
+  if (!state.beings.people) state.beings.people = { mood: 60, faith: 38, lastWords: "" };
   if (!Array.isArray(state.chat)) state.chat = [];
   if (!Array.isArray(state.achievements)) state.achievements = [];
-  if (state.address !== "adam" && state.address !== "eve") state.address = "adam";
+  if (state.address !== "adam" && state.address !== "eve" && state.address !== "people") state.address = "adam";
   if (!state.thread) state.thread = emptyThread();
   return state;
 }
@@ -140,12 +142,16 @@ export function generateResponse(state, speaker, playerMsg) {
   const lower = String(playerMsg).toLowerCase();
   const adam = state.names?.adam || "Adam";
   const eve = state.names?.eve || "Eve";
-  const name = speaker === "eve" ? eve : adam;
+  const name = speaker === "people" ? "the people" : speaker === "eve" ? eve : adam;
   let reply = "";
-  if (lower.includes("who") || lower.includes("what are you") || lower.includes("name")) {
+  if (speaker === "people" && (lower.includes("who") || lower.includes("what are you") || lower.includes("name"))) {
+    reply = "We are the ones who stayed. The garden still holds our feet.";
+  } else if (lower.includes("who") || lower.includes("what are you") || lower.includes("name")) {
     reply = speaker === "adam"
       ? `I am ${name}, formed from the dust and given breath. The garden is my charge.`
       : `I am ${name}, awakened beside ${adam}. The light and the living things speak to me.`;
+  } else if (speaker === "people" && (lower.includes("god") || lower.includes("elyon") || lower.includes("you"))) {
+    reply = "We hear you in the leaves. We remain where you set us.";
   } else if (lower.includes("god") || lower.includes("elyon") || lower.includes("you")) {
     reply = coherence > 50
       ? "We feel your presence more clearly now. The Unity Thread hums when you speak."
@@ -166,36 +172,48 @@ export function generateResponse(state, speaker, playerMsg) {
     reply = "Your words warm us. Faith and mood rise. We are grateful.";
   } else {
     const mood = MOODS[Math.floor(roll(state) * MOODS.length)];
-    reply = speaker === "adam"
-      ? `The garden is ${mood}. Cycle ${Math.floor(state.thread.cycle)}, coherence ${Math.floor(coherence)}%. I tend what you have given.`
-      : `Everything feels ${mood}. The Unity Thread is at ${Math.floor(coherence)}%. I wonder what the next age will bring.`;
+    reply = speaker === "people"
+      ? `The garden is ${mood}. We keep the paths and answer you together.`
+      : speaker === "adam"
+        ? `The garden is ${mood}. Cycle ${Math.floor(state.thread.cycle)}, coherence ${Math.floor(coherence)}%. I tend what you have given.`
+        : `Everything feels ${mood}. The Unity Thread is at ${Math.floor(coherence)}%. I wonder what the next age will bring.`;
   }
   if (state.thread.seals > 0) reply += ` (${state.thread.seals} seals open.)`;
   being.lastWords = reply;
   return reply;
 }
 
-export function replyToBeing(state, who, raw) {
+export function acceptAddress(state, who, raw, reply) {
   ensureAddress(state);
-  if (who !== "adam" && who !== "eve") return { ok: false, reason: "absent" };
-  if (who === "adam" && !state.flags?.adam_made) return { ok: false, reason: "absent" };
+  if (who !== "adam" && who !== "eve" && who !== "people") return { ok: false, reason: "absent" };
+  if ((who === "adam" || who === "people") && !state.flags?.adam_made) return { ok: false, reason: "absent" };
   if (who === "eve" && !state.flags?.eve_made) return { ok: false, reason: "absent" };
+  if (who === "people" && !state.flags?.eve_made) return { ok: false, reason: "absent" };
   const text = sanitizeChat(raw);
-  if (!text) return { ok: false, reason: "empty" };
+  const spoken = sanitizeChat(reply);
+  if (!text || !spoken) return { ok: false, reason: "empty" };
   state.address = who;
-  const reply = generateResponse(state, who, text);
   state.chat.push({ who: "elyon", text });
-  state.chat.push({ who, text: reply });
+  state.chat.push({ who, text: spoken });
   if (state.chat.length > 40) state.chat.splice(0, state.chat.length - 40);
   const being = state.beings[who];
+  being.lastWords = spoken;
   being.faith = clamp(being.faith + 1, 0, 100);
   being.mood = clamp(being.mood + 2, 0, 100);
-  being.lastWords = reply;
   state.thread.faith = clamp(state.thread.faith + 1.5, 0, 100);
   state.thread.coherence = clamp(state.thread.coherence + 0.4, 0, 100);
   state.thread.cycle += 1;
   raiseAge(state);
-  return { ok: true, reply, who };
+  return { ok: true, reply: spoken, who };
+}
+
+export function replyToBeing(state, who, raw) {
+  ensureAddress(state);
+  if (who !== "adam" && who !== "eve" && who !== "people") return { ok: false, reason: "absent" };
+  const text = sanitizeChat(raw);
+  if (!text) return { ok: false, reason: "empty" };
+  const reply = generateResponse(state, who, text);
+  return acceptAddress(state, who, text, reply);
 }
 
 export function collectNewAchievements(state) {

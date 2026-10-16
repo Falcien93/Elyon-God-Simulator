@@ -36,6 +36,10 @@ export function mount(next) {
   on("master-volume", "input", (event) => handlers.setMaster(Number(event.target.value) / 100));
   on("opt-fullscreen", "change", (event) => handlers.setFullscreen(event.target.checked));
   on("opt-voice", "change", (event) => handlers.setVoice(event.target.checked));
+  on("opt-living", "change", (event) => handlers.setLiving(event.target.checked));
+  on("ollama-model", "change", (event) => handlers.setOllamaModel(event.target.value));
+  on("whisper-base", "click", () => handlers.setWhisperSize("base"));
+  on("whisper-small", "click", () => handlers.setWhisperSize("small"));
   on("speed-slow", "click", () => handlers.setTextSpeed("slow"));
   on("speed-normal", "click", () => handlers.setTextSpeed("normal"));
   on("speed-fast", "click", () => handlers.setTextSpeed("fast"));
@@ -58,6 +62,7 @@ export function mount(next) {
   on("btn-address-close", "click", () => handlers.closeOverlay());
   on("btn-adam", "click", () => handlers.selectAddress("adam"));
   on("btn-eve", "click", () => handlers.selectAddress("eve"));
+  on("btn-people", "click", () => handlers.selectAddress("people"));
   on("btn-send-chat", "click", () => handlers.sendAddress(document.getElementById("chat-input").value));
   on("chat-input", "keydown", (event) => {
     if (event.key === "Enter") {
@@ -94,7 +99,7 @@ export function sync(state, view) {
   show("screen-ending", view.overlay === "ending");
   renderSlots("slot-list", view.library, "title");
   renderSlots("pause-slots", view.library, "pause");
-  paintSettings(view.settings);
+  paintSettings(view);
   show("panel-help", view.overlay === "help");
   show("panel-codex", view.overlay === "codex");
   show("panel-journal", view.overlay === "journal");
@@ -282,7 +287,8 @@ function renderSlots(id, library, mode) {
   }
 }
 
-function paintSettings(settings) {
+function paintSettings(view) {
+  const settings = view?.settings;
   if (!settings) return;
   const master = document.getElementById("master-volume");
   if (master && document.activeElement !== master) {
@@ -297,6 +303,26 @@ function paintSettings(settings) {
     const control = document.getElementById(`speed-${speed}`);
     if (control) control.setAttribute("aria-pressed", settings.textSpeed === speed ? "true" : "false");
   }
+  const living = document.getElementById("opt-living");
+  if (living) living.checked = settings.livingVoices === true;
+  const model = document.getElementById("ollama-model");
+  if (model && document.activeElement !== model && model.value !== settings.ollamaModel) {
+    model.value = settings.ollamaModel || "llama3.2:3b";
+  }
+  for (const size of ["base", "small"]) {
+    const control = document.getElementById(`whisper-${size}`);
+    if (control) control.setAttribute("aria-pressed", settings.whisperSize === size ? "true" : "false");
+  }
+  const note = view.livingNote || "Off. Keyword replies and this window's voice stay in use until you turn Living Voices on.";
+  const noteNode = document.getElementById("living-note");
+  if (noteNode && noteNode.textContent !== note) noteNode.textContent = note;
+  const progress = document.getElementById("living-progress");
+  const bar = document.getElementById("living-progress-bar");
+  const label = document.getElementById("living-progress-label");
+  const showBar = Boolean(view.livingBusy);
+  if (progress) progress.hidden = !showBar;
+  if (bar) bar.style.width = `${Math.round(Math.max(0, Math.min(1, Number(view.livingFraction) || 0)) * 100)}%`;
+  if (label && label.textContent !== (view.livingLabel || "")) label.textContent = view.livingLabel || "";
 }
 
 function buildCodex(state) {
@@ -346,6 +372,11 @@ function buildAddress(state, view) {
   adamBtn.setAttribute("aria-pressed", state.address === "adam" ? "true" : "false");
   eveBtn.disabled = !state.flags.eve_made;
   eveBtn.setAttribute("aria-pressed", state.address === "eve" ? "true" : "false");
+  const peopleBtn = document.getElementById("btn-people");
+  if (peopleBtn) {
+    peopleBtn.disabled = !(state.flags.adam_made && state.flags.eve_made);
+    peopleBtn.setAttribute("aria-pressed", state.address === "people" ? "true" : "false");
+  }
   const voiceBtn = document.getElementById("btn-voice-input");
   voiceBtn.setAttribute("aria-pressed", view.listening ? "true" : "false");
   voiceBtn.textContent = view.listening ? "Stop voice" : "Voice";
@@ -367,7 +398,13 @@ function buildAddress(state, view) {
     const line = document.createElement("p");
     line.className = `chat-line chat-${entry.who}`;
     const who = document.createElement("b");
-    const label = entry.who === "elyon" ? "Elyon" : entry.who === "eve" ? state.names.eve : state.names.adam;
+    const label = entry.who === "elyon"
+      ? "Elyon"
+      : entry.who === "people"
+        ? "The people"
+        : entry.who === "eve"
+          ? state.names.eve
+          : state.names.adam;
     who.textContent = `${label}: `;
     line.append(who, document.createTextNode(entry.text));
     list.append(line);
