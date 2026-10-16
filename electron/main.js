@@ -7,6 +7,11 @@ import { isGameSender, navigationAllowed, windowPreferences } from "./guards.js"
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
+function windowIcon() {
+  const file = process.platform === "win32" ? "icon.ico" : "icon.png";
+  return path.join(root, "assets", file);
+}
+
 app.setName("Elyon");
 app.setAppUserModelId("com.elyon.garden");
 
@@ -75,8 +80,11 @@ function createSplash() {
     center: true,
     show: true,
     backgroundColor: "#07060c",
-    icon: path.join(root, "assets", "icon.png"),
-    webPreferences: windowPreferences(),
+    icon: windowIcon(),
+    webPreferences: {
+      ...windowPreferences(),
+      devTools: false,
+    },
   });
   contain(splash.webContents);
   const version = app.getVersion();
@@ -96,11 +104,12 @@ function createWindow() {
     backgroundColor: "#07060c",
     title: "Elyon",
     show: false,
-    icon: path.join(root, "assets", "icon.png"),
+    icon: windowIcon(),
     autoHideMenuBar: true,
     webPreferences: {
       ...windowPreferences(),
       preload: path.join(__dirname, "preload.cjs"),
+      devTools: false,
     },
   });
   contain(win.webContents);

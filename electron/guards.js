@@ -23,6 +23,7 @@ export function windowPreferences() {
     webSecurity: true,
     allowRunningInsecureContent: false,
     webviewTag: false,
+    devTools: false,
   };
 }
 
