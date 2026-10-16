@@ -175,8 +175,27 @@ namespace Elyon
         public void Remember(string line)
         {
             if (string.IsNullOrWhiteSpace(line)) return;
-            memories.Add(line.Trim());
+            string trimmed = line.Trim();
+            for (int i = 0; i < memories.Count; i++)
+            {
+                if (memories[i] == trimmed) return;
+            }
+            memories.Add(trimmed);
             if (memories.Count > 8) memories.RemoveAt(0);
+        }
+
+        public string[] MemoryLines()
+        {
+            var copy = new string[memories.Count];
+            for (int i = 0; i < memories.Count; i++) copy[i] = memories[i];
+            return copy;
+        }
+
+        public void RestoreMemories(string[] lines)
+        {
+            memories.Clear();
+            if (lines == null) return;
+            for (int i = 0; i < lines.Length; i++) Remember(lines[i]);
         }
 
         public void ApplyTrust(int delta)

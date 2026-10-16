@@ -635,6 +635,12 @@ namespace Elyon
                     break;
             }
 
+            string lived = Ages.Living(age);
+            foreach (var person in people)
+            {
+                if (person.alive) person.Remember(lived);
+            }
+
             jobStamp = -1;
         }
 
@@ -673,6 +679,12 @@ namespace Elyon
         static int AxeLast(Person person)
         {
             return person.tool == ToolKind.Axe ? 1 : 0;
+        }
+
+        bool HoldHas(Person person, System.Predicate<Settlement> test)
+        {
+            Settlement hold = HomeOf(person);
+            return hold != null && test(hold);
         }
 
         void Craft()
@@ -970,8 +982,8 @@ namespace Elyon
                 else if (tenders > 0) { labor = Labor.Tend; tenders--; }
                 else if (teachers > 0) { labor = Labor.Teach; teachers--; }
                 else if (guards > 0) { labor = Labor.Guard; guards--; }
-                else if (engineers > 0) { labor = Labor.Engine; engineers--; }
-                else if (wirers > 0) { labor = Labor.Wire; wirers--; }
+                else if (engineers > 0 && HoldHas(person, s => s.engine)) { labor = Labor.Engine; engineers--; }
+                else if (wirers > 0 && HoldHas(person, s => s.engine)) { labor = Labor.Wire; wirers--; }
                 else if (keepers > 0) { labor = Labor.Keep; keepers--; }
                 else if (farmers > 0 && age >= AgeId.Farming) { labor = Labor.Farm; farmers--; }
                 else if (hunters > 0) { labor = Labor.Hunt; hunters--; }
@@ -997,8 +1009,8 @@ namespace Elyon
                 {
                     Labor young = Labor.Gather;
                     if (age >= AgeId.Present) young = Labor.Keep;
-                    else if (age >= AgeId.ElectricLight) young = Labor.Wire;
-                    else if (age >= AgeId.Industry) young = Labor.Engine;
+                    else if (age >= AgeId.ElectricLight && HoldHas(person, s => s.engine)) young = Labor.Wire;
+                    else if (age >= AgeId.Industry && HoldHas(person, s => s.engine)) young = Labor.Engine;
                     else if (age >= AgeId.Farming) young = Labor.Farm;
                     SetDuty(person, young);
                 }
@@ -2234,6 +2246,7 @@ namespace Elyon
         public int trust;
         public int tool;
         public float toolWear;
+        public string[] memories;
         public float x;
         public float y;
         public float z;
@@ -2261,6 +2274,7 @@ namespace Elyon
                 trust = person.trust,
                 tool = (int)person.tool,
                 toolWear = person.toolWear,
+                memories = person.MemoryLines(),
                 x = person.transform.position.x,
                 y = person.transform.position.y,
                 z = person.transform.position.z,
@@ -2288,6 +2302,7 @@ namespace Elyon
             person.trust = trust;
             person.tool = (ToolKind)tool;
             person.toolWear = toolWear;
+            person.RestoreMemories(memories);
             var spot = person.transform.position;
             spot.x = x;
             spot.z = z;
