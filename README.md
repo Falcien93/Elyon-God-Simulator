@@ -174,13 +174,15 @@ Master volume scales music and effects. Fullscreen, text speed (slow, normal, fa
 
 Voice input needs a runtime that exposes `SpeechRecognition` or `webkitSpeechRecognition` (Chromium browsers such as Chrome or Edge usually do). Electron on this build often has no speech-recognition service. The Address panel then tells you to type. Spoken replies need `speechSynthesis`. If that call is missing or throws, the reply remains in the address log.
 
+Living Voices is optional and off until you turn it on in Settings and agree to the download. It stays on this computer: Whisper (`base` or `small`) for hearing, a local Ollama server (default `llama3.2:3b`, only at `127.0.0.1:11434`) for Adam, Eve, and the people who remain, and Piper voices for speaking. The game does not contain those models. If Ollama is not running, or the computer has fewer than four cores or under 6 GiB of memory, Living Voices does not start and keyword replies plus Web Speech stay in use. Whisper and Piper are used only when `whisper-cli` and `piper` are already installed (`ELYON_WHISPER` and `ELYON_PIPER` may point at absolute paths). Nothing is downloaded or run from a page script.
+
 ## Tests
 
 ```bash
 npm test
 ```
 
-Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. Slots, migration, and settings live in `js/slots.js`. Version text lives in `js/release.js` and must match `package.json`. They are covered by `test/game.test.js`, `test/campaign.test.js`, `test/saves.test.js`, and `test/release.test.js`.
+Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. Slots, migration, and settings live in `js/slots.js`. Living Voices decisions and the local host live in `js/living.js` and `electron/living-host.js`. Version text lives in `js/release.js` and must match `package.json`. They are covered by `test/game.test.js`, `test/campaign.test.js`, `test/saves.test.js`, `test/release.test.js`, and `test/living.test.js`.
 
 ## Fonts
 

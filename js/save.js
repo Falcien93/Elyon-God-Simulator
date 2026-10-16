@@ -79,7 +79,7 @@ export function normalize(raw) {
   state.dest = null;
   state.relations.adam = sanitizeRel(data.relations?.adam);
   state.relations.eve = sanitizeRel(data.relations?.eve);
-  state.address = data.address === "eve" ? "eve" : "adam";
+  state.address = data.address === "eve" || data.address === "people" ? data.address : "adam";
   state.chat = sanitizeChatLog(data.chat);
   state.achievements = Array.isArray(data.achievements)
     ? data.achievements.filter((id) => typeof id === "string" && ACHIEVEMENT_IDS.has(id)).slice(0, 32)
@@ -87,6 +87,7 @@ export function normalize(raw) {
   state.beings = {
     adam: sanitizeBeing(data.beings?.adam, 62, 40),
     eve: sanitizeBeing(data.beings?.eve, 64, 42),
+    people: sanitizeBeing(data.beings?.people, 60, 38),
   };
   state.thread = sanitizeThread(data.thread, state);
   if (data.ending && typeof data.ending.id === "string") {
@@ -146,7 +147,7 @@ function sanitizeFlags(flags) {
 function sanitizeChatLog(chat) {
   if (!Array.isArray(chat)) return [];
   return chat
-    .filter((entry) => entry && (entry.who === "elyon" || entry.who === "adam" || entry.who === "eve"))
+    .filter((entry) => entry && (entry.who === "elyon" || entry.who === "adam" || entry.who === "eve" || entry.who === "people"))
     .map((entry) => ({ who: entry.who, text: sanitizeChat(entry.text) }))
     .filter((entry) => entry.text)
     .slice(-40);

@@ -1,5 +1,8 @@
 import { createAudio } from "./audio.js";
-import { ENDINGS } from "./content.js";
+import { DAYS, ENDINGS } from "./content.js";
+import { acceptAddress } from "./converse.js";
+import { chooseAnswer, livingRoute, sanitizeModelName } from "./living.js";
+import { encodeWav, wavToBase64 } from "./wav.js";
 import { render, screenToWorld } from "./render.js";
 import { STORAGE_KEY, normalize, serialize } from "./save.js";
 import {
@@ -70,6 +73,14 @@ const view = {
   settings,
   reveal: 0,
   talkSig: "",
+  livingNote: "",
+  livingBusy: false,
+  livingFraction: 0,
+  livingLabel: "",
+  livingOllama: false,
+  livingSlow: false,
+  livingWhisper: false,
+  livingPiper: false,
 };
 
 let camX = WORLD_W / 2;
@@ -91,9 +102,279 @@ function stopListening() {
   view.listening = false;
 }
 
-function sendAddressMessage(text) {
+async function beginListening() {
   if (!state) return;
-  const result = addressBeing(state, state.address, text);
+  if (settings.voice === false) {
+    setStatus("Voice is off. Turn it on in Settings.");
+    return;
+  }
+  if (listener) {
+    stopListening();
+    setStatus("Voice stopped.");
+    return;
+  }
+  if (currentRoute().listen === "whisper") {
+    const heard = await startWhisperListen();
+    if (heard) return;
+  }
+  const session = startListening(
+    window,
+    (transcript) => {
+      const input = document.getElementById("chat-input");
+      if (input) input.value = transcript;
+      sendAddressMessage(transcript);
+    },
+    (kind) => {
+      listener = null;
+      view.listening = false;
+      if (kind === "error") setStatus("Voice recognition stopped. Type to Adam, Eve, or the people instead.");
+    },
+  );
+  if (!session.ok) {
+    setStatus("Voice input is not available in this window. Type to Adam, Eve, or the people instead.");
+    return;
+  }
+  listener = session;
+  view.listening = true;
+  setStatus("Listening. Speak now.");
+}
+
+async function startWhisperListen() {
+  const desktop = window.elyonDesktop;
+  if (!desktop?.voicesTranscribe || !navigator.mediaDevices?.getUserMedia) return false;
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    return false;
+  }
+  const context = new AudioContext({ sampleRate: 16000 });
+  const source = context.createMediaStreamSource(stream);
+  const processor = context.createScriptProcessor(4096, 1, 1);
+  const chunks = [];
+  let samples = 0;
+  const maxSamples = 16000 * 8;
+  processor.onaudioprocess = (event) => {
+    const data = event.inputBuffer.getChannelData(0);
+    const copy = new Float32Array(data);
+    chunks.push(copy);
+    samples += copy.length;
+    if (samples >= maxSamples) stopListening();
+  };
+  source.connect(processor);
+  processor.connect(context.destination);
+  view.listening = true;
+  listener = {
+    stop() {
+      processor.onaudioprocess = null;
+      processor.disconnect();
+      source.disconnect();
+      stream.getTracks().forEach((track) => track.stop());
+      context.close();
+      const merged = new Float32Array(Math.min(samples, maxSamples));
+      let offset = 0;
+      for (const chunk of chunks) {
+        const take = Math.min(chunk.length, merged.length - offset);
+        if (take <= 0) break;
+        merged.set(chunk.subarray(0, take), offset);
+        offset += take;
+      }
+      transcribeWav(merged);
+    },
+  };
+  setStatus("Listening. Speak now.");
+  return true;
+}
+
+async function transcribeWav(samples) {
+  view.listening = false;
+  listener = null;
+  if (!samples?.length) {
+    setStatus("Nothing was heard. Type instead.");
+    return;
+  }
+  const desktop = window.elyonDesktop;
+  try {
+    const encoded = wavToBase64(encodeWav(samples, 16000));
+    const heard = await withTimeout(desktop.voicesTranscribe(encoded), 25000);
+    if (heard?.ok && heard.text) {
+      const input = document.getElementById("chat-input");
+      if (input) input.value = heard.text;
+      sendAddressMessage(heard.text);
+      return;
+    }
+  } catch {
+    /* keyword path stays available by typing */
+  }
+  setStatus("Local hearing did not catch that. Type instead.");
+}
+
+async function turnLiving(on) {
+  if (!on) {
+    settings.livingVoices = false;
+    settings.livingConsent = false;
+    view.livingBusy = false;
+    view.livingNote = "Keyword replies and this window's voice stay in use.";
+    view.settings = settings;
+    commitSettings();
+    return;
+  }
+  const desktop = window.elyonDesktop;
+  if (!desktop?.voicesStatus) {
+    settings.livingVoices = false;
+    view.livingNote = "Living Voices runs in the desktop app. This window keeps keyword replies and Web Speech.";
+    view.settings = settings;
+    commitSettings();
+    return;
+  }
+  view.livingBusy = true;
+  view.livingLabel = "Checking this computer…";
+  view.livingNote = "Checking whether Ollama is on this computer.";
+  let status = null;
+  try {
+    status = await withTimeout(desktop.voicesStatus(settings.whisperSize), 4000);
+  } catch {
+    status = null;
+  }
+  view.livingBusy = false;
+  if (!status || status.slow || !status.ollama) {
+    settings.livingVoices = false;
+    view.livingSlow = Boolean(status?.slow);
+    view.livingOllama = Boolean(status?.ollama);
+    view.livingNote = !status
+      ? "Living Voices could not start. Keyword replies and Web Speech stay in use."
+      : status.slow
+        ? "This computer is too small for local voices. Keyword replies and Web Speech stay in use."
+        : "Ollama is not running on this computer. Keyword replies and Web Speech stay in use.";
+    view.settings = settings;
+    commitSettings();
+    return;
+  }
+  const size = settings.whisperSize === "small" ? "small" : "base";
+  view.confirm = {
+    action: "living",
+    text: `Living Voices will download the Whisper ${size} model, Piper voices for Adam, Eve, and the people, and ask Ollama for ${settings.ollamaModel}. The files stay on this computer. The game does not include them. Enable them?`,
+  };
+}
+
+async function enableLiving() {
+  const desktop = window.elyonDesktop;
+  if (!desktop?.voicesPrepare) {
+    settings.livingVoices = false;
+    settings.livingConsent = false;
+    view.livingNote = "Living Voices runs in the desktop app. This window keeps keyword replies and Web Speech.";
+    commitSettings();
+    return;
+  }
+  settings.livingConsent = true;
+  settings.livingVoices = true;
+  view.livingBusy = true;
+  view.livingFraction = 0;
+  view.livingLabel = "Preparing local voices…";
+  view.settings = settings;
+  commitSettings();
+  let result = null;
+  try {
+    result = await withTimeout(desktop.voicesPrepare({
+      consent: true,
+      model: settings.ollamaModel,
+      whisperSize: settings.whisperSize,
+    }), 480000);
+  } catch {
+    result = null;
+  }
+  view.livingBusy = false;
+  if (!result?.ok) {
+    settings.livingVoices = false;
+    settings.livingConsent = false;
+    view.livingOllama = false;
+    view.livingNote = result?.reason === "slow"
+      ? "This computer is too small for local voices. Keyword replies and Web Speech stay in use."
+      : result?.reason === "ollama"
+        ? "Ollama is not running on this computer. Keyword replies and Web Speech stay in use."
+        : "The local voices could not be prepared. Keyword replies and Web Speech stay in use.";
+    view.settings = settings;
+    commitSettings();
+    return;
+  }
+  view.livingOllama = true;
+  view.livingSlow = false;
+  view.livingWhisper = Boolean(result.whisper);
+  view.livingPiper = Boolean(result.piper);
+  view.livingFraction = 1;
+  view.livingLabel = "Ready";
+  view.livingNote = result.whisper && result.piper
+    ? "Living Voices is on. Speech, replies, and spoken lines stay on this computer."
+    : "Living Voices is on for replies. Hearing and speaking use this window when Whisper or Piper is not installed.";
+  view.settings = settings;
+  commitSettings();
+}
+
+async function refreshLivingStatus() {
+  const desktop = window.elyonDesktop;
+  if (!desktop?.voicesStatus || !settings.livingVoices || !settings.livingConsent) return;
+  try {
+    const status = await withTimeout(desktop.voicesStatus(settings.whisperSize), 4000);
+    view.livingOllama = Boolean(status?.ollama);
+    view.livingSlow = Boolean(status?.slow);
+    view.livingWhisper = Boolean(status?.whisper);
+    view.livingPiper = Boolean(status?.piper);
+    if (status?.slow || !status?.ollama) {
+      view.livingNote = status?.slow
+        ? "This computer is too small for local voices. Keyword replies and Web Speech stay in use."
+        : "Ollama is not running on this computer. Keyword replies and Web Speech stay in use.";
+    }
+  } catch {
+    view.livingOllama = false;
+    view.livingNote = "Ollama is not running on this computer. Keyword replies and Web Speech stay in use.";
+  }
+}
+
+function addressContext() {
+  const day = DAYS[state.dayIndex];
+  return {
+    adam: state.names?.adam || "",
+    eve: state.names?.eve || "",
+    day: day?.title || "",
+    word: state.commandments?.[0] || (state.flags?.silence ? "silence" : ""),
+    ending: state.ending?.id || "",
+  };
+}
+
+function currentRoute() {
+  return livingRoute({
+    enabled: settings.livingVoices === true,
+    consent: settings.livingConsent === true,
+    ollama: view.livingOllama === true,
+    slow: view.livingSlow === true,
+    ready: settings.livingVoices === true && settings.livingConsent === true,
+    whisper: view.livingWhisper === true,
+    piper: view.livingPiper === true,
+  });
+}
+
+async function sendAddressMessage(text) {
+  if (!state) return;
+  const who = state.address;
+  const desktop = window.elyonDesktop;
+  let living = null;
+  if (settings.livingVoices && settings.livingConsent && desktop?.voicesChat && currentRoute().mode === "living") {
+    try {
+      living = await withTimeout(desktop.voicesChat({
+        who,
+        text,
+        context: addressContext(),
+        history: state.chat.slice(-6),
+        model: settings.ollamaModel,
+      }), 20000);
+    } catch {
+      living = null;
+    }
+  }
+  const chosen = chooseAnswer("", living);
+  const result = chosen.source === "ollama"
+    ? acceptAddress(state, who, text, chosen.reply)
+    : addressBeing(state, who, text);
   if (!result.ok) {
     applyResult(result);
     return;
@@ -105,12 +386,45 @@ function sendAddressMessage(text) {
     resetPanels();
     return;
   }
-  const voice = speakText(result.reply, result.who, window);
+  await speakReply(result.reply, result.who);
+  resetPanels();
+}
+
+async function speakReply(words, who) {
+  if (!words) return;
+  const desktop = window.elyonDesktop;
+  if (currentRoute().speak === "piper" && desktop?.voicesSpeak) {
+    try {
+      const spoken = await withTimeout(desktop.voicesSpeak({ who, text: words }), 20000);
+      if (spoken?.ok && spoken.wavBase64 && await playWavBase64(spoken.wavBase64)) return true;
+    } catch {
+      /* the window voice still reads the line */
+    }
+  }
+  const voice = speakText(words, who, window);
   if (!voice.ok && !view.voiceWarned) {
     view.voiceWarned = true;
     setStatus("Spoken voice is not available here. The reply is in the address log.");
   }
-  resetPanels();
+  return voice.ok;
+}
+
+async function playWavBase64(encoded) {
+  try {
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    const context = new AudioContext();
+    const buffer = await context.decodeAudioData(bytes.buffer.slice(0));
+    const node = context.createBufferSource();
+    node.buffer = buffer;
+    node.connect(context.destination);
+    node.onended = () => context.close();
+    node.start();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 mount({
@@ -169,6 +483,31 @@ mount({
     settings.voice = Boolean(on);
     view.settings = settings;
     if (!settings.voice) stopListening();
+    commitSettings();
+  },
+  setLiving(on) {
+    turnLiving(on);
+  },
+  setOllamaModel(name) {
+    settings.ollamaModel = sanitizeModelName(name);
+    if (settings.livingVoices) {
+      settings.livingVoices = false;
+      settings.livingConsent = false;
+      view.livingNote = "The model changed. Turn Living Voices on again so this computer can download it.";
+    }
+    view.settings = settings;
+    commitSettings();
+  },
+  setWhisperSize(size) {
+    const next = size === "small" ? "small" : "base";
+    if (next === settings.whisperSize && !settings.livingVoices) return;
+    settings.whisperSize = next;
+    if (settings.livingVoices) {
+      settings.livingVoices = false;
+      settings.livingConsent = false;
+      view.livingNote = "The Whisper size changed. Turn Living Voices on again so this computer can download it.";
+    }
+    view.settings = settings;
     commitSettings();
   },
   finishPrologue() {
@@ -278,40 +617,12 @@ mount({
       setStatus("Voice is off. Turn it on in Settings to hear them.");
       return;
     }
-    const voice = speakText(words, state.address, window);
-    if (!voice.ok) setStatus("Spoken voice is not available here. The reply is in the address log.");
+    speakReply(words, state.address).then((voiceOk) => {
+      if (voiceOk === false) setStatus("Spoken voice is not available here. The reply is in the address log.");
+    });
   },
   toggleVoice() {
-    if (!state) return;
-    if (settings.voice === false) {
-      setStatus("Voice is off. Turn it on in Settings.");
-      return;
-    }
-    if (listener) {
-      stopListening();
-      setStatus("Voice stopped.");
-      return;
-    }
-    const session = startListening(
-      window,
-      (transcript) => {
-        const input = document.getElementById("chat-input");
-        if (input) input.value = transcript;
-        sendAddressMessage(transcript);
-      },
-      (kind) => {
-        listener = null;
-        view.listening = false;
-        if (kind === "error") setStatus("Voice recognition stopped. Type to Adam or Eve instead.");
-      },
-    );
-    if (!session.ok) {
-      setStatus("Voice input is not available in this window. Type to Adam or Eve instead.");
-      return;
-    }
-    listener = session;
-    view.listening = true;
-    setStatus("Listening. Speak now.");
+    beginListening();
   },
   openOverlay(name) {
     view.overlay = name;
@@ -336,6 +647,8 @@ mount({
       startInSlot(slot);
     } else if (action === "primary") {
       runPrimary(primaryAction(state));
+    } else if (action === "living") {
+      enableLiving();
     }
   },
   confirmNo() {
@@ -807,8 +1120,18 @@ async function bootSaves() {
   view.settings = settings;
   audio.setMaster(settings.master);
   if (settings.fullscreen && desktop?.setFullscreen) desktop.setFullscreen(true);
+  if (desktop?.onVoicesProgress) {
+    desktop.onVoicesProgress((report) => {
+      if (!report || typeof report !== "object") return;
+      const fraction = Number(report.fraction);
+      view.livingFraction = Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0;
+      view.livingLabel = String(report.label || "").slice(0, 80);
+      view.livingBusy = view.livingFraction < 1;
+    });
+  }
   persistLibrary();
   commitSettings();
+  refreshLivingStatus();
 }
 
 bootSaves();

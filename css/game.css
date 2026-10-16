@@ -239,6 +239,9 @@ input[type="range"] { width: 160px; }
 .slot-list button[aria-current="true"] { border-color: var(--gold); color: var(--gold); }
 .speed-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .speed-row button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+#ollama-model { width: 180px; }
+#living-progress { height: 8px; border: 1px solid var(--line); background: #14110e; }
+#living-progress-bar { height: 100%; width: 0; background: var(--gold); }
 
 #panel-dialogue { align-items: end; padding-bottom: 150px; background: transparent; pointer-events: none; }
 #panel-dialogue .panel { pointer-events: auto; margin-bottom: 8px; }

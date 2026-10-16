@@ -15,4 +15,14 @@ contextBridge.exposeInMainWorld("elyonDesktop", {
     ipcRenderer.on("open-about", listener);
     return () => ipcRenderer.removeListener("open-about", listener);
   },
+  voicesStatus: (whisperSize) => ipcRenderer.invoke("voices-status", whisperSize),
+  voicesPrepare: (payload) => ipcRenderer.invoke("voices-prepare", payload),
+  voicesChat: (payload) => ipcRenderer.invoke("voices-chat", payload),
+  voicesTranscribe: (wavBase64) => ipcRenderer.invoke("voices-transcribe", wavBase64),
+  voicesSpeak: (payload) => ipcRenderer.invoke("voices-speak", payload),
+  onVoicesProgress: (fn) => {
+    const listener = (_event, report) => fn(report);
+    ipcRenderer.on("voices-progress", listener);
+    return () => ipcRenderer.removeListener("voices-progress", listener);
+  },
 });

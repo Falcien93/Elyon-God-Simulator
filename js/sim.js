@@ -712,12 +712,13 @@ function gotoNode(state, id) {
 
 export function selectAddress(state, who) {
   ensureAddress(state);
-  if (who !== "adam" && who !== "eve") return { ok: false, reason: "absent" };
+  if (who !== "adam" && who !== "eve" && who !== "people") return { ok: false, reason: "absent" };
   if (who === "adam" && !state.flags.adam_made) return { ok: false, reason: "absent" };
   if (who === "eve" && !state.flags.eve_made) return { ok: false, reason: "absent" };
+  if (who === "people" && (!state.flags.adam_made || !state.flags.eve_made)) return { ok: false, reason: "absent" };
   if (state.address !== who) {
     state.address = who;
-    const name = who === "eve" ? state.names.eve : state.names.adam;
+    const name = who === "eve" ? state.names.eve : who === "people" ? "the people" : state.names.adam;
     addLog(state, `Now addressing ${name}.`);
   }
   return { ok: true };
@@ -726,7 +727,7 @@ export function selectAddress(state, who) {
 export function addressBeing(state, who, raw) {
   const result = replyToBeing(state, who, raw);
   if (!result.ok) return result;
-  const name = who === "eve" ? state.names.eve : state.names.adam;
+  const name = who === "eve" ? state.names.eve : who === "people" ? "The people" : state.names.adam;
   addLog(state, `${name} answered.`);
   result.achievements = noteAchievements(state);
   return result;
