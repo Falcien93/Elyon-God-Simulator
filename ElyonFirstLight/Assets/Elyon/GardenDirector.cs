@@ -203,6 +203,7 @@ namespace Elyon
             string mark = person == selected ? "  ·  chosen" : "";
             GUILayout.Label(person.personName + "  ·  " + person.ActLabel + mark);
             if (!string.IsNullOrEmpty(person.kinLine)) GUILayout.Label(person.kinLine);
+            if (!string.IsNullOrEmpty(person.lineMemory)) GUILayout.Label(person.lineMemory);
             GUILayout.Label(person.body.CardLine());
             if (!string.IsNullOrEmpty(person.ToolLine())) GUILayout.Label(person.ToolLine());
             if (person.favor > 0) GUILayout.Label("blessed");

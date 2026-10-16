@@ -105,6 +105,8 @@ namespace Elyon
                 "You may keep walking, eating, or working while you answer.",
                 "Match your words to the age and the work in the briefing. A later age does not speak as the first fire.",
                 "You know the stores, the pact, the raid, the law, the season, the sky, the herd, the fish, and who was born or lost, because the briefing says so.",
+                "You know your parents and the memory the line carries: the garden, the pact, the raid, and the age you were born into.",
+                "You can say who your people were, back to Adam and Eve, in the voice of your age.",
                 "If the briefing names a pact, a raid, rain, drought, a flood, or a herd, mention it in the voice of your age.",
                 "Choose exactly one act the year already understands: work, stay, leave, peace, raid, rain, drought, herd, or none.",
                 "work is the labor of this age. stay means you remain. leave means you go to the other hearth. peace means this hold keeps the peace. raid means this hold will raid. rain asks for rain. drought dries this hold. herd means this hold keeps a herd. none changes nothing.",
