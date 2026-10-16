@@ -75,8 +75,11 @@ namespace Elyon
         public Transform thighR;
         public Transform shinL;
         public Transform shinR;
+        public Transform shoulderL;
         public Transform shoulderR;
         public Transform axe;
+        public float standHip = 0.92f;
+        public float massKg = 74f;
         public Transform workTree;
         public Vector3 seat;
         public Vector3 pot;
@@ -93,6 +96,8 @@ namespace Elyon
         bool sitting;
         float swing;
         bool coming;
+        bool moving;
+        float gait;
 
         public string LatestLine => said.Count == 0 ? "" : said[said.Count - 1];
 
@@ -228,6 +233,7 @@ namespace Elyon
         {
             if (pathIndex >= path.Count)
             {
+                moving = false;
                 sitting = phase != DayPhase.Work && phase != DayPhase.Coming && !coming;
                 return;
             }
@@ -243,6 +249,7 @@ namespace Elyon
             }
 
             sitting = false;
+            moving = true;
             Vector3 step = flat.normalized * body.Speed * delta;
             if (step.magnitude > flat.magnitude) step = flat;
             Vector3 next = transform.position + step;
@@ -252,10 +259,14 @@ namespace Elyon
                 return;
             }
             next.y = GardenMap.Height(next.x, next.z);
-            transform.position = next;
+            var bodyPhysics = GetComponent<Rigidbody>();
+            if (bodyPhysics != null) bodyPhysics.MovePosition(next);
+            else transform.position = next;
             if (flat.sqrMagnitude > 0.001f)
             {
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(flat.normalized, Vector3.up), 8f * delta);
+                Quaternion turn = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(flat.normalized, Vector3.up), 8f * delta);
+                if (bodyPhysics != null) bodyPhysics.MoveRotation(turn);
+                else transform.rotation = turn;
             }
         }
 
@@ -281,15 +292,27 @@ namespace Elyon
 
             if (hips == null) return;
             bool sitNow = sitting && !chop;
-            hips.localPosition = new Vector3(0f, sitNow ? 0.5f : 0.92f, sitNow ? 0.05f : 0f);
-            if (thighL != null) thighL.localRotation = Quaternion.Euler(sitNow ? 78f : 2f, 8f, 4f);
-            if (thighR != null) thighR.localRotation = Quaternion.Euler(sitNow ? 78f : 2f, -8f, -4f);
-            if (shinL != null) shinL.localRotation = Quaternion.Euler(sitNow ? -84f : 0f, 0f, 0f);
-            if (shinR != null) shinR.localRotation = Quaternion.Euler(sitNow ? -84f : 0f, 0f, 0f);
+            hips.localPosition = new Vector3(0f, sitNow ? standHip * 0.55f : standHip, sitNow ? 0.05f : 0f);
+            float strideL = 0f;
+            float strideR = 0f;
+            if (!sitNow && moving && !chop)
+            {
+                gait += delta * Mathf.Max(0.6f, body.Speed) * 3.4f;
+                strideL = Mathf.Sin(gait) * 28f;
+                strideR = Mathf.Sin(gait + Mathf.PI) * 28f;
+            }
+            if (thighL != null) thighL.localRotation = Quaternion.Euler(sitNow ? 78f : 6f + strideL, 6f, 3f);
+            if (thighR != null) thighR.localRotation = Quaternion.Euler(sitNow ? 78f : 6f + strideR, -6f, -3f);
+            if (shinL != null) shinL.localRotation = Quaternion.Euler(sitNow ? -84f : -Mathf.Max(0f, -strideL) * 1.15f, 0f, 0f);
+            if (shinR != null) shinR.localRotation = Quaternion.Euler(sitNow ? -84f : -Mathf.Max(0f, -strideR) * 1.15f, 0f, 0f);
+            if (shoulderL != null && !chop)
+            {
+                shoulderL.localRotation = Quaternion.Euler(8f - strideL * 0.45f, 0f, -12f);
+            }
             if (shoulderR != null)
             {
-                float axeAngle = chop ? Mathf.Lerp(-30f, 55f, Mathf.PingPong(swing, 1f)) : 8f;
-                shoulderR.localRotation = Quaternion.Euler(axeAngle, 0f, 16f);
+                float axeAngle = chop ? Mathf.Lerp(-20f, 70f, Mathf.PingPong(swing, 1f)) : 8f - strideR * 0.45f;
+                shoulderR.localRotation = Quaternion.Euler(axeAngle, 0f, 12f);
             }
             if (axe != null) axe.gameObject.SetActive(chop || phase == DayPhase.Work);
             if (sitNow && posed != phase)

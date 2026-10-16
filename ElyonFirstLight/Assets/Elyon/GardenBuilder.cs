@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 
 namespace Elyon
@@ -31,8 +32,10 @@ namespace Elyon
             BuildTerrain(root);
             BuildLake(root);
             BuildRocks(root);
+            BuildGroundCover(root);
             world.Trees.AddRange(BuildTrees(root));
             BuildCamp(root, world);
+            DressMorning();
             world.Adam = BuildPerson(root, "adam", "Adam", new Vector3(146f, 0f, 96f), world);
             world.Eve = BuildPerson(root, "eve", "Eve", new Vector3(154f, 0f, 104f), world);
             return world;
@@ -160,38 +163,18 @@ namespace Elyon
 
         static void BuildLake(Transform root)
         {
-            var mesh = new Mesh { name = "Lake" };
             const int seg = 72;
-            var verts = new Vector3[seg + 1];
-            var uv = new Vector2[seg + 1];
-            var tris = new int[seg * 3];
-            verts[0] = Vector3.zero;
-            uv[0] = new Vector2(0.5f, 0.5f);
-            for (int i = 0; i < seg; i++)
-            {
-                float a = i / (float)seg * Mathf.PI * 2f;
-                verts[i + 1] = new Vector3(Mathf.Cos(a) * GardenMap.LakeRx, 0f, Mathf.Sin(a) * GardenMap.LakeRz);
-                uv[i + 1] = new Vector2(Mathf.Cos(a) * 0.5f + 0.5f, Mathf.Sin(a) * 0.5f + 0.5f);
-                tris[i * 3] = 0;
-                tris[i * 3 + 1] = i + 1;
-                tris[i * 3 + 2] = i == seg - 1 ? 1 : i + 2;
-            }
-            mesh.vertices = verts;
-            mesh.uv = uv;
-            mesh.triangles = tris;
-            mesh.RecalculateNormals();
-
             var go = new GameObject("Lake");
             go.transform.SetParent(root, false);
             go.transform.position = new Vector3(GardenMap.LakeX, GardenMap.WaterY, GardenMap.LakeZ);
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var lakeMesh = GardenMeshes.Ellipse(GardenMap.LakeRx, GardenMap.LakeRz, seg);
+            go.AddComponent<MeshFilter>().sharedMesh = lakeMesh;
             var renderer = go.AddComponent<MeshRenderer>();
-            var color = new Color(0.05f, 0.28f, 0.32f, 0.82f);
+            var color = new Color(0.05f, 0.22f, 0.26f, 0.55f);
             var mat = Lit(color, 0.94f, null, Vector2.one);
             if (mat.HasProperty("_SurfaceType")) mat.SetFloat("_SurfaceType", 1f);
             if (mat.HasProperty("_BlendMode")) mat.SetFloat("_BlendMode", 0f);
             if (mat.HasProperty("_ZWrite")) mat.SetFloat("_ZWrite", 0f);
-            if (mat.HasProperty("_AlphaCutoffEnable")) mat.SetFloat("_AlphaCutoffEnable", 0f);
             mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             mat.SetOverrideTag("RenderType", "Transparent");
             mat.renderQueue = 3000;
@@ -199,6 +182,38 @@ namespace Elyon
             mat.color = color;
             renderer.sharedMaterial = mat;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var water = go.AddComponent<WaterSurface>();
+            water.surfaceType = WaterSurfaceType.OceanSeaLake;
+            water.geometryType = WaterGeometryType.Custom;
+            if (water.meshRenderers == null) water.meshRenderers = new List<MeshRenderer>();
+            water.meshRenderers.Add(renderer);
+            water.repetitionSize = 70f;
+            water.largeWindSpeed = 3.5f;
+            water.ripplesWindSpeed = 5.5f;
+            water.largeChaos = 0.28f;
+            water.ripplesChaos = 0.45f;
+            water.timeMultiplier = 0.4f;
+            water.startSmoothness = 0.97f;
+            water.endSmoothness = 0.86f;
+            water.absorptionDistance = 3.4f;
+            water.maxRefractionDistance = 5f;
+            water.volumeDepth = 6f;
+            water.foam = true;
+            water.caustics = true;
+            water.tessellation = false;
+            water.underWater = false;
+
+            var shore = new GameObject("Shore");
+            shore.transform.SetParent(root, false);
+            shore.transform.position = new Vector3(GardenMap.LakeX, GardenMap.WaterY + 0.05f, GardenMap.LakeZ);
+            shore.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.ShoreRibbon(GardenMap.LakeRx, GardenMap.LakeRz, 2.4f, seg);
+            var shoreRenderer = shore.AddComponent<MeshRenderer>();
+            var foam = Lit(new Color(0.82f, 0.8f, 0.72f, 0.45f), 0.2f, sandTex, new Vector2(8f, 1f));
+            if (foam.HasProperty("_SurfaceType")) foam.SetFloat("_SurfaceType", 1f);
+            foam.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            foam.renderQueue = 3000;
+            shoreRenderer.sharedMaterial = foam;
+            shoreRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             var probeGo = new GameObject("LakeReflection");
             probeGo.transform.SetParent(root, false);
@@ -247,24 +262,20 @@ namespace Elyon
             go.transform.position = spot;
             float tall = kind == "life" ? 9.5f : kind == "knowledge" ? 8.2f : 6.2f + (salt % 4) * 0.7f;
             var bark = Lit(new Color(0.35f, 0.22f, 0.12f), 0.28f, barkTex, new Vector2(1f, 3f));
-            var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Object.Destroy(trunk.GetComponent<Collider>());
-            trunk.name = "Trunk";
+            var trunk = new GameObject("Trunk");
             trunk.transform.SetParent(go.transform, false);
-            trunk.transform.localScale = new Vector3(0.45f, tall * 0.28f, 0.45f);
-            trunk.transform.localPosition = new Vector3(0f, tall * 0.28f, 0f);
-            trunk.GetComponent<MeshRenderer>().sharedMaterial = bark;
+            trunk.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Trunk(tall, 0.22f + (salt % 3) * 0.04f, salt);
+            trunk.AddComponent<MeshRenderer>().sharedMaterial = bark;
 
             for (int b = 0; b < 4; b++)
             {
                 float ang = b / 4f * Mathf.PI * 2f + salt;
-                var branch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                Object.Destroy(branch.GetComponent<Collider>());
+                var branch = new GameObject("Branch");
                 branch.transform.SetParent(go.transform, false);
-                branch.transform.localScale = new Vector3(0.12f, tall * 0.16f, 0.12f);
-                branch.transform.localPosition = new Vector3(Mathf.Cos(ang) * 0.7f, tall * 0.52f, Mathf.Sin(ang) * 0.7f);
+                branch.transform.localPosition = new Vector3(Mathf.Cos(ang) * 0.35f, tall * 0.46f, Mathf.Sin(ang) * 0.35f);
                 branch.transform.localRotation = Quaternion.Euler(Mathf.Sin(ang) * 70f, 0f, Mathf.Cos(ang) * 70f);
-                branch.GetComponent<MeshRenderer>().sharedMaterial = bark;
+                branch.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Trunk(tall * 0.28f, 0.05f, salt + b);
+                branch.AddComponent<MeshRenderer>().sharedMaterial = bark;
             }
 
             Color leafColor = kind == "knowledge"
@@ -319,7 +330,7 @@ namespace Elyon
                 new Vector3(158f, 0f, 128f),
                 new Vector3(48f, 0f, 70f),
             };
-            var mesh = RockMesh();
+            var mesh = GardenMeshes.Boulder(3);
             foreach (var spot in spots)
             {
                 if (GardenMap.InWater(spot.x, spot.z)) continue;
@@ -334,22 +345,6 @@ namespace Elyon
             }
         }
 
-        static Mesh RockMesh()
-        {
-            var temp = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            var mesh = Object.Instantiate(temp.GetComponent<MeshFilter>().sharedMesh);
-            Object.Destroy(temp);
-            var verts = mesh.vertices;
-            for (int i = 0; i < verts.Length; i++)
-            {
-                float n = Mathf.PerlinNoise(verts[i].x * 1.7f + 3f, verts[i].z * 1.7f);
-                verts[i] *= 0.7f + n * 0.55f;
-            }
-            mesh.vertices = verts;
-            mesh.RecalculateNormals();
-            return mesh;
-        }
-
         static void BuildCamp(Transform root, GardenWorld world)
         {
             world.Fire = new Vector3(150f, 0f, 100f);
@@ -360,28 +355,25 @@ namespace Elyon
             world.Cup.y = GardenMap.Height(world.Cup.x, world.Cup.z);
 
             var wood = Lit(new Color(0.32f, 0.18f, 0.08f), 0.3f, barkTex, Vector2.one);
+            var logMesh = GardenMeshes.Trunk(1.1f, 0.08f, 4);
             for (int i = 0; i < 4; i++)
             {
-                var log = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                Object.Destroy(log.GetComponent<Collider>());
-                log.name = "Log";
+                var log = new GameObject("Log");
                 log.transform.SetParent(root, false);
-                log.transform.position = world.Fire + new Vector3(0f, 0.18f, 0f);
-                log.transform.localScale = new Vector3(0.16f, 0.55f, 0.16f);
-                log.transform.rotation = Quaternion.Euler(90f, i * 40f, 20f);
-                log.GetComponent<MeshRenderer>().sharedMaterial = wood;
+                log.transform.position = world.Fire + new Vector3(0f, 0.12f, 0f);
+                log.transform.rotation = Quaternion.Euler(80f, i * 40f, 20f);
+                log.AddComponent<MeshFilter>().sharedMesh = logMesh;
+                log.AddComponent<MeshRenderer>().sharedMaterial = wood;
             }
 
-            var flame = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            Object.Destroy(flame.GetComponent<Collider>());
-            flame.name = "Flame";
+            var flame = new GameObject("Flame");
             flame.transform.SetParent(root, false);
-            flame.transform.position = world.Fire + new Vector3(0f, 0.55f, 0f);
-            flame.transform.localScale = new Vector3(0.35f, 0.55f, 0.35f);
+            flame.transform.position = world.Fire + new Vector3(0f, 0.15f, 0f);
+            flame.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Trunk(0.7f, 0.16f, 9);
             var flameMat = Lit(new Color(1f, 0.45f, 0.12f), 0.2f, null, Vector2.one);
-            if (flameMat.HasProperty("_EmissiveColor")) flameMat.SetColor("_EmissiveColor", new Color(2.4f, 0.7f, 0.15f));
+            if (flameMat.HasProperty("_EmissiveColor")) flameMat.SetColor("_EmissiveColor", new Color(4f, 1.2f, 0.2f));
             flameMat.EnableKeyword("_EMISSIVE_COLOR");
-            flame.GetComponent<MeshRenderer>().sharedMaterial = flameMat;
+            flame.AddComponent<MeshRenderer>().sharedMaterial = flameMat;
 
             var lightGo = new GameObject("Campfire");
             lightGo.transform.SetParent(root, false);
@@ -420,13 +412,12 @@ namespace Elyon
 
         static void Prop(Transform root, string name, Vector3 pos, Vector3 scale, Color color)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Object.Destroy(go.GetComponent<Collider>());
-            go.name = name;
+            var go = new GameObject(name);
             go.transform.SetParent(root, false);
             go.transform.position = pos;
             go.transform.localScale = scale;
-            go.GetComponent<MeshRenderer>().sharedMaterial = Lit(color, 0.35f, null, Vector2.one);
+            go.AddComponent<MeshFilter>().sharedMesh = GardenMeshes.Trunk(1f, 0.5f, name.Length);
+            go.AddComponent<MeshRenderer>().sharedMaterial = Lit(color, 0.35f, null, Vector2.one);
         }
 
         static Person BuildPerson(Transform root, string who, string personName, Vector3 spot, GardenWorld world)
@@ -438,69 +429,7 @@ namespace Elyon
             person.personName = personName;
             if (who == "adam") person.body.fatigue = 18f;
             else person.body.fatigue = 10f;
-
-            bool eve = who == "eve";
-            var skin = Lit(eve ? new Color(0.72f, 0.5f, 0.38f) : new Color(0.55f, 0.36f, 0.24f), 0.42f, null, Vector2.one);
-            var hair = Lit(eve ? new Color(0.18f, 0.1f, 0.06f) : new Color(0.08f, 0.05f, 0.03f), 0.25f, null, Vector2.one);
-            var cloth = Lit(eve ? new Color(0.82f, 0.74f, 0.62f) : new Color(0.62f, 0.5f, 0.32f), 0.55f, null, Vector2.one);
-            var eyeWhite = Lit(new Color(0.92f, 0.9f, 0.86f), 0.55f, null, Vector2.one);
-            var iris = Lit(eve ? new Color(0.2f, 0.38f, 0.28f) : new Color(0.22f, 0.16f, 0.1f), 0.3f, null, Vector2.one);
-            var lip = Lit(new Color(0.55f, 0.28f, 0.26f), 0.4f, null, Vector2.one);
-
-            var hips = Part(go.transform, "Hips", PrimitiveType.Sphere, skin, new Vector3(0f, 0.92f, 0f), new Vector3(0.28f, 0.18f, 0.2f));
-            person.hips = hips;
-            var spine = Part(hips, "Spine", PrimitiveType.Capsule, skin, new Vector3(0f, 0.28f, 0f), new Vector3(0.26f, 0.22f, 0.18f));
-            var chest = Part(spine, "Chest", PrimitiveType.Sphere, skin, new Vector3(0f, 0.28f, 0.02f), new Vector3(0.34f, 0.22f, 0.2f));
-            Part(chest, "Neck", PrimitiveType.Cylinder, skin, new Vector3(0f, 0.16f, 0f), new Vector3(0.08f, 0.06f, 0.08f));
-            var head = Part(chest, "Head", PrimitiveType.Sphere, skin, new Vector3(0f, 0.32f, 0.02f), new Vector3(0.2f, 0.24f, 0.2f));
-            Face(head, eyeWhite, iris, lip, hair, eve);
-            Hair(head, hair, eve);
-
-            person.thighL = Limb(hips, skin, new Vector3(-0.1f, -0.08f, 0f), true);
-            person.thighR = Limb(hips, skin, new Vector3(0.1f, -0.08f, 0f), true);
-            person.shinL = person.thighL.Find("Shin");
-            person.shinR = person.thighR.Find("Shin");
-            Limb(chest, skin, new Vector3(-0.22f, 0.02f, 0f), false);
-            person.shoulderR = Limb(chest, skin, new Vector3(0.22f, 0.02f, 0f), false);
-            var hand = person.shoulderR.Find("Forearm/Hand");
-            if (hand != null)
-            {
-                var axe = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Object.Destroy(axe.GetComponent<Collider>());
-                axe.name = "Axe";
-                axe.transform.SetParent(hand, false);
-                axe.transform.localPosition = new Vector3(0f, -0.18f, 0.04f);
-                axe.transform.localScale = new Vector3(0.04f, 0.45f, 0.06f);
-                axe.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.35f, 0.22f, 0.1f), 0.35f, barkTex, Vector2.one);
-                var headAxe = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Object.Destroy(headAxe.GetComponent<Collider>());
-                headAxe.transform.SetParent(axe.transform, false);
-                headAxe.transform.localPosition = new Vector3(0.12f, -0.35f, 0f);
-                headAxe.transform.localScale = new Vector3(4f, 0.35f, 1.2f);
-                headAxe.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.55f, 0.55f, 0.52f), 0.7f, null, Vector2.one);
-                person.axe = axe.transform;
-                axe.SetActive(false);
-            }
-
-            var wrap = Part(hips, "Linen", PrimitiveType.Cylinder, cloth, new Vector3(0f, -0.12f, 0f), new Vector3(0.42f, 0.22f, 0.42f));
-            wrap.gameObject.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
-
-            var col = go.AddComponent<CapsuleCollider>();
-            col.height = 1.75f;
-            col.center = new Vector3(0f, 0.9f, 0f);
-            col.radius = 0.35f;
-
-            var labelGo = new GameObject("Name");
-            labelGo.transform.SetParent(head, false);
-            labelGo.transform.localPosition = new Vector3(0f, 0.7f, 0f);
-            var label = labelGo.AddComponent<TextMesh>();
-            label.text = personName;
-            label.characterSize = 0.12f;
-            label.anchor = TextAnchor.MiddleCenter;
-            label.alignment = TextAlignment.Center;
-            label.color = new Color(0.96f, 0.92f, 0.84f);
-            label.fontSize = 48;
-
+            HumanForm.Attach(person, who == "eve");
             Vector3 seat = spot;
             seat.y = 0f;
             Transform tree = who == "eve" ? world.WorkEve : world.WorkAdam;
@@ -508,53 +437,44 @@ namespace Elyon
             return person;
         }
 
-        static void Face(Transform head, Material white, Material iris, Material lip, Material hair, bool eve)
+        static void BuildGroundCover(Transform root)
         {
-            for (int side = -1; side <= 1; side += 2)
+            var mesh = GardenMeshes.Tuft();
+            var mat = Lit(new Color(0.34f, 0.48f, 0.18f), 0.15f, grassTex, Vector2.one);
+            if (mat.HasProperty("_DoubleSidedEnable")) mat.SetFloat("_DoubleSidedEnable", 1f);
+            if (mat.HasProperty("_AlphaCutoffEnable")) mat.SetFloat("_AlphaCutoffEnable", 1f);
+            mat.EnableKeyword("_DOUBLESIDED_ON");
+            var cover = new GameObject("Meadow");
+            cover.transform.SetParent(root, false);
+            for (int i = 0; i < 180; i++)
             {
-                Part(head, "Eye", PrimitiveType.Sphere, white, new Vector3(0.035f * side, 0.02f, 0.09f), Vector3.one * 0.035f);
-                Part(head, "Iris", PrimitiveType.Sphere, iris, new Vector3(0.035f * side, 0.02f, 0.105f), Vector3.one * 0.018f);
-                var brow = Part(head, "Brow", PrimitiveType.Cube, hair, new Vector3(0.038f * side, 0.055f, 0.09f), new Vector3(0.04f, 0.008f, 0.012f));
-                brow.localRotation = Quaternion.Euler(0f, 0f, side * -8f);
-                Part(head, "Ear", PrimitiveType.Sphere, white.HasProperty("_BaseColor") ? head.GetComponent<MeshRenderer>().sharedMaterial : white, new Vector3(0.1f * side, -0.01f, 0f), new Vector3(0.03f, 0.05f, 0.02f));
+                float x = 18f + (i * 47 % 164);
+                float z = 16f + (i * 29 % 168);
+                if (GardenMap.InWater(x, z)) continue;
+                if (Vector3.Distance(new Vector3(x, 0f, z), new Vector3(150f, 0f, 100f)) < 6f) continue;
+                var tuft = new GameObject("Grass");
+                tuft.transform.SetParent(cover.transform, false);
+                float y = GardenMap.Height(x, z);
+                tuft.transform.position = new Vector3(x, y, z);
+                tuft.transform.rotation = Quaternion.Euler(0f, i * 37f, 0f);
+                float scale = 0.7f + (i % 5) * 0.12f;
+                tuft.transform.localScale = new Vector3(scale, scale, scale);
+                tuft.AddComponent<MeshFilter>().sharedMesh = mesh;
+                tuft.AddComponent<MeshRenderer>().sharedMaterial = mat;
             }
-            Part(head, "Nose", PrimitiveType.Sphere, head.GetComponent<MeshRenderer>().sharedMaterial, new Vector3(0f, -0.01f, 0.1f), new Vector3(0.03f, 0.04f, 0.04f));
-            Part(head, "Mouth", PrimitiveType.Cube, lip, new Vector3(0f, -0.055f, 0.09f), new Vector3(0.05f, 0.012f, 0.012f));
-            if (!eve)
-            {
-                Part(head, "Beard", PrimitiveType.Sphere, hair, new Vector3(0f, -0.08f, 0.04f), new Vector3(0.12f, 0.08f, 0.08f));
-            }
         }
 
-        static void Hair(Transform head, Material hair, bool eve)
+        static void DressMorning()
         {
-            Part(head, "Hair", PrimitiveType.Sphere, hair, new Vector3(0f, 0.06f, -0.01f), new Vector3(0.22f, 0.14f, 0.22f));
-            if (!eve) return;
-            Part(head, "Lock", PrimitiveType.Capsule, hair, new Vector3(0f, -0.12f, -0.06f), new Vector3(0.12f, 0.18f, 0.1f));
-            Part(head, "LockL", PrimitiveType.Capsule, hair, new Vector3(-0.08f, -0.08f, 0f), new Vector3(0.06f, 0.16f, 0.06f));
-            Part(head, "LockR", PrimitiveType.Capsule, hair, new Vector3(0.08f, -0.08f, 0f), new Vector3(0.06f, 0.16f, 0.06f));
-        }
-
-        static Transform Limb(Transform parent, Material skin, Vector3 local, bool leg)
-        {
-            string upperName = leg ? "Thigh" : "UpperArm";
-            var upper = Part(parent, upperName, PrimitiveType.Capsule, skin, local, leg ? new Vector3(0.12f, 0.22f, 0.12f) : new Vector3(0.08f, 0.16f, 0.08f));
-            var mid = Part(upper, leg ? "Shin" : "Forearm", PrimitiveType.Capsule, skin, new Vector3(0f, leg ? -0.42f : -0.32f, 0f), leg ? new Vector3(0.1f, 0.2f, 0.1f) : new Vector3(0.07f, 0.14f, 0.07f));
-            Part(mid, leg ? "Foot" : "Hand", leg ? PrimitiveType.Cube : PrimitiveType.Sphere, skin, new Vector3(0f, leg ? -0.28f : -0.2f, leg ? 0.04f : 0f), leg ? new Vector3(0.1f, 0.05f, 0.16f) : Vector3.one * 0.07f);
-            return upper;
-        }
-
-        static Transform Part(Transform parent, string name, PrimitiveType type, Material mat, Vector3 localPos, Vector3 scale)
-        {
-            var go = GameObject.CreatePrimitive(type);
-            var collider = go.GetComponent<Collider>();
-            if (collider != null) Object.Destroy(collider);
-            go.name = name;
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = scale;
-            go.GetComponent<MeshRenderer>().sharedMaterial = mat;
-            return go.transform;
+            var volume = Object.FindFirstObjectByType<Volume>();
+            if (volume == null || volume.profile == null) return;
+            if (!volume.profile.TryGet(out Fog fog)) fog = volume.profile.Add<Fog>();
+            fog.active = true;
+            fog.enabled.Override(true);
+            fog.albedo.Override(new Color(0.74f, 0.78f, 0.82f));
+            fog.meanFreePath.Override(140f);
+            fog.baseHeight.Override(6f);
+            fog.maximumHeight.Override(90f);
         }
     }
 }

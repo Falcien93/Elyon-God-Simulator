@@ -43,10 +43,17 @@ namespace Elyon
             float nz = z / WorldSize;
             float hills = Mathf.PerlinNoise(nx * 3.4f + 0.2f, nz * 3.4f + 1.7f);
             float broad = Mathf.PerlinNoise(nx * 1.15f + 4.2f, nz * 1.15f + 0.4f);
+            float grain = Mathf.PerlinNoise(nx * 11f + 2.2f, nz * 11f + 0.6f);
             float edge = Mathf.Min(Mathf.Min(x, WorldSize - x), Mathf.Min(z, WorldSize - z));
-            float rim = Mathf.Clamp01(1f - edge / 26f);
-            float shore = Mathf.Clamp01((Mathf.Sqrt(ellipse) - 1f) / 0.22f);
-            float y = WaterY + 0.45f + shore * (1.8f + hills * 6.5f + broad * 8f) + rim * 12f;
+            float rim = Mathf.Clamp01(1f - edge / 28f);
+            float fromShore = Mathf.Sqrt(ellipse) - 1f;
+            float beach = Mathf.Clamp01(fromShore / 0.16f);
+            float meadow = Mathf.Clamp01(1f - Mathf.Abs(x - 156f) / 36f) * Mathf.Clamp01(1f - Mathf.Abs(z - 100f) / 28f);
+            float shelf = Mathf.Lerp(1f, 0.28f, meadow);
+            float y = WaterY + 0.28f
+                + beach * (0.55f + shelf * (1.4f + hills * 7.2f + broad * 9f))
+                + grain * 0.22f * beach
+                + rim * 16f;
             return Mathf.Min(y, TerrainHeight - 0.5f);
         }
 

@@ -2,7 +2,7 @@
 
 Elyon: First Light is a Unity HDRP garden. Adam and Eve are already awake. You stay above them or walk among them, and you speak. They have bodies, they answer as those people through the xAI Responses API, and they live a day: wake, eat, drink, work, rest. They follow the shore. They do not walk through the lake. Only you can step on the water.
 
-Unreal Engine 5 could not be installed or run on the machine that built this (no Epic account, no GPU device). The game is Unity 6000.0.64f1 with the High Definition Render Pipeline.
+Unreal Engine 5 could not be installed or run on the machine that built this (no Epic account, no GPU device). The game is Unity 6000.0.64f1 with the High Definition Render Pipeline. Adam and Eve are skinned bodies with a face, ears, limbs, skin, and weight, Adam heavier than Eve. The valley is terrain around an HDRP water surface, with a shore, morning fog, and a warm sun.
 
 This is an original telling, not a scripture. Linen, no sexual content. "A child" on a body card is a burden, not a scene.
 
