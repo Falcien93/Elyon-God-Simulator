@@ -9,8 +9,9 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/game.test.js",
-    "dist": "electron-builder --linux dir AppImage"
+    "test": "node --test test/game.test.js test/campaign.test.js",
+    "dist": "electron-builder --linux dir AppImage",
+    "dist:dir": "electron-builder --linux dir"
   },
   "devDependencies": {
     "electron": "^33.4.11",
