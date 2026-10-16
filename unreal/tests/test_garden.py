@@ -7,6 +7,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 import garden_logic
 import level_build
+import run_all
 
 
 class Vec:
@@ -19,9 +20,29 @@ class Rot:
         self.pitch, self.yaw, self.roll = pitch, yaw, roll
 
 
-class Color:
-    def __init__(self, r, g, b, a):
-        self.rgba = (r, g, b, a)
+class ByteColor:
+    """Stand-in for unreal.Color. Channels are ints from 0 to 255."""
+
+    def __init__(self, r, g, b, a=255):
+        channels = (r, g, b, a)
+        for channel in channels:
+            if type(channel) is not int:
+                raise TypeError("unreal.Color channels must be ints from 0 to 255")
+            if channel < 0 or channel > 255:
+                raise ValueError("unreal.Color channel out of range")
+        self.rgba = channels
+
+
+class LinearColor:
+    """Stand-in for unreal.LinearColor. Channels are 0-1 floats."""
+
+    def __init__(self, r, g, b, a=1.0):
+        self.rgba = (float(r), float(g), float(b), float(a))
+
+
+# light_color on directional and sky lights is FColor. Fog inscattering is FLinearColor.
+FCOLOR_PROPS = {"light_color"}
+LINEAR_PROPS = {"fog_inscattering_luminance"}
 
 
 class Comp:
@@ -31,6 +52,10 @@ class Comp:
         self.recaptured = 0
 
     def set_editor_property(self, name, value):
+        if name in FCOLOR_PROPS and not isinstance(value, ByteColor):
+            raise TypeError(f"{name} expects unreal.Color (0-255 ints), not {type(value).__name__}")
+        if name in LINEAR_PROPS and not isinstance(value, LinearColor):
+            raise TypeError(f"{name} expects unreal.LinearColor, not {type(value).__name__}")
         self.props[name] = value
 
     def set_static_mesh(self, mesh):
@@ -123,6 +148,14 @@ class LevelLib:
         self.saves += 1
 
 
+class EditorPythonScripting:
+    def __init__(self):
+        self.alive = False
+
+    def set_keep_python_script_alive(self, keep_alive):
+        self.alive = bool(keep_alive)
+
+
 class FakeUnreal:
     def __init__(self):
         self.EditorActorSubsystem = type("EditorActorSubsystem", (), {})
@@ -140,7 +173,9 @@ class FakeUnreal:
         self.ExponentialHeightFogComponent = type("ExponentialHeightFogComponent", (), {})
         self.Vector = Vec
         self.Rotator = Rot
-        self.LinearColor = Color
+        self.Color = ByteColor
+        self.LinearColor = LinearColor
+        self.EditorPythonScripting = EditorPythonScripting()
         self.EditorAssetLibrary = AssetLib()
         self.EditorLevelLibrary = LevelLib(self.EditorAssetLibrary)
         self.sub = Subsystem()
@@ -211,6 +246,19 @@ class LevelBuildTests(unittest.TestCase):
         sun = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Sun")
         sun_comp = sun.get_component_by_class(ue.DirectionalLightComponent)
         self.assertEqual(sun_comp.props["intensity"], 10.0)
+        self.assertIsInstance(sun_comp.props["light_color"], ByteColor)
+        self.assertEqual(sun_comp.props["light_color"].rgba, (255, 237, 199, 255))
+        with self.assertRaises(TypeError):
+            sun_comp.set_editor_property("light_color", ue.LinearColor(1.0, 0.93, 0.78, 1.0))
+        sky = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.SkyLight")
+        sky_comp = sky.get_component_by_class(ue.SkyLightComponent)
+        self.assertIsInstance(sky_comp.props["light_color"], ByteColor)
+        fog = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Fog")
+        fog_comp = fog.get_component_by_class(ue.ExponentialHeightFogComponent)
+        self.assertIsInstance(fog_comp.props["fog_inscattering_luminance"], LinearColor)
+        self.assertEqual(fog_comp.props["fog_inscattering_luminance"].rgba, (0.75, 0.82, 0.95, 1.0))
+        with self.assertRaises(TypeError):
+            fog_comp.set_editor_property("fog_inscattering_luminance", ue.Color(191, 209, 242, 255))
         ground = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Ground")
         mesh_comp = ground.get_component_by_class(ue.StaticMeshComponent)
         self.assertEqual(mesh_comp.mesh, "/Engine/BasicShapes/Plane")
@@ -226,8 +274,16 @@ class LevelBuildTests(unittest.TestCase):
         dark = level_build.let_there_be_light(False, ue=ue)
         self.assertEqual(dark["name"], "darkness")
         self.assertEqual(sun_comp.props["intensity"], 0.02)
+        self.assertIsInstance(sun_comp.props["light_color"], ByteColor)
+        self.assertEqual(sun_comp.props["light_color"].rgba, (13, 18, 36, 255))
+        self.assertIsInstance(fog_comp.props["fog_inscattering_luminance"], LinearColor)
         marker = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.LetThereBeLight")
         self.assertEqual(marker.props["tags"], ["darkness"])
+
+    def test_run_all_keeps_the_editor_open(self):
+        ue = FakeUnreal()
+        run_all.main(ue)
+        self.assertTrue(ue.EditorPythonScripting.alive)
 
 
 if __name__ == "__main__":

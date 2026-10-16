@@ -34,6 +34,17 @@ def _rot(ue, pitch=0.0, yaw=0.0, roll=0.0):
     return ue.Rotator(float(pitch), float(yaw), float(roll))
 
 
+def _byte_color(ue, rgba):
+    """FColor properties (light_color) take unreal.Color channels as 0-255 ints."""
+    return ue.Color(*(int(round(float(channel) * 255.0)) for channel in rgba))
+
+
+def _linear_color(ue, rgba):
+    """FLinearColor properties take unreal.LinearColor channels as 0-1 floats."""
+    red, green, blue, alpha = rgba
+    return ue.LinearColor(float(red), float(green), float(blue), float(alpha))
+
+
 def _by_label(ue):
     found = {}
     for actor in _subsystem(ue).get_all_level_actors():
@@ -72,19 +83,20 @@ def _apply_light(ue, light):
     if sun:
         sun.set_actor_rotation(_rot(ue, light["sun_pitch"], light["sun_yaw"], 0.0), True)
         comp = sun.get_component_by_class(ue.DirectionalLightComponent)
-        color = light["sun_color"]
         comp.set_editor_property("intensity", light["sun_intensity"])
-        comp.set_editor_property("light_color", ue.LinearColor(color[0], color[1], color[2], color[3]))
+        comp.set_editor_property("light_color", _byte_color(ue, light["sun_color"]))
     sky = actors.get("Elyon.SkyLight")
     if sky:
         comp = sky.get_component_by_class(ue.SkyLightComponent)
         comp.set_editor_property("intensity", light["skylight_intensity"])
+        comp.set_editor_property("light_color", _byte_color(ue, light["sky_color"]))
         if hasattr(comp, "recapture_sky"):
             comp.recapture_sky()
     fog = actors.get("Elyon.Fog")
     if fog:
         comp = fog.get_component_by_class(ue.ExponentialHeightFogComponent)
         comp.set_editor_property("fog_density", light["fog_density"])
+        comp.set_editor_property("fog_inscattering_luminance", _linear_color(ue, light["fog_color"]))
     marker = actors.get("Elyon.LetThereBeLight")
     if marker:
         marker.set_editor_property("tags", [light["name"]])

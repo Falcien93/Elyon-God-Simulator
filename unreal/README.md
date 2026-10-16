@@ -1,6 +1,6 @@
 # Elyon in Unreal Engine 5.8
 
-This folder is a vertical slice of the first garden. The playable Electron game in the rest of the repo is unchanged. Nothing here was run inside Unreal Editor.
+This folder is a vertical slice of the first garden. The playable Electron game in the rest of the repo is unchanged.
 
 You need Unreal Engine 5.8 installed. Open a terminal in this folder and run:
 
@@ -10,7 +10,7 @@ UnrealEditor.exe ElyonUE.uproject -ExecutePythonScript=Scripts/run_all.py
 
 If `UnrealEditor.exe` is not on your PATH, use the full path, usually `Engine\Binaries\Win64\UnrealEditor.exe` inside your 5.8 install.
 
-The script builds the level `/Game/Maps/Day1_Garden` and saves it. Running it again updates the same actors instead of stacking copies. The garden is saved at dawn. Darkness and dawn are the two states of `let_there_be_light` in `Scripts/level_build.py` (false, then true).
+The script builds the level `/Game/Maps/Day1_Garden` and saves it, then leaves the editor open. Running it again updates the same actors instead of stacking copies. The garden is saved at dawn. Darkness and dawn are the two states of `let_there_be_light` in `Scripts/level_build.py` (false, then true). Sun and sky light colors are `unreal.Color` values (0–255). Fog inscattering is a `unreal.LinearColor`.
 
 What the level contains:
 
