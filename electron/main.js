@@ -45,7 +45,51 @@ function writeText(file, text) {
   fs.renameSync(temporary, file);
 }
 
+function readPackage() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function aboutPayload() {
+  const pkg = readPackage();
+  return {
+    name: pkg.productName || "Elyon",
+    version: app.getVersion() || pkg.version || "1.0.0",
+    description: pkg.description || "",
+    license: pkg.license || "MIT",
+    appId: "com.elyon.garden",
+    signed: false,
+  };
+}
+
+function createSplash() {
+  const splash = new BrowserWindow({
+    width: 520,
+    height: 640,
+    frame: false,
+    resizable: false,
+    center: true,
+    show: true,
+    backgroundColor: "#07060c",
+    icon: path.join(root, "assets", "icon.png"),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  const version = app.getVersion();
+  splash.loadFile(path.join(root, "splash.html"), { query: { version } });
+  return splash;
+}
+
 function createWindow() {
+  const splash = createSplash();
+  const opened = Date.now();
+  let revealed = false;
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -53,6 +97,8 @@ function createWindow() {
     minHeight: 680,
     backgroundColor: "#07060c",
     title: "Elyon",
+    show: false,
+    icon: path.join(root, "assets", "icon.png"),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -61,9 +107,23 @@ function createWindow() {
       sandbox: true,
     },
   });
+  const reveal = () => {
+    if (revealed || win.isDestroyed()) return;
+    revealed = true;
+    const wait = Math.max(0, 600 - (Date.now() - opened));
+    setTimeout(() => {
+      if (win.isDestroyed()) return;
+      win.show();
+      if (!splash.isDestroyed()) splash.close();
+    }, wait);
+  };
+  win.once("ready-to-show", reveal);
+  setTimeout(reveal, 8000);
   win.loadFile(path.join(root, "index.html"));
   windowRef = win;
 }
+
+ipcMain.handle("get-about", () => aboutPayload());
 
 ipcMain.handle("load-save", () => {
   try {
@@ -138,11 +198,25 @@ function validJsonText(text, max) {
 
 if (gotLock) {
   app.whenReady().then(() => {
+    const about = aboutPayload();
+    app.setAboutPanelOptions({
+      applicationName: about.name,
+      applicationVersion: about.version,
+      version: about.version,
+      copyright: "MIT. This build is not code-signed.",
+      credits: about.description,
+    });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       {
         label: "Elyon",
         submenu: [
-          { role: "about" },
+          {
+            label: "About Elyon",
+            click: () => {
+              if (!windowRef || windowRef.isDestroyed()) return;
+              windowRef.webContents.send("open-about");
+            },
+          },
           { type: "separator" },
           { role: "quit" },
         ],

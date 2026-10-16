@@ -204,6 +204,17 @@ h1 {
   margin: 0;
   text-align: center;
 }
+#screen-title h1 { font-size: clamp(48px, 8vw, 88px); }
+.title-mark, .about-mark {
+  width: 72px;
+  height: 72px;
+  display: block;
+  margin: 0 auto 8px;
+  border-radius: 16px;
+}
+.version-line { margin: 4px 0 0; letter-spacing: 0.08em; }
+#about-title { text-align: center; margin: 0; font-family: Cinzel, Palatino, serif; }
+#about-description { text-align: center; margin: 12px 0 0; }
 .sub, .tag { text-align: center; }
 .sub { margin: 0; color: var(--gold); letter-spacing: 0.22em; text-transform: uppercase; font-family: Cinzel, serif; }
 .tag { color: var(--muted); font-size: 22px; }

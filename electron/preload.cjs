@@ -9,4 +9,10 @@ contextBridge.exposeInMainWorld("elyonDesktop", {
   writeSettings: (text) => ipcRenderer.invoke("write-settings", text),
   toggleFullscreen: () => ipcRenderer.invoke("toggle-fullscreen"),
   setFullscreen: (value) => ipcRenderer.invoke("set-fullscreen", value),
+  getAbout: () => ipcRenderer.invoke("get-about"),
+  onOpenAbout: (fn) => {
+    const listener = () => fn();
+    ipcRenderer.on("open-about", listener);
+    return () => ipcRenderer.removeListener("open-about", listener);
+  },
 });

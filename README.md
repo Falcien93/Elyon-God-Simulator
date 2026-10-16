@@ -110,7 +110,18 @@ On Linux this writes:
 - `dist/linux-unpacked/elyon` — run that file directly
 - `dist/Elyon-1.0.0.AppImage` — one file you can mark executable and launch
 
-Windows NSIS and macOS DMG targets are declared in `package.json`. Build those on the matching operating system (`npx electron-builder --win` or `--mac`).
+The desktop window opens on a short splash, then the title screen. **About** (also under the Elyon menu) shows the name, version, description, `com.elyon.garden`, the MIT license, and that the build is not code-signed. The version comes from `package.json`.
+
+Icons are original: `assets/icon.png`, `assets/icon.ico`, `assets/icon.icns`, and the Linux sizes under `assets/icons/`.
+
+Windows NSIS and macOS DMG targets are declared in `package.json` with signing turned off (`forceCodeSigning: false`, `win.signAndEditExecutable: false`, `mac.identity: null`, notarization off). No certificates are required. Build those on the matching operating system:
+
+```bash
+npm run dist:win
+npm run dist:mac
+```
+
+Continuous integration only builds the unpacked Linux app (`npm run dist:dir`). It does not produce the NSIS or DMG installers.
 
 ## How to play
 
@@ -169,7 +180,7 @@ Voice input needs a runtime that exposes `SpeechRecognition` or `webkitSpeechRec
 npm test
 ```
 
-Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. Slots, migration, and settings live in `js/slots.js`. They are covered by `test/game.test.js`, `test/campaign.test.js`, and `test/saves.test.js`.
+Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. Slots, migration, and settings live in `js/slots.js`. Version text lives in `js/release.js` and must match `package.json`. They are covered by `test/game.test.js`, `test/campaign.test.js`, `test/saves.test.js`, and `test/release.test.js`.
 
 ## Fonts
 
