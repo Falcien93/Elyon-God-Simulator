@@ -1,0 +1,112 @@
+{
+  "hotword": "elyon",
+  "pushToTalk": "V",
+  "threshold": 0.8,
+  "stt": {
+    "engine": "whisper.cpp",
+    "models": ["small.en", "base.en"],
+    "prefer": "small.en",
+    "fallbackModel": "base.en",
+    "gpu": true,
+    "language": "en"
+  },
+  "llm": {
+    "engine": "llama.cpp",
+    "model": "Qwen3-4B",
+    "when": "matcher_miss",
+    "maxTokens": 80
+  },
+  "keyboard": {
+    "One": "LIGHT",
+    "Two": "WATER",
+    "Three": "GROW",
+    "Four": "CALM",
+    "Five": "DESTROY",
+    "P": "phrase"
+  },
+  "phraseSamples": [
+    "let there be light",
+    "fill the river",
+    "let the garden grow",
+    "be still",
+    "lightning strike"
+  ],
+  "intents": [
+    {
+      "id": "LIGHT",
+      "effect": "light",
+      "line": "Let there be light.",
+      "phrases": [
+        "let there be light",
+        "light",
+        "bring forth light",
+        "sunrise",
+        "dawn",
+        "daylight"
+      ]
+    },
+    {
+      "id": "WATER",
+      "effect": "water",
+      "line": "Let the waters gather.",
+      "phrases": [
+        "let there be water",
+        "water",
+        "river",
+        "lake",
+        "rain",
+        "fill the river",
+        "fill the lake",
+        "bring the rain"
+      ]
+    },
+    {
+      "id": "GROW",
+      "effect": "grow",
+      "line": "Let the garden grow.",
+      "pcg": {
+        "graph": "/Game/PCG/GrowAroundGaze",
+        "radius": 600,
+        "count": 8
+      },
+      "phrases": [
+        "let the garden grow",
+        "grow",
+        "foliage",
+        "trees",
+        "plants",
+        "bring forth plants",
+        "verdant"
+      ]
+    },
+    {
+      "id": "CALM",
+      "effect": "calm",
+      "line": "Be still.",
+      "phrases": [
+        "calm",
+        "peace",
+        "be still",
+        "still the storm",
+        "quiet the wind",
+        "settle"
+      ]
+    },
+    {
+      "id": "DESTROY",
+      "effect": "destroy",
+      "line": "Break.",
+      "impulse": 25000,
+      "radius": 900,
+      "phrases": [
+        "destroy",
+        "strike",
+        "lightning",
+        "lightning strike",
+        "smite",
+        "break",
+        "let it break"
+      ]
+    }
+  ]
+}
