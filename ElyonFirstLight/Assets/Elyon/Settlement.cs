@@ -57,6 +57,8 @@ namespace Elyon
         public float drive;
         public float power;
         public bool lights;
+        public bool abandoned;
+        public bool dread;
 
         public float Meals => fruit + meat + grain;
 

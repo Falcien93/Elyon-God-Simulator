@@ -37,6 +37,7 @@ namespace Elyon
         int jobStamp = -1;
         float knowledge;
         bool roadOpen;
+        bool charter;
         float followTimer;
         bool visualsDirty = true;
         string loadedTimeNote = "";
@@ -173,8 +174,16 @@ namespace Elyon
                 case DivineAct.Bless:
                     if (person == null) { Note("No one is here to bless."); break; }
                     person.ApplyTrust(6);
+                    person.favor += 6;
+                    person.blessedHouse = true;
+                    Person blessedWith = Find(person.partnerId);
+                    if (blessedWith != null && blessedWith.alive)
+                    {
+                        blessedWith.favor += 4;
+                        blessedWith.blessedHouse = true;
+                    }
                     home.faith = Mathf.Clamp(home.faith + 2f, 0f, 100f);
-                    Note(person.personName + " is blessed. Trust and faith rise.");
+                    Note(person.personName + " is blessed. Their house may bear this year, and they will not be the one to leave.");
                     break;
                 case DivineAct.Heal:
                     if (person == null) { Note("No one is here to heal."); break; }
@@ -258,14 +267,16 @@ namespace Elyon
                 case DivineAct.WithholdHarvest:
                     home.grain *= 0.5f;
                     home.faith = Mathf.Max(0f, home.faith - 8f);
+                    home.dread = true;
                     foreach (var member in people)
                     {
                         if (member.alive && member.settlementId == home.id)
                         {
                             member.body.fear = Mathf.Min(100f, member.body.fear + 6f);
+                            member.body.grief = Mathf.Min(100f, member.body.grief + 4f);
                         }
                     }
-                    Note("The harvest is withheld. Faith falls and fear rises.");
+                    Note("The harvest is withheld. Faith falls. Unless a house was blessed, no child is born here, and someone may leave.");
                     break;
                 case DivineAct.OpenRoad:
                     if (roadOpen)
@@ -342,7 +353,7 @@ namespace Elyon
                         break;
                     }
                     home.engineOn = false;
-                    Note("The engine is banked. Drive stops until it is set again.");
+                    Note("The engine is banked. Drive stops, the fields lose its help, and no other hold can copy it while it is cold.");
                     break;
                 case DivineAct.KindleLamps:
                     if (home.power < 4f)
@@ -362,17 +373,20 @@ namespace Elyon
                         break;
                     }
                     home.lights = false;
+                    home.dread = true;
                     home.faith = Mathf.Max(0f, home.faith - 3f);
                     foreach (var member in people)
                     {
                         if (member.alive && member.settlementId == home.id)
                         {
                             member.body.fear = Mathf.Min(100f, member.body.fear + 6f);
+                            member.body.grief = Mathf.Min(100f, member.body.grief + 4f);
                         }
                     }
-                    Note("The lamps go dark. Faith falls and fear rises.");
+                    Note("The lamps go dark. Faith falls. Unless a house was blessed, no child is born here, and someone may leave.");
                     break;
                 case DivineAct.BlessPresent:
+                    charter = true;
                     home.faith = Mathf.Clamp(home.faith + 3f, 0f, 100f);
                     foreach (var member in people)
                     {
@@ -380,7 +394,8 @@ namespace Elyon
                         member.body.fear = Mathf.Max(0f, member.body.fear - 8f);
                         member.ApplyTrust(2);
                     }
-                    Note("The present is blessed. Fear eases in every house.");
+                    foreach (var hold in settlements) hold.dread = false;
+                    Note("The present is blessed. Fear eases, and the west quarter may be planted.");
                     break;
                 case DivineAct.KeepCommons:
                     Settlement other = OtherHold(home);
@@ -390,7 +405,7 @@ namespace Elyon
                         break;
                     }
                     ShareMeals(home, other, 0.1f);
-                    Note("A tenth of the richer store moves to the poorer hold.");
+                    Note("A tenth of the richer store moves to the poorer hold. A failing hearth can be fed, or a thin one can be asked to give.");
                     break;
             }
 
@@ -404,6 +419,8 @@ namespace Elyon
             AgeBodies();
             Mishaps();
             Deaths();
+            Departures();
+            FounderHolds();
             Newcomer();
             Births();
             if (Ages.ReadyForNext(age, Facts())) Advance();
@@ -419,6 +436,12 @@ namespace Elyon
             AssignJobs();
             RefreshKin();
             visualsDirty = true;
+            foreach (var hold in settlements) hold.dread = false;
+            foreach (var person in people)
+            {
+                person.blessedHouse = false;
+                person.favor = Mathf.Max(0, person.favor - 2);
+            }
             if (fromGod && (log.Count == 0 || !log[log.Count - 1].StartsWith("Year " + (year - 1), StringComparison.Ordinal)))
             {
                 Note("Year " + (year - 1) + " turns. " + Ages.Name(age) + ".");
@@ -560,18 +583,26 @@ namespace Elyon
         void Births()
         {
             if (AliveCount() >= PopulationCap) return;
-            for (int i = 0; i < people.Count; i++)
+            foreach (var home in settlements)
             {
-                Person one = people[i];
-                if (!one.alive || one.arrived || one.body.age < 18f || one.body.age > 48f) continue;
-                if (one.body.Strength < 35f) continue;
-                Person two = Find(one.partnerId);
-                if (two == null || !two.alive || two.arrived) continue;
-                if (two.body.age < 18f || two.body.age > 50f || two.body.Strength < 35f) continue;
-                if (string.CompareOrdinal(one.personId, two.personId) > 0) continue;
-                if (HasInfant(one, two)) continue;
-                Settlement home = HomeOf(one);
-                if (home.Meals < 8f || !home.TakeMeal(2f)) continue;
+                if (home.abandoned || Members(home) <= 0) continue;
+                Person one;
+                Person two;
+                if (!PickParents(home, out one, out two))
+                {
+                    if (home.dread) Note("No child is born at " + home.placeName + ". The year is dark.");
+                    continue;
+                }
+                if (home.dread && !one.blessedHouse && !two.blessedHouse)
+                {
+                    Note("No child is born at " + home.placeName + ". The dark holds, and no house was blessed.");
+                    continue;
+                }
+                if (home.Meals < 8f || !home.TakeMeal(2f))
+                {
+                    Note("No child is born at " + home.placeName + ". The stores cannot spare a meal.");
+                    continue;
+                }
                 string name = NextName();
                 bool eveShape = childrenBorn % 2 == 0;
                 Person child = Spawn(name, eveShape, 0f, Dry(home.Hearth), home);
@@ -591,6 +622,149 @@ namespace Elyon
                 two.Remember(line);
                 if (AliveCount() >= PopulationCap) return;
             }
+        }
+
+        bool PickParents(Settlement home, out Person one, out Person two)
+        {
+            one = null;
+            two = null;
+            int best = int.MinValue;
+            foreach (var person in people)
+            {
+                if (!CanBear(person, home)) continue;
+                Person partner = Find(person.partnerId);
+                if (!CanBear(partner, home)) continue;
+                if (string.CompareOrdinal(person.personId, partner.personId) > 0) continue;
+                if (HasInfant(person, partner)) continue;
+                int score = person.favor + partner.favor;
+                if (person.blessedHouse || partner.blessedHouse) score += 100;
+                if (one != null && score < best) continue;
+                if (one != null && score == best && string.CompareOrdinal(person.personId, one.personId) > 0) continue;
+                best = score;
+                one = person;
+                two = partner;
+            }
+            return one != null && two != null;
+        }
+
+        bool CanBear(Person person, Settlement home)
+        {
+            if (person == null || !person.alive || person.arrived) return false;
+            if (person.settlementId != home.id) return false;
+            if (person.body.age < 18f || person.body.age > 50f) return false;
+            if (person.body.Strength < 35f) return false;
+            return true;
+        }
+
+        void Departures()
+        {
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned || Members(hold) <= 0) continue;
+                float grief = MeanGrief(hold);
+                bool pressure = hold.dread || hold.faith < 12f || (grief >= 50f && hold.Meals < 6f);
+                if (!pressure) continue;
+                Person leaver = PickLeaver(hold);
+                if (leaver == null) continue;
+                Settlement dest = BestHold(hold);
+                if (dest == null)
+                {
+                    Note(leaver.personName + " wants to leave " + hold.placeName + ", and there is no other hearth.");
+                    continue;
+                }
+                SetHome(leaver, dest, true);
+                leaver.Remember("I left " + hold.placeName + ".");
+                Note(leaver.personName + " leaves " + hold.placeName + " for " + dest.placeName + ".");
+            }
+        }
+
+        Person PickLeaver(Settlement hold)
+        {
+            Person worst = null;
+            foreach (var person in people)
+            {
+                if (!person.alive || person.settlementId != hold.id) continue;
+                if (person.body.age < 18f) continue;
+                if (person.personId == "adam" || person.personId == "eve") continue;
+                if (person.blessedHouse || person.favor >= 4) continue;
+                if (worst == null || person.trust < worst.trust) worst = person;
+            }
+            return worst;
+        }
+
+        void FounderHolds()
+        {
+            int living = LivingHolds();
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned || Members(hold) <= 0) continue;
+                float grief = MeanGrief(hold);
+                bool hunger = hold.Meals < 2f && hold.faith < 14f;
+                bool sorrow = grief >= 58f && hold.faith < 18f && hold.Meals < 8f;
+                if (!hunger && !sorrow) continue;
+                if (living <= 1)
+                {
+                    Note(hold.placeName + " is failing, and it is the last hearth.");
+                    continue;
+                }
+                Settlement dest = BestHold(hold);
+                if (dest == null)
+                {
+                    Note(hold.placeName + " is failing, and no hearth can take the people.");
+                    continue;
+                }
+                var movers = new List<Person>();
+                foreach (var person in people)
+                {
+                    if (person.alive && person.settlementId == hold.id) movers.Add(person);
+                }
+                foreach (var person in movers)
+                {
+                    SetHome(person, dest, true);
+                    person.Remember(hold.placeName + " foundered.");
+                }
+                hold.abandoned = true;
+                hold.engineOn = false;
+                hold.millOn = false;
+                hold.lights = false;
+                living--;
+                string why = hunger ? "the food and the faith are gone" : "grief and thin faith empty it";
+                Note(hold.placeName + " founders (" + why + "). The people go to " + dest.placeName + ".");
+            }
+        }
+
+        float MeanGrief(Settlement hold)
+        {
+            float sum = 0f;
+            int count = 0;
+            foreach (var person in people)
+            {
+                if (!person.alive || person.settlementId != hold.id) continue;
+                sum += person.body.grief;
+                count++;
+            }
+            return count == 0 ? 0f : sum / count;
+        }
+
+        int LivingHolds()
+        {
+            int count = 0;
+            foreach (var hold in settlements)
+            {
+                if (!hold.abandoned && Members(hold) > 0) count++;
+            }
+            return count;
+        }
+
+        Settlement BestHold(Settlement except)
+        {
+            Settlement best = null;
+            foreach (var hold in settlements)
+            {
+                if (hold == except || hold.abandoned) continue;
+                if (best == null || hold.Meals > best.Meals) best = hold;
+            }
+            return best;
         }
 
         void Advance()
@@ -768,7 +942,7 @@ namespace Elyon
                 Note("A temple is raised. Belief has a house.");
             }
 
-            if (age >= AgeId.Cities && home.hall) FoundFarHold(home);
+            if (age >= AgeId.Cities) PlantHolds(home);
 
             if (age >= AgeId.RoadsAndLetters && !home.letters && knowledge >= 4f && home.wood >= 5f)
             {
@@ -802,7 +976,7 @@ namespace Elyon
                 Note("An engine house is raised beside the mill.");
             }
 
-            if (age >= AgeId.ElectricLight && home.engine && !home.lights && home.power >= 6f && home.wood >= 4f)
+            if (age >= AgeId.ElectricLight && home.engine && home.engineOn && !home.dread && !home.lights && home.power >= 6f && home.wood >= 4f)
             {
                 home.wood -= 4f;
                 home.lights = true;
@@ -826,8 +1000,8 @@ namespace Elyon
             if (!roadOpen || home == null) return;
             foreach (var hold in settlements)
             {
-                if (hold == home || Members(hold) <= 0) continue;
-                if (age >= AgeId.Mills && home.mill && !hold.mill && hold.wood >= 8f && hold.grain >= 4f)
+                if (hold == home || hold.abandoned || Members(hold) <= 0) continue;
+                if (age >= AgeId.Mills && home.mill && home.millOn && !hold.mill && hold.wood >= 8f && hold.grain >= 4f)
                 {
                     hold.wood -= 8f;
                     hold.grain -= 4f;
@@ -835,14 +1009,14 @@ namespace Elyon
                     hold.millOn = true;
                     Note("A mill is raised at " + hold.placeName + ".");
                 }
-                if (age >= AgeId.Industry && home.engine && !hold.engine && hold.wood >= 8f)
+                if (age >= AgeId.Industry && home.engine && home.engineOn && !hold.engine && hold.wood >= 8f)
                 {
                     hold.wood -= 8f;
                     hold.engine = true;
                     hold.engineOn = true;
                     Note("An engine house is raised at " + hold.placeName + ".");
                 }
-                if (age >= AgeId.ElectricLight && home.lights && hold.engine && !hold.lights && hold.power >= 6f && hold.wood >= 4f)
+                if (age >= AgeId.ElectricLight && home.lights && hold.engine && hold.engineOn && !hold.dread && !hold.lights && hold.power >= 6f && hold.wood >= 4f)
                 {
                     hold.wood -= 4f;
                     hold.lights = true;
@@ -851,59 +1025,101 @@ namespace Elyon
             }
         }
 
-        void FoundFarHold(Settlement home)
+        void PlantHolds(Settlement home)
         {
-            if (FindSettlement("far") != null) return;
-            if (Members(home) < 6) return;
-            Person mover = null;
-            foreach (var person in people)
-            {
-                if (!person.alive || person.settlementId != home.id) continue;
-                if (person.personId == "adam" || person.personId == "eve") continue;
-                if (person.body.age < 18f || string.IsNullOrEmpty(person.partnerId)) continue;
-                Person partner = Find(person.partnerId);
-                if (partner == null || !partner.alive) continue;
-                mover = person;
-                break;
-            }
+            TryPlant(home, "far", "the far hold", 38f, 74f, true, 6, 10f, 20f);
+            TryPlant(home, "north", "the north hold", 118f, 168f, age >= AgeId.Mills && roadOpen, 5, 16f, 26f);
+            TryPlant(home, "west", "the west quarter", 22f, 150f, age >= AgeId.ElectricLight && charter, 4, 18f, 24f);
+        }
 
+        void TryPlant(Settlement from, string id, string placeName, float x, float z, bool allowed, int minMembers, float mealNeed, float faithNeed)
+        {
+            if (!allowed || from == null) return;
+            Settlement source = from.Meals >= mealNeed && from.faith >= faithNeed && Members(from) >= minMembers
+                ? from
+                : BestHold(null);
+            if (source == null || source.abandoned) return;
+            if (source.Meals < mealNeed || source.faith < faithNeed || Members(source) < minMembers) return;
+            Person mover = PickPlanter(source);
             if (mover == null) return;
-            var far = new Settlement
+            Settlement existing = FindSettlement(id);
+            if (existing != null && !existing.abandoned) return;
+            if (existing != null)
             {
-                id = "far",
-                placeName = "the far hold",
-                hearthX = 38f,
-                hearthZ = 74f,
+                if (!existing.abandoned) return;
+                if (mover == null || !mover.blessedHouse) return;
+                existing.abandoned = false;
+                existing.millOn = existing.mill;
+                existing.engineOn = existing.engine;
+                float gift = source.grain * 0.12f;
+                source.grain -= gift;
+                existing.grain += gift;
+                MoveHousehold(mover, existing);
+                Note(mover.personName + " leads a house back to " + existing.placeName + ".");
+                return;
+            }
+            var planted = new Settlement
+            {
+                id = id,
+                placeName = placeName,
+                hearthX = x,
+                hearthZ = z,
                 fruit = 0f,
                 water = 8f,
                 wood = 0f,
-                faith = home.faith,
+                faith = source.faith,
             };
-            far.grain = home.grain * 0.2f;
-            home.grain -= far.grain;
-            far.fruit = home.fruit * 0.2f;
-            home.fruit -= far.fruit;
-            if (home.wood >= 6f)
+            planted.grain = source.grain * 0.2f;
+            source.grain -= planted.grain;
+            planted.fruit = source.fruit * 0.2f;
+            source.fruit -= planted.fruit;
+            if (source.wood >= 6f)
             {
-                home.wood -= 6f;
-                far.wood = 2f;
-                far.tents = 1;
-                far.fields = 1;
+                source.wood -= 6f;
+                planted.wood = 2f;
+                planted.tents = 1;
+                planted.fields = age >= AgeId.Farming ? 1 : 0;
             }
-            settlements.Add(far);
-            MoveHousehold(mover, far);
-            Note("A household plants the far hold and carries a share of the food.");
+            settlements.Add(planted);
+            MoveHousehold(mover, planted);
+            Note(mover.personName + " plants " + placeName + " and carries a share of the food.");
+        }
+
+        Person PickPlanter(Settlement from)
+        {
+            Person best = null;
+            int bestScore = int.MinValue;
+            foreach (var person in people)
+            {
+                if (!person.alive || person.settlementId != from.id) continue;
+                if (person.personId == "adam" || person.personId == "eve") continue;
+                if (person.body.age < 18f || string.IsNullOrEmpty(person.partnerId)) continue;
+                Person partner = Find(person.partnerId);
+                if (partner == null || !partner.alive || partner.settlementId != from.id) continue;
+                int score = person.favor * 10 - Mathf.RoundToInt(person.body.age);
+                if (person.blessedHouse) score += 50;
+                if (best == null || score > bestScore)
+                {
+                    best = person;
+                    bestScore = score;
+                }
+            }
+            return best;
         }
 
         void Trade()
         {
             if (!roadOpen) return;
-            Settlement main = MainHome();
-            Settlement far = FindSettlement("far");
-            if (main == null || far == null || main == far) return;
-            Settlement rich = main.grain >= far.grain ? main : far;
-            Settlement poor = rich == main ? far : main;
-            float gift = rich.grain * 0.15f;
+            Settlement rich = null;
+            Settlement poor = null;
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned || Members(hold) <= 0) continue;
+                if (rich == null || hold.grain > rich.grain) rich = hold;
+                if (poor == null || hold.grain < poor.grain) poor = hold;
+            }
+            if (rich == null || poor == null || rich == poor) return;
+            float gift = rich.grain * 0.12f;
             if (gift < 0.5f) return;
             rich.grain -= gift;
             poor.grain += gift;
@@ -1347,6 +1563,13 @@ namespace Elyon
             if (age >= AgeId.RoadsAndLetters) line += "   learning " + (int)knowledge;
             if (age >= AgeId.Industry) line += "   drive " + (int)facts.drive;
             if (age >= AgeId.ElectricLight) line += "   power " + (int)facts.power;
+            line += "   holds " + LivingHolds();
+            int empty = 0;
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned) empty++;
+            }
+            if (empty > 0) line += "   empty " + empty;
             return line;
         }
 
@@ -1365,6 +1588,13 @@ namespace Elyon
             {
                 shownFarFire = true;
                 PlaceHearth(far.Hearth, "Hold fire");
+            }
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned) continue;
+                if (hold.id == "eden" || hold.id == "east" || hold.id == "far") continue;
+                string hearthKey = hold.id + ":hearth";
+                MarkWork(hearthKey, () => PlaceHearth(hold.Hearth, hold.placeName));
             }
 
             Settlement tentsHome = east ?? main;
@@ -2015,6 +2245,7 @@ namespace Elyon
                     childrenBorn = childrenBorn,
                     knowledge = knowledge,
                     road = roadOpen,
+                    charter = charter,
                     nextId = nextId,
                     nameCursor = nameCursor,
                     settlements = new SettlementRecord[settlements.Count],
@@ -2051,6 +2282,7 @@ namespace Elyon
                 childrenBorn = record.childrenBorn;
                 knowledge = record.knowledge;
                 roadOpen = record.road;
+                charter = record.charter;
                 nextId = Mathf.Max(3, record.nextId);
                 nameCursor = record.nameCursor;
                 settlements.Clear();
@@ -2170,6 +2402,7 @@ namespace Elyon
         public int childrenBorn;
         public float knowledge;
         public bool road;
+        public bool charter;
         public int nextId;
         public int nameCursor;
         public SettlementRecord[] settlements;
@@ -2208,6 +2441,8 @@ namespace Elyon
         public float power;
         public bool lights;
         public bool press;
+        public bool abandoned;
+        public bool dread;
 
         public static SettlementRecord From(Settlement settlement)
         {
@@ -2241,6 +2476,8 @@ namespace Elyon
                 power = settlement.power,
                 lights = settlement.lights,
                 press = settlement.press,
+                abandoned = settlement.abandoned,
+                dread = settlement.dread,
             };
         }
 
@@ -2276,6 +2513,8 @@ namespace Elyon
                 power = power,
                 lights = lights,
                 press = press,
+                abandoned = abandoned,
+                dread = dread,
             };
         }
     }
@@ -2302,6 +2541,8 @@ namespace Elyon
         public int trust;
         public int tool;
         public float toolWear;
+        public int favor;
+        public bool blessedHouse;
         public string[] memories;
         public float x;
         public float y;
@@ -2330,6 +2571,8 @@ namespace Elyon
                 trust = person.trust,
                 tool = (int)person.tool,
                 toolWear = person.toolWear,
+                favor = person.favor,
+                blessedHouse = person.blessedHouse,
                 memories = person.MemoryLines(),
                 x = person.transform.position.x,
                 y = person.transform.position.y,
@@ -2358,6 +2601,8 @@ namespace Elyon
             person.trust = trust;
             person.tool = (ToolKind)tool;
             person.toolWear = toolWear;
+            person.favor = favor;
+            person.blessedHouse = blessedHouse;
             person.RestoreMemories(memories);
             var spot = person.transform.position;
             spot.x = x;

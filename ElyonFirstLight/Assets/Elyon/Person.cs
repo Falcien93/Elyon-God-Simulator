@@ -92,6 +92,8 @@ namespace Elyon
         public LivingWorld home;
         public Body body = new Body();
         public int trust = 40;
+        public int favor;
+        public bool blessedHouse;
         public Transform hips;
         public Transform thighL;
         public Transform thighR;

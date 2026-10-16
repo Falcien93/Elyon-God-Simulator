@@ -205,6 +205,7 @@ namespace Elyon
             if (!string.IsNullOrEmpty(person.kinLine)) GUILayout.Label(person.kinLine);
             GUILayout.Label(person.body.CardLine());
             if (!string.IsNullOrEmpty(person.ToolLine())) GUILayout.Label(person.ToolLine());
+            if (person.favor > 0) GUILayout.Label("blessed");
             if (!string.IsNullOrEmpty(person.LatestLine)) GUILayout.Label("“" + person.LatestLine + "”");
             GUILayout.Space(6f);
         }
