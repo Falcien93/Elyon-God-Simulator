@@ -282,6 +282,7 @@ namespace Elyon.Headless
 
             ProveSentOut(failures);
             ProveAnswer(failures);
+            ProveRefusal(failures);
 
             if (failures.Count > 0)
             {
@@ -434,6 +435,72 @@ namespace Elyon.Headless
             {
                 living.Act(DivineAct.BlessPact);
                 pact = living.LastEvent.IndexOf("A pact holds", StringComparison.Ordinal) >= 0;
+            }
+        }
+
+        static void ProveRefusal(List<string> failures)
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "elyon-refusal-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            Application.persistentDataPath = dir;
+            Application.dataPath = Path.Combine(dir, "ElyonFirstLight");
+            Directory.CreateDirectory(Application.dataPath);
+
+            var root = new GameObject("RefusalWorld").transform;
+            var world = new GardenWorld
+            {
+                Fire = new Vector3(150f, 0f, 100f),
+                Adam = PersonOn("Adam", "adam", false),
+                Eve = PersonOn("Eve", "eve", true),
+            };
+            var director = new GardenDirector();
+            var living = new GameObject("RefusalLiving").AddComponent<LivingWorld>();
+            living.Begin(world, root, director);
+
+            Press(living, "Rest on Eve");
+            Person eve = FindId(living, "eve");
+            if (eve == null || !eve.godHere)
+            {
+                failures.Add("Eve was not chosen before the refused answers.");
+                return;
+            }
+
+            Press(living, "Ask for autumn");
+            if (living.LastEvent.IndexOf("cannot bear Autumn", StringComparison.Ordinal) < 0
+                || living.LastEvent.IndexOf("no harvest", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("A season the land cannot bear did not fail. " + living.LastEvent);
+            }
+            if (living.SeasonName() != "Spring")
+            {
+                failures.Add("An unbearable season still changed the year.");
+            }
+
+            director.selected = eve;
+            living.Act(DivineAct.WithholdPerson);
+            Press(living, "Ask for spring");
+            string book = living.ChronicleText();
+            if (living.LastEvent.IndexOf("withholds an answer", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("A withheld answer did not fail. " + living.LastEvent);
+            }
+            if (book.IndexOf("cannot bear Autumn", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The chronicle does not say the land could not bear the season.");
+            }
+            if (book.IndexOf("withholds an answer", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The chronicle does not say the answer was withheld.");
+            }
+
+            living.Act(DivineAct.TurnYears);
+            if (living.SeasonName() == "Autumn" || living.SeasonName() == "Spring")
+            {
+                failures.Add("A refused answer still opened that season. It is " + living.SeasonName() + ".");
+            }
+            if (living.SeasonName() != "Summer")
+            {
+                failures.Add("The year did not fall back to the land's own season. It is " + living.SeasonName() + ".");
             }
         }
 

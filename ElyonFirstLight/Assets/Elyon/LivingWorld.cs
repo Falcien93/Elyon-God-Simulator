@@ -2448,12 +2448,56 @@ namespace Elyon
                 Note(person.personName + " answers Elyon, and the next season is unchanged.");
                 return;
             }
-            pendingSeason = asked;
             string name = SeasonLabel(asked);
+            if (person.turnedAway)
+            {
+                Note("Elyon withholds an answer from " + person.personName + ". The next season does not change.");
+                Chronicle(LastEvent);
+                person.HearLocal("Elyon withholds an answer.", false);
+                Save();
+                return;
+            }
+            Settlement hold = HomeOf(person);
+            if (!LandCanBear(hold, asked))
+            {
+                Note("The land cannot bear " + name + ". " + Unbearable(hold, asked));
+                Chronicle(LastEvent);
+                person.HearLocal("The land cannot bear " + name + ".", false);
+                Save();
+                return;
+            }
+            pendingSeason = asked;
             person.HearLocal("The next season will be " + name + ".", false);
             person.Remember("I asked Elyon for " + name + ".");
             Note(person.personName + " answers Elyon. The next season will be " + name + ".");
             Save();
+        }
+
+        static bool LandCanBear(Settlement hold, int season)
+        {
+            if (hold == null) return false;
+            switch ((Season)season)
+            {
+                case Season.Winter: return hold.wood >= 1f;
+                case Season.Summer: return hold.water >= 6f;
+                case Season.Autumn: return hold.fields > 0;
+                default: return hold.water >= 1f;
+            }
+        }
+
+        static string Unbearable(Settlement hold, int season)
+        {
+            switch ((Season)season)
+            {
+                case Season.Winter:
+                    return "There is no wood for a fire.";
+                case Season.Summer:
+                    return "There is no water for the heat.";
+                case Season.Autumn:
+                    return "There is no harvest.";
+                default:
+                    return hold == null ? "There is no hearth." : "The ground has no water to wake.";
+            }
         }
 
         static int SeasonIndex(string words)
