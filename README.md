@@ -126,7 +126,7 @@ Continuous integration on Ubuntu builds the unpacked Linux app (`npm run dist:di
 ## How to play
 
 1. **Begin** (or **Continue** if a record already exists).
-2. **Open your eyes**, then follow the gold action at the bottom of the screen through the days of making.
+2. **Open your eyes**, then follow the gold action at the bottom of the screen. It carries the days of making, speaks with Adam, draws near on the rest day, names the creatures, opens the word, and brings Eve's choice.
 3. After dry land appears, press **M** to walk the garden (Walk Among). **M** again returns to Sky View. **WASD** or the arrow keys move you. Click open ground to walk there.
 4. Press **E** beside Adam or Eve to speak the story. Sky view can also address them by clicking them.
 5. Once Adam is formed, **Address** opens text chat with Adam or Eve. **Speak** reads the last reply aloud. **Voice** listens when speech recognition exists. In the desktop window it often does not: type instead. A missing spoken voice does not drop the reply.
@@ -180,7 +180,7 @@ Voice input needs a runtime that exposes `SpeechRecognition` or `webkitSpeechRec
 npm test
 ```
 
-Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. Slots, migration, and settings live in `js/slots.js`. Version text lives in `js/release.js` and must match `package.json`. They are covered by `test/game.test.js`, `test/campaign.test.js`, `test/saves.test.js`, and `test/release.test.js`.
+Campaign rules (ritual order, dialogue, the four endings, movement, and save repair) live in `js/sim.js` and `js/save.js`. Address replies, achievements, and voice fallback live in `js/converse.js` and `js/voice.js`. Slots, migration, and settings live in `js/slots.js`. Version text lives in `js/release.js` and must match `package.json`. They are covered by `test/game.test.js`, `test/campaign.test.js`, `test/saves.test.js`, `test/release.test.js`, `test/playthrough.test.js`, and `test/security.test.js`.
 
 ## Fonts
 

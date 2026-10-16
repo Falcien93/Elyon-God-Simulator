@@ -9,7 +9,7 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/game.test.js test/campaign.test.js test/saves.test.js test/release.test.js",
+    "test": "node --test test/game.test.js test/campaign.test.js test/saves.test.js test/release.test.js test/playthrough.test.js test/security.test.js",
     "dist": "electron-builder --linux dir AppImage",
     "dist:dir": "electron-builder --linux dir",
     "dist:win": "electron-builder --win nsis",
