@@ -71,9 +71,13 @@ class DataTests(unittest.TestCase):
         self.assertIn("r.ReflectionMethod=1", engine)
         self.assertIn("r.Nanite.ProjectEnabled=True", engine)
         self.assertIn("r.Shadow.Virtual.Enable=1", engine)
+        self.assertIn("r.EyeAdaptation.CachedLightingPreExposure=8", engine)
         self.assertIn("foliage.DensityScale=2.5", scale)
         self.assertIn("one install package", readme)
         self.assertIn("free local LLM", readme)
+        self.assertIn("Starter Content", readme)
+        self.assertIn("/Game/Fab/Foliage/SM_Tree", readme)
+        self.assertIn("terrain mesh", readme)
 
 
 if __name__ == "__main__":

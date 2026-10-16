@@ -119,12 +119,27 @@ class Subsystem:
         self.actors.remove(actor)
 
 
+class PostProcessSettings:
+    def __init__(self):
+        self.props = {}
+
+    def set_editor_property(self, name, value):
+        self.props[name] = value
+
+
+class AutoExposureMethod:
+    AEM_HISTOGRAM = "AEM_HISTOGRAM"
+
+
 class AssetLib:
     def __init__(self):
-        self.exists = False
+        self.map_ready = False
+        self.present = set()
 
     def does_asset_exist(self, path):
-        return self.exists
+        if path == "/Game/Maps/Day1_Garden":
+            return self.map_ready
+        return path in self.present
 
     def load_asset(self, path):
         return path
@@ -142,7 +157,7 @@ class LevelLib:
 
     def new_level(self, path):
         self.created = path
-        self.assets.exists = True
+        self.assets.map_ready = True
 
     def save_current_level(self):
         self.saves += 1
@@ -167,6 +182,9 @@ class FakeUnreal:
         self.VolumetricCloud = type("VolumetricCloud", (), {})
         self.PlayerStart = type("PlayerStart", (), {})
         self.TargetPoint = type("TargetPoint", (), {})
+        self.PostProcessVolume = type("PostProcessVolume", (), {})
+        self.PostProcessSettings = PostProcessSettings
+        self.AutoExposureMethod = AutoExposureMethod
         self.StaticMeshComponent = type("StaticMeshComponent", (), {})
         self.DirectionalLightComponent = type("DirectionalLightComponent", (), {})
         self.SkyLightComponent = type("SkyLightComponent", (), {})
@@ -213,25 +231,54 @@ class GardenLogicTests(unittest.TestCase):
         plan = garden_logic.plan_level(True)
         names = garden_logic.planned_labels(plan)
         for label in (
-            "Elyon.Ground",
+            "Elyon.Terrain",
             "Elyon.Sun",
             "Elyon.SkyLight",
             "Elyon.SkyAtmosphere",
             "Elyon.Fog",
             "Elyon.Clouds",
+            "Elyon.Exposure",
             "Elyon.River",
             "Elyon.PlayerStart",
             "Elyon.Adam",
             "Elyon.LetThereBeLight",
         ):
             self.assertIn(label, names)
-        self.assertEqual(sum(1 for name in names if name.startswith("Elyon.Tree.")), 24)
+        self.assertNotIn("Elyon.Ground", names)
+        self.assertEqual(sum(1 for name in names if name.startswith("Elyon.Tree.")), garden_logic.COUNTS["tree"])
+        self.assertEqual(sum(1 for name in names if name.startswith("Elyon.Rock.")), garden_logic.COUNTS["rock"])
+        self.assertEqual(sum(1 for name in names if name.startswith("Elyon.Plant.")), garden_logic.COUNTS["plant"])
         self.assertEqual(plan["map"], "/Game/Maps/Day1_Garden")
+
+    def test_free_meshes_prefer_starter_then_engine_shapes(self):
+        starter = {
+            "/Game/StarterContent/Props/SM_Bush",
+            "/Game/StarterContent/Props/SM_Rock",
+        }
+        self.assertEqual(
+            garden_logic.resolve_candidate(garden_logic.MESH_CANDIDATES["tree"], starter),
+            "/Game/StarterContent/Props/SM_Bush",
+        )
+        self.assertEqual(
+            garden_logic.resolve_candidate(garden_logic.MESH_CANDIDATES["rock"], starter),
+            "/Game/StarterContent/Props/SM_Rock",
+        )
+        self.assertEqual(
+            garden_logic.resolve_candidate(garden_logic.MESH_CANDIDATES["tree"], set()),
+            "/Engine/BasicShapes/Cone",
+        )
+        self.assertEqual(
+            garden_logic.resolve_candidate(garden_logic.MESH_CANDIDATES["terrain"], set()),
+            "/Engine/BasicShapes/Plane",
+        )
+        for group in list(garden_logic.MESH_CANDIDATES.values()) + list(garden_logic.MATERIAL_CANDIDATES.values()):
+            for path in group:
+                self.assertFalse(path.startswith("/Game/Marketplace"))
 
     def test_stale_labels_only_drop_old_elyon_actors(self):
         self.assertEqual(
-            garden_logic.stale_labels(["Elyon.Tree.99", "Elyon.Ground", "SkySphere"], ["Elyon.Ground"]),
-            ["Elyon.Tree.99"],
+            garden_logic.stale_labels(["Elyon.Tree.99", "Elyon.Ground", "SkySphere"], ["Elyon.Terrain"]),
+            ["Elyon.Ground", "Elyon.Tree.99"],
         )
 
 
@@ -245,23 +292,38 @@ class LevelBuildTests(unittest.TestCase):
         self.assertEqual(ue.EditorLevelLibrary.saves, 1)
         sun = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Sun")
         sun_comp = sun.get_component_by_class(ue.DirectionalLightComponent)
-        self.assertEqual(sun_comp.props["intensity"], 10.0)
+        self.assertEqual(sun_comp.props["intensity"], 8.0)
         self.assertIsInstance(sun_comp.props["light_color"], ByteColor)
-        self.assertEqual(sun_comp.props["light_color"].rgba, (255, 237, 199, 255))
+        self.assertEqual(sun_comp.props["light_color"].rgba, (255, 140, 64, 255))
         with self.assertRaises(TypeError):
-            sun_comp.set_editor_property("light_color", ue.LinearColor(1.0, 0.93, 0.78, 1.0))
+            sun_comp.set_editor_property("light_color", ue.LinearColor(1.0, 0.55, 0.25, 1.0))
         sky = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.SkyLight")
         sky_comp = sky.get_component_by_class(ue.SkyLightComponent)
         self.assertIsInstance(sky_comp.props["light_color"], ByteColor)
+        self.assertEqual(sky_comp.props["light_color"].rgba, (255, 199, 140, 255))
         fog = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Fog")
         fog_comp = fog.get_component_by_class(ue.ExponentialHeightFogComponent)
         self.assertIsInstance(fog_comp.props["fog_inscattering_luminance"], LinearColor)
-        self.assertEqual(fog_comp.props["fog_inscattering_luminance"].rgba, (0.75, 0.82, 0.95, 1.0))
+        self.assertEqual(fog_comp.props["fog_inscattering_luminance"].rgba, (0.62, 0.36, 0.16, 1.0))
+        self.assertEqual(fog_comp.props["fog_density"], 0.002)
+        self.assertEqual(fog_comp.props["start_distance"], 3500.0)
         with self.assertRaises(TypeError):
-            fog_comp.set_editor_property("fog_inscattering_luminance", ue.Color(191, 209, 242, 255))
-        ground = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Ground")
-        mesh_comp = ground.get_component_by_class(ue.StaticMeshComponent)
+            fog_comp.set_editor_property("fog_inscattering_luminance", ue.Color(158, 92, 41, 255))
+        terrain = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Terrain")
+        mesh_comp = terrain.get_component_by_class(ue.StaticMeshComponent)
         self.assertEqual(mesh_comp.mesh, "/Engine/BasicShapes/Plane")
+        self.assertEqual((terrain.scale.x, terrain.scale.y, terrain.scale.z), (800.0, 800.0, 1.0))
+        tree = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Tree.01")
+        tree_mesh = tree.get_component_by_class(ue.StaticMeshComponent)
+        self.assertEqual(tree_mesh.mesh, "/Engine/BasicShapes/Cone")
+        exposure = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Exposure")
+        self.assertTrue(exposure.props["unbound"])
+        self.assertEqual(exposure.props["priority"], 10.0)
+        settings = exposure.props["settings"]
+        self.assertEqual(settings.props["auto_exposure_method"], "AEM_HISTOGRAM")
+        self.assertEqual(settings.props["auto_exposure_min_brightness"], 12.0)
+        self.assertEqual(settings.props["auto_exposure_max_brightness"], 14.0)
+        self.assertEqual(settings.props["auto_exposure_bias"], 0.35)
 
         old = Actor(ue.StaticMeshActor)
         old.set_actor_label("Elyon.OldRock")
@@ -279,6 +341,29 @@ class LevelBuildTests(unittest.TestCase):
         self.assertIsInstance(fog_comp.props["fog_inscattering_luminance"], LinearColor)
         marker = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.LetThereBeLight")
         self.assertEqual(marker.props["tags"], ["darkness"])
+        dark_settings = exposure.props["settings"]
+        self.assertEqual(dark_settings.props["auto_exposure_min_brightness"], -1.0)
+        self.assertEqual(dark_settings.props["auto_exposure_max_brightness"], 2.0)
+        self.assertEqual(fog_comp.props["fog_density"], 0.02)
+
+    def test_starter_content_replaces_engine_shapes(self):
+        ue = FakeUnreal()
+        ue.EditorAssetLibrary.present.update(
+            {
+                "/Game/StarterContent/Props/SM_Bush",
+                "/Game/StarterContent/Props/SM_Rock",
+                "/Game/StarterContent/Materials/M_Ground_Grass",
+            }
+        )
+        level_build.build(dawn=True, ue=ue)
+        tree = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Tree.01")
+        tree_mesh = tree.get_component_by_class(ue.StaticMeshComponent)
+        self.assertEqual(tree_mesh.mesh, "/Game/StarterContent/Props/SM_Bush")
+        self.assertEqual(tree.scale.x, tree.scale.y)
+        self.assertEqual(tree.scale.x, tree.scale.z)
+        rock = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Rock.01")
+        rock_mesh = rock.get_component_by_class(ue.StaticMeshComponent)
+        self.assertEqual(rock_mesh.mesh, "/Game/StarterContent/Props/SM_Rock")
 
     def test_run_all_keeps_the_editor_open(self):
         ue = FakeUnreal()
