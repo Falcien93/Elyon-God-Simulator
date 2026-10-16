@@ -537,6 +537,7 @@ namespace Elyon
                 person.blessedHouse = false;
                 person.favor = Mathf.Max(0, person.favor - 2);
             }
+            SettleValley();
             if (fromGod && (log.Count == 0 || !log[log.Count - 1].StartsWith("Year " + (year - 1), StringComparison.Ordinal)))
             {
                 Note("Year " + (year - 1) + " turns. " + Ages.Name(age) + ". " + SeasonName() + " opens.");
@@ -2000,6 +2001,7 @@ namespace Elyon
             Vector3 hearth = Dry(home.Hearth);
             person.BindDay(hearth, Dry(hearth + new Vector3(1.1f, 0f, 0.2f)), Dry(hearth + new Vector3(0.2f, 0f, 1.15f)), null, Dry(spot));
             person.body.age = years;
+            person.inValley = destiny != 2;
             people.Add(person);
             SetHome(person, home, false);
             jobStamp = -1;
@@ -2257,6 +2259,7 @@ namespace Elyon
             destinyLine = stay
                 ? "Elyon keeps the people in the valley."
                 : "Elyon sends the people out of the valley.";
+            SettleValley();
             Note(destinyLine);
             Chronicle(LastEvent);
             foreach (var person in people)
@@ -2264,6 +2267,39 @@ namespace Elyon
                 if (person.alive) person.Remember(destinyLine);
             }
             RefreshKin();
+        }
+
+        void SettleValley()
+        {
+            if (destiny == 0) return;
+            bool stay = destiny == 1;
+            foreach (var person in people)
+            {
+                if (person == null || !person.alive) continue;
+                person.inValley = stay;
+            }
+        }
+
+        public int ValleyCount()
+        {
+            int count = 0;
+            foreach (var person in people)
+            {
+                if (person != null && person.alive && person.inValley) count++;
+            }
+            return count;
+        }
+
+        public string ValleyLine()
+        {
+            string names = "";
+            foreach (var person in people)
+            {
+                if (person == null || !person.alive || !person.inValley) continue;
+                if (names.Length > 0) names += ", ";
+                names += person.personName;
+            }
+            return names.Length == 0 ? "In the valley: no one." : "In the valley: " + names + ".";
         }
 
         void AttendSeason()
@@ -3571,7 +3607,7 @@ namespace Elyon
             {
                 var record = new ChronicleRecord
                 {
-                    version = 4,
+                    version = 5,
                     attended = attendedId,
                     destiny = destiny,
                     destinyLine = destinyLine,
@@ -3699,6 +3735,7 @@ namespace Elyon
                             existing.personId = saved.id;
                         }
                         saved.Apply(existing);
+                        if (record.version < 5) existing.inValley = true;
                         if (!existing.alive) existing.Die();
                     }
                 }
@@ -3758,6 +3795,7 @@ namespace Elyon
                     y = at.y,
                     z = at.z,
                     attended = person.personId == attendedId,
+                    inValley = person.inValley,
                     fear = person.body.fear,
                     favor = person.favor,
                 });
@@ -3788,6 +3826,7 @@ namespace Elyon
                 season = SeasonName(),
                 attended = attendedId ?? "",
                 destiny = destinyLine ?? "",
+                valley = ValleyLine(),
                 people = peopleHere.ToArray(),
                 holds = holds.ToArray(),
             };
@@ -3825,8 +3864,19 @@ namespace Elyon
                 GiveFishName(namedHome);
             GUILayout.Space(8f);
             GUILayout.Label("Presence");
-            if (namedPerson != null && namedPerson.alive && GUILayout.Button("Rest attention", GUILayout.Height(22f)))
-                Act(DivineAct.Attend);
+            GUILayout.Label(destiny == 0 ? "Choose one living person" : ValleyLine());
+            bool anyLiving = false;
+            foreach (var person in people)
+            {
+                if (person == null || !person.alive) continue;
+                anyLiving = true;
+                if (GUILayout.Button("Rest on " + person.personName, GUILayout.Height(22f)))
+                {
+                    if (director != null) director.selected = person;
+                    Act(DivineAct.Attend);
+                }
+            }
+            if (!anyLiving) GUILayout.Label("No living person is here.");
             if (namedPerson != null && namedPerson.alive && GUILayout.Button("Withhold this person", GUILayout.Height(22f)))
                 Act(DivineAct.WithholdPerson);
             if (destiny == 0 && GUILayout.Button("Keep them in the valley", GUILayout.Height(22f)))
@@ -4075,6 +4125,7 @@ namespace Elyon
         public bool godHere;
         public bool turnedAway;
         public int seasonsUnder;
+        public bool inValley;
         public bool spokenWork;
         public int spokenLabor;
         public bool givenName;
@@ -4112,6 +4163,7 @@ namespace Elyon
                 godHere = person.godHere,
                 turnedAway = person.turnedAway,
                 seasonsUnder = person.seasonsUnder,
+                inValley = person.inValley,
                 spokenWork = person.spokenWork,
                 spokenLabor = (int)person.spokenLabor,
                 givenName = person.givenName,
@@ -4151,6 +4203,7 @@ namespace Elyon
             person.godHere = godHere;
             person.turnedAway = turnedAway;
             person.seasonsUnder = seasonsUnder;
+            person.inValley = inValley;
             person.spokenWork = spokenWork;
             person.spokenLabor = (Labor)spokenLabor;
             person.givenName = givenName || person.personId == "adam" || person.personId == "eve";
@@ -4171,6 +4224,7 @@ namespace Elyon
         public string season;
         public string attended;
         public string destiny;
+        public string valley;
         public ScenePerson[] people;
         public SceneHold[] holds;
     }
@@ -4186,6 +4240,7 @@ namespace Elyon
         public float y;
         public float z;
         public bool attended;
+        public bool inValley;
         public float fear;
         public int favor;
     }
