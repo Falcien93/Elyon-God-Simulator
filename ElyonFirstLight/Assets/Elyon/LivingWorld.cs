@@ -486,10 +486,14 @@ namespace Elyon
             FounderHolds();
             Newcomer();
             Births();
+            AgeId opened = age;
             if (Ages.ReadyForNext(age, Facts())) Advance();
             Craft();
             BuildPlaces();
+            if (age != opened) WorkOpenedAge();
+            opened = age;
             if (Ages.ReadyForNext(age, Facts())) Advance();
+            if (age != opened) WorkOpenedAge();
             Trade();
             KeepLaw();
             KeepRite();
@@ -955,6 +959,13 @@ namespace Elyon
             }
 
             jobStamp = -1;
+        }
+
+        void WorkOpenedAge()
+        {
+            jobStamp = -1;
+            AssignJobs();
+            ApplyLabor(1f, false);
         }
 
         void RaiseShelter(Settlement home)

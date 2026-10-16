@@ -90,7 +90,24 @@ namespace Elyon.Headless
                 if (living.Age == previous) stagnant++;
                 else
                 {
-                    Console.WriteLine("opened  " + living.AgeName + "  year " + living.Year + "  " + living.StockLine());
+                    string opened = living.StockLine();
+                    Console.WriteLine("opened  " + living.AgeName + "  year " + living.Year + "  " + opened);
+                    if (living.Age == AgeId.MetalTowns && opened.IndexOf("ore 0", StringComparison.Ordinal) >= 0)
+                    {
+                        failures.Add("Metal opened with no ore in the ridge. " + opened);
+                    }
+                    if (living.Age == AgeId.RoadsAndLetters && opened.IndexOf("learning 0", StringComparison.Ordinal) >= 0)
+                    {
+                        failures.Add("Roads opened before anyone had taught. " + opened);
+                    }
+                    if (living.Age == AgeId.Industry && opened.IndexOf("drive 0", StringComparison.Ordinal) >= 0)
+                    {
+                        failures.Add("Industry opened with no drive. " + opened);
+                    }
+                    if (living.Age == AgeId.ElectricLight && opened.IndexOf("power 0", StringComparison.Ordinal) >= 0)
+                    {
+                        failures.Add("The lamps' age opened with no power. " + opened);
+                    }
                     previous = living.Age;
                     stagnant = 0;
                 }
