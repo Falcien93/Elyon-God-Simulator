@@ -1,0 +1,25 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "",
+  "Description": "Elyon garden vertical slice",
+  "Modules": [],
+  "Plugins": [
+    {
+      "Name": "PythonScriptPlugin",
+      "Enabled": true
+    },
+    {
+      "Name": "EditorScriptingUtilities",
+      "Enabled": true
+    },
+    {
+      "Name": "RemoteControl",
+      "Enabled": true
+    },
+    {
+      "Name": "PCG",
+      "Enabled": true
+    }
+  ]
+}

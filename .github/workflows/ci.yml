@@ -27,6 +27,12 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Unreal data and script tests
+        shell: bash
+        run: |
+          if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+          "$PY" -m unittest discover -s unreal/tests -v
+
       - name: Unpacked Linux build
         run: npm run dist:dir
         env:
@@ -53,6 +59,12 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Unreal data and script tests
+        shell: bash
+        run: |
+          if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+          "$PY" -m unittest discover -s unreal/tests -v
 
       - name: Unsigned Windows installer
         run: npx electron-builder --win nsis --publish never

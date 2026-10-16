@@ -1,0 +1,767 @@
+{
+  "source": "js/content.js",
+  "speakers": [
+    "adam",
+    "eve"
+  ],
+  "nodes": [
+    {
+      "id": "adam_first",
+      "speaker": "adam",
+      "lines": [
+        "There is a voice, and there is weight, and I am between them.",
+        "I was not. Now the air is inside me. Are you the one who pushed it there?"
+      ],
+      "choices": [
+        {
+          "label": "You are Adam.",
+          "goto": "adam_awake",
+          "fx": [
+            "name:adam:Adam",
+            "flag:adam_named",
+            "codex:adam",
+            "trust:adam:8"
+          ]
+        },
+        {
+          "label": "Choose the name yourself — tell me what to call you.",
+          "goto": "adam_name_input"
+        }
+      ]
+    },
+    {
+      "id": "adam_name_input",
+      "speaker": "adam",
+      "lines": [
+        "Then set a sound upon me. I will answer to it."
+      ],
+      "input": {
+        "save": "adam",
+        "placeholder": "Adam",
+        "max": 16
+      },
+      "then": "adam_awake"
+    },
+    {
+      "id": "adam_awake",
+      "speaker": "adam",
+      "lines": [
+        "{adam}. When I say it, I stay.",
+        "The garden is louder than I am. Color, water, leaf. I can point, but I cannot call most of it.",
+        "There is a place at my side where the light falls and no one stands. It is the only cold I feel."
+      ],
+      "choices": [
+        {
+          "label": "You will not be left with that cold.",
+          "goto": "adam_hope",
+          "fx": [
+            "trust:adam:6"
+          ]
+        },
+        {
+          "label": "Walk, and we will give the creatures names.",
+          "goto": "adam_name_start",
+          "fx": [
+            "wonder:adam:4"
+          ]
+        },
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ],
+      "onEnter": [
+        "flag:adam_asked_companion"
+      ]
+    },
+    {
+      "id": "adam_hope",
+      "speaker": "adam",
+      "lines": [
+        "If another breath comes, let them be awake as I am awake. I do not want an echo. I want a voice that can refuse me."
+      ],
+      "choices": [
+        {
+          "label": "So it will be.",
+          "goto": "close",
+          "fx": [
+            "trust:adam:4"
+          ]
+        },
+        {
+          "label": "First, the creatures.",
+          "goto": "adam_name_start"
+        }
+      ]
+    },
+    {
+      "id": "adam_hub_unnamed",
+      "speaker": "adam",
+      "lines": [
+        "I am here. The unnamed things keep looking up, as if a word were late."
+      ],
+      "choices": [
+        {
+          "label": "Let us name them.",
+          "goto": "adam_name_start"
+        },
+        {
+          "label": "How is the garden?",
+          "goto": "adam_topic_early"
+        },
+        {
+          "label": "What do you fear?",
+          "goto": "adam_topic_fear"
+        },
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "adam_hub",
+      "speaker": "adam",
+      "lines": [
+        "The names hold. Tell me what you came down to say."
+      ],
+      "choices": [
+        {
+          "label": "How is the garden?",
+          "goto": "adam_topic_garden"
+        },
+        {
+          "label": "Speak of {eve}.",
+          "goto": "adam_topic_eve",
+          "when": "eve"
+        },
+        {
+          "label": "The two trees.",
+          "goto": "adam_topic_trees"
+        },
+        {
+          "label": "The word you spoke.",
+          "goto": "adam_topic_word",
+          "when": "commandment"
+        },
+        {
+          "label": "The silence you kept.",
+          "goto": "adam_topic_silence",
+          "when": "silence"
+        },
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "adam_waiting_eve",
+      "speaker": "adam",
+      "lines": [
+        "I keep a place beside me. The grass there is not worn, because only I have walked."
+      ],
+      "choices": [
+        {
+          "label": "Soon.",
+          "goto": "close",
+          "fx": [
+            "trust:adam:2"
+          ]
+        },
+        {
+          "label": "Name the creatures while you wait.",
+          "goto": "adam_name_start"
+        }
+      ]
+    },
+    {
+      "id": "adam_waiting_named",
+      "speaker": "adam",
+      "lines": [
+        "The creatures answer when I call. The place beside me still does not."
+      ],
+      "choices": [
+        {
+          "label": "Soon.",
+          "goto": "close",
+          "fx": [
+            "trust:adam:2"
+          ]
+        },
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "adam_name_start",
+      "speaker": "adam",
+      "lines": [
+        "They come nearer when you are near. I think they are waiting for a sound that means them and not the grass."
+      ]
+    },
+    {
+      "id": "adam_name_deer",
+      "speaker": "adam",
+      "lines": [
+        "This one carries a quiet crown of horn, and it startles at its own grace."
+      ],
+      "choices": [
+        {
+          "label": "Call them Hart.",
+          "goto": "adam_name_sheep",
+          "fx": [
+            "namekind:deer:Hart"
+          ]
+        },
+        {
+          "label": "Call them Deer.",
+          "goto": "adam_name_sheep",
+          "fx": [
+            "namekind:deer:Deer"
+          ]
+        },
+        {
+          "label": "I will choose another name.",
+          "goto": "adam_name_deer_input"
+        }
+      ]
+    },
+    {
+      "id": "adam_name_deer_input",
+      "speaker": "adam",
+      "lines": [
+        "What shall the horned ones answer to?"
+      ],
+      "input": {
+        "save": "deer",
+        "placeholder": "Hart",
+        "max": 16
+      },
+      "then": "adam_name_sheep"
+    },
+    {
+      "id": "adam_name_sheep",
+      "speaker": "adam",
+      "lines": [
+        "These stay close. Their fear is small, and their eyes are older than their legs."
+      ],
+      "choices": [
+        {
+          "label": "Call them Flock.",
+          "goto": "adam_name_lion",
+          "fx": [
+            "namekind:sheep:Flock"
+          ]
+        },
+        {
+          "label": "Call them Lamb.",
+          "goto": "adam_name_lion",
+          "fx": [
+            "namekind:sheep:Lamb"
+          ]
+        },
+        {
+          "label": "Another name.",
+          "goto": "adam_name_sheep_input"
+        }
+      ]
+    },
+    {
+      "id": "adam_name_sheep_input",
+      "speaker": "adam",
+      "lines": [
+        "Name the soft ones."
+      ],
+      "input": {
+        "save": "sheep",
+        "placeholder": "Flock",
+        "max": 16
+      },
+      "then": "adam_name_lion"
+    },
+    {
+      "id": "adam_name_lion",
+      "speaker": "adam",
+      "lines": [
+        "This one does not come close. The grass changes where it has been. I am not its master. I would still like to call it something that is not a warning."
+      ],
+      "choices": [
+        {
+          "label": "Call them Lion.",
+          "goto": "adam_named_done",
+          "fx": [
+            "namekind:lion:Lion"
+          ]
+        },
+        {
+          "label": "Call them Sun-mane.",
+          "goto": "adam_named_done",
+          "fx": [
+            "namekind:lion:Sun-mane"
+          ]
+        },
+        {
+          "label": "Another name.",
+          "goto": "adam_name_lion_input"
+        }
+      ]
+    },
+    {
+      "id": "adam_name_lion_input",
+      "speaker": "adam",
+      "lines": [
+        "What do you call the one that does not kneel?"
+      ],
+      "input": {
+        "save": "lion",
+        "placeholder": "Lion",
+        "max": 16
+      },
+      "then": "adam_named_done"
+    },
+    {
+      "id": "adam_named_done",
+      "speaker": "adam",
+      "lines": [
+        "When I speak the names, heads turn. That is a strange power. It does not feel like ownership.",
+        "Thank you for not naming them only for me."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ],
+      "onEnter": [
+        "flag:beasts_named",
+        "codex:names",
+        "wonder:adam:8",
+        "trust:adam:6"
+      ]
+    },
+    {
+      "id": "adam_topic_early",
+      "speaker": "adam",
+      "lines": [
+        "The ground holds me. I did not know weight could be a kindness."
+      ],
+      "choices": [
+        {
+          "label": "Back",
+          "goto": "adam_hub_unnamed"
+        }
+      ]
+    },
+    {
+      "id": "adam_topic_garden",
+      "speaker": "adam",
+      "lines": [
+        "The river works whether I watch it or not. That comforts me. I do not have to hold the world up with attention."
+      ],
+      "choices": [
+        {
+          "label": "Back",
+          "goto": "adam_hub"
+        }
+      ]
+    },
+    {
+      "id": "adam_topic_eve",
+      "speaker": "adam",
+      "lines": [
+        "{eve} sees the edges of things. I see the middles. Between us the garden is almost fully looked at."
+      ],
+      "choices": [
+        {
+          "label": "Back",
+          "goto": "adam_hub"
+        }
+      ]
+    },
+    {
+      "id": "adam_topic_trees",
+      "speaker": "adam",
+      "lines": [
+        "One tree smells like rest. I could live beside it and forget to count days.",
+        "The other smells like a question. {eve} stands nearer to that one. I pretend not to count her steps."
+      ],
+      "choices": [
+        {
+          "label": "Back",
+          "goto": "adam_hub"
+        }
+      ]
+    },
+    {
+      "id": "adam_topic_word",
+      "speaker": "adam",
+      "lines": [
+        "Your word was: “{commandment}”. I repeat it when the fruit is bright, so my mouth is already full of something else."
+      ],
+      "choices": [
+        {
+          "label": "Back",
+          "goto": "adam_hub"
+        }
+      ]
+    },
+    {
+      "id": "adam_topic_silence",
+      "speaker": "adam",
+      "lines": [
+        "You gave no prohibition. I keep waiting for one, the way a path waits for a fence. {eve} says waiting is its own answer."
+      ],
+      "choices": [
+        {
+          "label": "Back",
+          "goto": "adam_hub"
+        }
+      ]
+    },
+    {
+      "id": "adam_return",
+      "speaker": "adam",
+      "lines": [
+        "I am still listening."
+      ],
+      "choices": [
+        {
+          "label": "The garden",
+          "goto": "adam_topic_garden"
+        },
+        {
+          "label": "{eve}",
+          "goto": "adam_topic_eve"
+        },
+        {
+          "label": "The trees",
+          "goto": "adam_topic_trees"
+        },
+        {
+          "label": "Your word",
+          "goto": "adam_topic_word"
+        },
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "adam_topic_fear",
+      "speaker": "adam",
+      "lines": [
+        "I fear a garden in which every voice is mine. Even yours, if it never allowed another."
+      ],
+      "choices": [
+        {
+          "label": "Back",
+          "goto": "adam_hub_unnamed"
+        }
+      ]
+    },
+    {
+      "id": "eve_first",
+      "speaker": "eve",
+      "lines": [
+        "I came up already looking. That seems to be my way.",
+        "He was there, and you were there, and the fruit was already red. Nobody had to explain hunger. Only whether to obey it."
+      ],
+      "choices": [
+        {
+          "label": "What do you see?",
+          "goto": "eve_sees"
+        },
+        {
+          "label": "Adam is glad of you.",
+          "goto": "eve_adam",
+          "fx": [
+            "trust:eve:4"
+          ]
+        },
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ],
+      "onEnter": [
+        "flag:eve_greeted",
+        "codex:eve",
+        "trust:eve:8",
+        "wonder:eve:8"
+      ]
+    },
+    {
+      "id": "eve_sees",
+      "speaker": "eve",
+      "lines": [
+        "I see that the garden is finished and unfinished at the same time. You left a tree that is a door. Doors are a kind of trust."
+      ],
+      "choices": [
+        {
+          "label": "Remember that.",
+          "goto": "close",
+          "fx": [
+            "wonder:eve:4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eve_adam",
+      "speaker": "eve",
+      "lines": [
+        "He learns me without trying to finish me. I love him for the unfinished part."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "eve_hub",
+      "speaker": "eve",
+      "lines": [
+        "You came down. The light changes when you do. Speak."
+      ],
+      "choices": [
+        {
+          "label": "What are you thinking of?",
+          "goto": "eve_think"
+        },
+        {
+          "label": "And Adam?",
+          "goto": "eve_adam"
+        },
+        {
+          "label": "The Tree of Knowledge.",
+          "goto": "eve_tree"
+        },
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "eve_think",
+      "speaker": "eve",
+      "lines": [
+        "Whether a gift that cannot be refused is still a gift. I think it is. I also think the other kind matters more."
+      ],
+      "choices": [
+        {
+          "label": "Back",
+          "goto": "eve_hub"
+        }
+      ]
+    },
+    {
+      "id": "eve_tree",
+      "speaker": "eve",
+      "lines": [
+        "It is beautiful in a way that makes my teeth ache. I have not taken it. I want you to know the difference between not taking and not wanting."
+      ],
+      "choices": [
+        {
+          "label": "I know the difference.",
+          "goto": "close",
+          "fx": [
+            "trust:eve:5",
+            "will:eve:4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eve_choice",
+      "speaker": "eve",
+      "lines": [
+        "Something low spoke from the branches. It knew my name, or it knew how names work.",
+        "It said the fruit is how a creature stops being only loved and starts being responsible.",
+        "I have not eaten. I wanted you to be here when I decided whether that voice was only hunger wearing cleverness."
+      ],
+      "choices": [
+        {
+          "label": "Leave the fruit. I am with you either way, and I ask you to trust me.",
+          "goto": "eve_harmony",
+          "fx": [
+            "ending:harmony",
+            "trust:eve:10",
+            "order:14",
+            "wonder:-4"
+          ]
+        },
+        {
+          "label": "I will not choose for you.",
+          "goto": "eve_hands",
+          "fx": [
+            "ending:hands",
+            "will:eve:12"
+          ]
+        },
+        {
+          "label": "Then I will put the fruit out of reach.",
+          "goto": "eve_order",
+          "fx": [
+            "ending:order",
+            "flag:tree_guarded",
+            "flag:serpent_gone",
+            "order:18",
+            "wonder:-16"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eve_harmony",
+      "speaker": "eve",
+      "lines": [
+        "Then I leave it. Not because the color faded. Because you asked as one who stays, not as a lock.",
+        "If wonder ever needs a door again, we will ask you to the threshold before we touch it."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "eve_hands",
+      "speaker": "eve",
+      "lines": [
+        "Then watch. I will not pretend this bite is an accident."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "eve_order",
+      "speaker": "eve",
+      "lines": [
+        "Then the question is closed, and I am safe, and I am smaller. I will love you without the door. I will know what it cost."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "adam_epilogue_harmony",
+      "speaker": "adam",
+      "lines": [
+        "We left the fruit. The tree is still a question, but it is not an emergency. I sleep. That is new."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "eve_epilogue_harmony",
+      "speaker": "eve",
+      "lines": [
+        "I still look at it. Looking is not the same as reaching. You trusted me with the difference, so I am keeping it."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "adam_epilogue_exile",
+      "speaker": "adam",
+      "lines": [
+        "We ate. The garden did not become ugly. We became unable to stand in it as we were.",
+        "You clothed us anyway. If the east is where we must walk, walk near us until the gate, even if you cannot stay beyond it."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "eve_epilogue_exile",
+      "speaker": "eve",
+      "lines": [
+        "I wanted knowing, and knowing came with a draft. I am not sorry I was brave. I am sorry the bravery had a price you also pay."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "adam_epilogue_wonder",
+      "speaker": "adam",
+      "lines": [
+        "There was no law to break, so the bite did not cast us out. It only made us more awake. The garden feels larger. I hold {eve}'s hand so I do not get lost in it."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "eve_epilogue_wonder",
+      "speaker": "eve",
+      "lines": [
+        "You did not forbid, and you did not rescue me from my own hand. I think that is the most frightening kindness. We are still here. I am still looking."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "adam_epilogue_order",
+      "speaker": "adam",
+      "lines": [
+        "The danger is gone. I should be only grateful. I am grateful, and I am also looking for a weight that used to be here."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    },
+    {
+      "id": "eve_epilogue_order",
+      "speaker": "eve",
+      "lines": [
+        "You closed the door to keep us. I stayed. Love can live in a safe room. It paces."
+      ],
+      "choices": [
+        {
+          "label": "Leave them in peace",
+          "goto": "close"
+        }
+      ]
+    }
+  ]
+}
