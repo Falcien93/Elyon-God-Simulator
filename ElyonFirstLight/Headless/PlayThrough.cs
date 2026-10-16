@@ -220,6 +220,14 @@ namespace Elyon.Headless
                     failures.Add(person.personName + " was kept, but a later year does not show them in the valley.");
                 }
             }
+            bool childCarries = false;
+            foreach (var person in living.People)
+            {
+                if (person == null) continue;
+                if (string.IsNullOrEmpty(person.motherId) && string.IsNullOrEmpty(person.fatherId)) continue;
+                if (Carries(person, "keeps the people in the valley")) childCarries = true;
+            }
+            if (!childCarries) failures.Add("No child born after the valley choice carries that memory.");
             bool seasonMoved = false;
             bool laterAgeSpeaks = false;
             foreach (var person in living.People)
@@ -273,6 +281,7 @@ namespace Elyon.Headless
             }
 
             ProveSentOut(failures);
+            ProveAnswer(failures);
 
             if (failures.Count > 0)
             {
@@ -426,6 +435,89 @@ namespace Elyon.Headless
                 living.Act(DivineAct.BlessPact);
                 pact = living.LastEvent.IndexOf("A pact holds", StringComparison.Ordinal) >= 0;
             }
+        }
+
+        static void ProveAnswer(List<string> failures)
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "elyon-answer-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            Application.persistentDataPath = dir;
+            Application.dataPath = Path.Combine(dir, "ElyonFirstLight");
+            Directory.CreateDirectory(Application.dataPath);
+
+            var root = new GameObject("AnswerWorld").transform;
+            var world = new GardenWorld
+            {
+                Fire = new Vector3(150f, 0f, 100f),
+                Adam = PersonOn("Adam", "adam", false),
+                Eve = PersonOn("Eve", "eve", true),
+            };
+            var director = new GardenDirector();
+            var living = new GameObject("AnswerLiving").AddComponent<LivingWorld>();
+            living.Begin(world, root, director);
+
+            Press(living, "Rest on Eve");
+            Person eve = FindId(living, "eve");
+            Person adam = FindId(living, "adam");
+            if (eve == null || !eve.godHere)
+            {
+                failures.Add("Eve was not the person chosen to answer.");
+                return;
+            }
+            living.AnswerElyon(adam, "summer");
+            if (living.LastEvent.IndexOf("not the one", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("Someone Elyon is not resting on changed the answer. " + living.LastEvent);
+            }
+            if (living.SeasonName() != "Spring")
+            {
+                failures.Add("The current season changed before the year turned.");
+            }
+            Press(living, "Ask for winter");
+            if (living.LastEvent.IndexOf("next season will be Winter", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The chosen person did not set the next season. " + living.LastEvent);
+            }
+            if (living.SeasonName() != "Spring")
+            {
+                failures.Add("The answer changed this season instead of the next.");
+            }
+            living.Act(DivineAct.TurnYears);
+            if (living.SeasonName() != "Winter")
+            {
+                failures.Add("The next season did not become Winter. It is " + living.SeasonName() + ".");
+            }
+            if (living.ChronicleText().IndexOf("Winter opens", StringComparison.Ordinal) < 0)
+            {
+                failures.Add("The year did not open on the season she asked for.");
+            }
+            living.Act(DivineAct.KeepValley);
+            bool carried = false;
+            for (int i = 0; i < 8 && !carried; i++)
+            {
+                director.selected = eve;
+                living.Act(DivineAct.Bless);
+                living.Act(DivineAct.TurnYears);
+                foreach (var person in living.People)
+                {
+                    if (person == null) continue;
+                    if (string.IsNullOrEmpty(person.motherId) && string.IsNullOrEmpty(person.fatherId)) continue;
+                    if (Carries(person, "keeps the people in the valley")) carried = true;
+                }
+            }
+            if (!carried)
+            {
+                failures.Add("A child born after the valley choice does not carry that memory. " + living.LastEvent);
+            }
+        }
+
+        static bool Carries(Person person, string phrase)
+        {
+            foreach (var line in person.MemoryLines())
+            {
+                if (line != null && line.IndexOf(phrase, StringComparison.Ordinal) >= 0) return true;
+            }
+            return false;
         }
 
         static void ProveSentOut(List<string> failures)

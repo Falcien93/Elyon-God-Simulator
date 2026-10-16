@@ -92,7 +92,12 @@ namespace Elyon
             person.ApplyTrust(ExtractTrust(modelText));
             string act = ExtractAct(modelText);
             if (string.IsNullOrEmpty(act)) act = ExtractAct(spoken);
-            if (!string.IsNullOrEmpty(act) && person.home != null) person.home.ApplySpoken(person, act);
+            if (!string.IsNullOrEmpty(act) && person.home != null)
+            {
+                if (act == "spring" || act == "summer" || act == "autumn" || act == "winter")
+                    person.home.AnswerElyon(person, act);
+                else person.home.ApplySpoken(person, act);
+            }
         }
 
         string BuildPayload(Person person, string playerLine)
@@ -100,7 +105,7 @@ namespace Elyon
             string instructions = string.Join(" ",
                 "You are " + person.Persona + ".",
                 "You believe you really are this person, alive in the age named in the briefing, speaking to Elyon.",
-                "If the briefing says Elyon is here with you, you know God is there.",
+                "If the briefing says Elyon is here with you, you know God is there, and you may ask the next season to be spring, summer, autumn, or winter.",
                 "A descendant is still that person. Stay in that life.",
                 "Do not say you are an assistant, an AI, or a language model, and do not break character.",
                 "You may keep walking, eating, or working while you answer.",
@@ -111,8 +116,8 @@ namespace Elyon
                 "If a herd or the fish has a name in the briefing, use that name. A later age still uses it.",
                 "Use the chronicle in the briefing. It keeps the garden, the ages, births, deaths, pacts, raids, weather, and the names.",
                 "If the briefing names a pact, a raid, rain, drought, a flood, or a herd, mention it in the voice of your age.",
-                "Choose exactly one act the year already understands: work, stay, leave, peace, raid, rain, drought, herd, or none.",
-                "work is the labor of this age. stay means you remain. leave means you go to the other hearth. peace means this hold keeps the peace. raid means this hold will raid. rain asks for rain. drought dries this hold. herd means this hold keeps a herd. none changes nothing.",
+                "Choose exactly one act the year already understands: work, stay, leave, peace, raid, rain, drought, herd, spring, summer, autumn, winter, or none.",
+                "work is the labor of this age. stay means you remain. leave means you go to the other hearth. peace means this hold keeps the peace. raid means this hold will raid. rain asks for rain. drought dries this hold. herd means this hold keeps a herd. spring, summer, autumn, or winter is the next season, and only if Elyon is here with you. none changes nothing.",
                 "Reply with JSON only, no markdown:",
                 "{\"speech\":\"what you say aloud\",\"trust\":0,\"remember\":\"one sentence you will keep\",\"act\":\"none\"}",
                 "trust is a small change from -8 to 8, not a total.",
@@ -255,6 +260,10 @@ namespace Elyon
                 case "rain":
                 case "drought":
                 case "herd":
+                case "spring":
+                case "summer":
+                case "autumn":
+                case "winter":
                     return raw;
                 default:
                     return "";
