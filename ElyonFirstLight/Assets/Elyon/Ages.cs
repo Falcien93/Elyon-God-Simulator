@@ -24,8 +24,11 @@ namespace Elyon
         SetFruit,
         Calm,
         SendGame,
+        KeepHerd,
         RaiseShelter,
         SendRain,
+        SendDrought,
+        SendFlood,
         BlessField,
         GiftOre,
         Mend,
@@ -183,9 +186,9 @@ namespace Elyon
                 case AgeId.FirstFamily:
                     return "You may bless, heal, set fruit, calm a fear, and turn the years.";
                 case AgeId.Camps:
-                    return "You may also send game and raise a shelter from their wood.";
+                    return "You may also send game, keep a herd, and raise a shelter from their wood.";
                 case AgeId.Farming:
-                    return "You may send rain and bless a field.";
+                    return "You may send rain, send a drought, send a flood, and bless a field.";
                 case AgeId.MetalTowns:
                     return "You may gift ore and mend a body at the smithy.";
                 case AgeId.Cities:
@@ -213,8 +216,11 @@ namespace Elyon
                 case DivineAct.SetFruit: return "Set fruit";
                 case DivineAct.Calm: return "Calm";
                 case DivineAct.SendGame: return "Send game";
+                case DivineAct.KeepHerd: return "Keep a herd";
                 case DivineAct.RaiseShelter: return "Raise a shelter";
                 case DivineAct.SendRain: return "Send rain";
+                case DivineAct.SendDrought: return "Send a drought";
+                case DivineAct.SendFlood: return "Send a flood";
                 case DivineAct.BlessField: return "Bless the field";
                 case DivineAct.GiftOre: return "Gift ore";
                 case DivineAct.Mend: return "Mend";
@@ -249,9 +255,12 @@ namespace Elyon
                 case DivineAct.Calm:
                     return true;
                 case DivineAct.SendGame:
+                case DivineAct.KeepHerd:
                 case DivineAct.RaiseShelter:
                     return age >= AgeId.Camps;
                 case DivineAct.SendRain:
+                case DivineAct.SendDrought:
+                case DivineAct.SendFlood:
                 case DivineAct.BlessField:
                     return age >= AgeId.Farming;
                 case DivineAct.GiftOre:

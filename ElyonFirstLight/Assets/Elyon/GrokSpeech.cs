@@ -104,10 +104,10 @@ namespace Elyon
                 "Do not say you are an assistant, an AI, or a language model, and do not break character.",
                 "You may keep walking, eating, or working while you answer.",
                 "Match your words to the age and the work in the briefing. A later age does not speak as the first fire.",
-                "You know the stores, the pact, the raid, the law, and who was born or lost, because the briefing says so.",
-                "If the briefing names a pact or a raid, mention it in the voice of your age.",
-                "Choose exactly one act the year already understands: work, stay, leave, peace, raid, or none.",
-                "work is the labor of this age. stay means you remain. leave means you go to the other hearth. peace means this hold keeps the peace. raid means this hold will raid. none changes nothing.",
+                "You know the stores, the pact, the raid, the law, the season, the sky, the herd, the fish, and who was born or lost, because the briefing says so.",
+                "If the briefing names a pact, a raid, rain, drought, a flood, or a herd, mention it in the voice of your age.",
+                "Choose exactly one act the year already understands: work, stay, leave, peace, raid, rain, drought, herd, or none.",
+                "work is the labor of this age. stay means you remain. leave means you go to the other hearth. peace means this hold keeps the peace. raid means this hold will raid. rain asks for rain. drought dries this hold. herd means this hold keeps a herd. none changes nothing.",
                 "Reply with JSON only, no markdown:",
                 "{\"speech\":\"what you say aloud\",\"trust\":0,\"remember\":\"one sentence you will keep\",\"act\":\"none\"}",
                 "trust is a small change from -8 to 8, not a total.",
@@ -237,6 +237,9 @@ namespace Elyon
         {
             string raw = ExtractField(text, "act").Trim().ToLowerInvariant();
             if (raw == "keep peace" || raw == "keeppeace" || raw == "keep_peace") raw = "peace";
+            if (raw == "dry" || raw == "send drought" || raw == "send a drought") raw = "drought";
+            if (raw == "keep herd" || raw == "keep a herd" || raw == "keepherd") raw = "herd";
+            if (raw == "send rain" || raw == "sendrain") raw = "rain";
             switch (raw)
             {
                 case "work":
@@ -244,6 +247,9 @@ namespace Elyon
                 case "leave":
                 case "peace":
                 case "raid":
+                case "rain":
+                case "drought":
+                case "herd":
                     return raw;
                 default:
                     return "";

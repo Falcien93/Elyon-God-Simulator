@@ -26,6 +26,22 @@ namespace Elyon
         Hammer,
     }
 
+    public enum Season
+    {
+        Spring = 0,
+        Summer = 1,
+        Autumn = 2,
+        Winter = 3,
+    }
+
+    public enum Sky
+    {
+        Clear = 0,
+        Rain = 1,
+        Drought = 2,
+        Flood = 3,
+    }
+
     [Serializable]
     public class Settlement
     {
@@ -63,8 +79,11 @@ namespace Elyon
         public bool raided;
         public bool lawKept;
         public bool willRaid;
+        public int herd;
+        public float fish;
+        public Sky sky = Sky.Clear;
 
-        public float Meals => fruit + meat + grain;
+        public float Meals => fruit + meat + grain + fish;
 
         public Vector3 Hearth => new Vector3(hearthX, 0f, hearthZ);
 
@@ -78,6 +97,9 @@ namespace Elyon
             float fromMeat = Mathf.Min(meat, left);
             meat -= fromMeat;
             left -= fromMeat;
+            float fromFish = Mathf.Min(fish, left);
+            fish -= fromFish;
+            left -= fromFish;
             grain = Mathf.Max(0f, grain - left);
             return true;
         }
@@ -97,8 +119,12 @@ namespace Elyon
             water += other.water;
             wood += other.wood;
             ore += other.ore;
+            fish += other.fish;
+            herd = Mathf.Min(6, herd + other.herd);
             faith = Mathf.Max(faith, other.faith);
             other.fruit = 0f;
+            other.fish = 0f;
+            other.herd = 0;
             other.meat = 0f;
             other.grain = 0f;
             other.water = 0f;

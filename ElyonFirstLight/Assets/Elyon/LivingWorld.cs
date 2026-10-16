@@ -216,6 +216,9 @@ namespace Elyon
                     home.meat += 6f;
                     Note("Game is sent to " + home.placeName + ".");
                     break;
+                case DivineAct.KeepHerd:
+                    KeepTheHerd(home);
+                    break;
                 case DivineAct.RaiseShelter:
                     if (home.wood < 4f)
                     {
@@ -228,10 +231,13 @@ namespace Elyon
                     Note("You raise a lean-to at " + home.placeName + ".");
                     break;
                 case DivineAct.SendRain:
-                    home.water += 12f;
-                    if (home.fields > 0) home.grain += 4f;
-                    home.faith = Mathf.Clamp(home.faith + 2f, 0f, 100f);
-                    Note(home.fields > 0 ? "Rain falls on the fields." : "Rain fills the stores.");
+                    SendTheRain(home);
+                    break;
+                case DivineAct.SendDrought:
+                    DryTheGround(home);
+                    break;
+                case DivineAct.SendFlood:
+                    SendTheFlood(home);
                     break;
                 case DivineAct.BlessField:
                     if (home.fields < 1)
@@ -450,6 +456,7 @@ namespace Elyon
         void CloseYear(bool fromGod)
         {
             ConsumeYear();
+            TendWild();
             AgeBodies();
             Mishaps();
             Deaths();
@@ -478,6 +485,7 @@ namespace Elyon
                 hold.dread = false;
                 hold.raided = false;
                 hold.willRaid = false;
+                hold.sky = Sky.Clear;
             }
             pactWithheld = false;
             foreach (var person in people)
@@ -487,7 +495,7 @@ namespace Elyon
             }
             if (fromGod && (log.Count == 0 || !log[log.Count - 1].StartsWith("Year " + (year - 1), StringComparison.Ordinal)))
             {
-                Note("Year " + (year - 1) + " turns. " + Ages.Name(age) + ".");
+                Note("Year " + (year - 1) + " turns. " + Ages.Name(age) + ". " + SeasonName() + " opens.");
             }
             Save();
         }
@@ -523,6 +531,10 @@ namespace Elyon
 
                 bool bed = HasBed(person);
                 if (bed) person.body.fatigue = Mathf.Max(0f, person.body.fatigue - 12f);
+                if (SeasonNow() == Season.Winter && !home.TakeMeal(person.body.age < 14f ? 0.15f : 0.25f))
+                {
+                    person.body.hunger = Mathf.Min(100f, person.body.hunger + 4f);
+                }
                 if (home.lights && bed) person.body.fatigue = Mathf.Max(0f, person.body.fatigue - 6f);
                 if (home.lights) person.body.fear = Mathf.Max(0f, person.body.fear - 3f);
                 if (!bed && age != AgeId.FirstFamily) person.body.fever = Mathf.Min(100f, person.body.fever + 8f);
@@ -642,6 +654,22 @@ namespace Elyon
                 if (home.dread && !one.blessedHouse && !two.blessedHouse)
                 {
                     Note("No child is born at " + home.placeName + ". The dark holds, and no house was blessed.");
+                    continue;
+                }
+                bool houseBlessed = one.blessedHouse || two.blessedHouse;
+                if (SeasonNow() == Season.Winter && !houseBlessed)
+                {
+                    Note("No child is born at " + home.placeName + ". The cold holds, and no house was blessed.");
+                    continue;
+                }
+                if (home.sky == Sky.Drought && !houseBlessed)
+                {
+                    Note("No child is born at " + home.placeName + ". The ground is dry, and no house was blessed.");
+                    continue;
+                }
+                if (home.sky == Sky.Flood && !houseBlessed)
+                {
+                    Note("No child is born at " + home.placeName + ". The flood is over the ground, and no house was blessed.");
                     continue;
                 }
                 if (home.Meals < 8f || !home.TakeMeal(2f))
@@ -782,11 +810,16 @@ namespace Elyon
                 dest.grain += hold.grain;
                 dest.wood += hold.wood * 0.5f;
                 dest.ore += hold.ore;
+                dest.fish += hold.fish;
+                dest.herd = Mathf.Min(6, dest.herd + hold.herd);
                 hold.fruit = 0f;
                 hold.meat = 0f;
                 hold.grain = 0f;
                 hold.wood *= 0.5f;
                 hold.ore = 0f;
+                hold.fish = 0f;
+                hold.herd = 0;
+                hold.sky = Sky.Clear;
                 hold.abandoned = true;
                 hold.engineOn = false;
                 hold.millOn = false;
@@ -1185,8 +1218,8 @@ namespace Elyon
             foreach (var hold in settlements)
             {
                 if (hold.abandoned || Members(hold) <= 0) continue;
-                bool hungry = hold.Meals < 4f && hold.faith < 22f;
-                bool grieving = MeanGrief(hold) >= 55f && hold.Meals < 8f;
+                bool hungry = SeenMeals(hold) < 4f && hold.faith < 22f;
+                bool grieving = MeanGrief(hold) >= 55f && hold.Meals < (hold.sky == Sky.Drought ? 10f : 8f);
                 bool vowed = hold.willRaid && !hold.lawKept && !hold.pactStay;
                 if (!hungry && !grieving && !vowed) continue;
                 if (!vowed && (hold.lawKept || hold.pactStay))
@@ -1234,7 +1267,9 @@ namespace Elyon
             }
             float grain = Mathf.Min(victim.grain * 0.22f, 8f);
             float wood = Mathf.Min(victim.wood * 0.3f, 4f);
-            if (grain < 0.4f && wood < 0.4f)
+            float fish = Mathf.Min(victim.fish * 0.3f, 3f);
+            bool herdTaken = victim.herd > 0;
+            if (grain < 0.4f && wood < 0.4f && fish < 0.4f && !herdTaken)
             {
                 dealLine = attacker.placeName + " wanted to raid " + victim.placeName + ", and there was nothing to carry.";
                 Note(dealLine);
@@ -1244,6 +1279,13 @@ namespace Elyon
             attacker.grain += grain;
             victim.wood = Mathf.Max(0f, victim.wood - wood);
             attacker.wood += wood;
+            victim.fish = Mathf.Max(0f, victim.fish - fish);
+            attacker.fish = Mathf.Min(12f, attacker.fish + fish);
+            if (herdTaken)
+            {
+                victim.herd--;
+                attacker.herd = Mathf.Min(6, attacker.herd + 1);
+            }
             bool tool = StealTool(victim, attacker);
             victim.raided = true;
             victim.dread = true;
@@ -1266,6 +1308,8 @@ namespace Elyon
                 }
             }
             string carried = tool ? "grain, wood, and a tool" : "grain and wood";
+            if (fish >= 0.4f) carried += ", and fish";
+            if (herdTaken) carried += ", and a head of the herd";
             dealLine = attacker.placeName + " raids " + victim.placeName + " and carries " + carried + ".";
             Note(dealLine + " " + victim.placeName + " may not build this year, and someone may leave.");
         }
@@ -1443,20 +1487,23 @@ namespace Elyon
                 switch (person.labor)
                 {
                     case Labor.Gather:
+                        float gather = LandLabor(home, Labor.Gather);
                         if (age >= AgeId.Industry && home.engineOn)
                         {
                             home.wood += 4.2f * effort;
-                            home.fruit += 4f * effort;
+                            home.fruit += 4f * effort * gather;
                             home.drive += 0.35f * effort;
                         }
                         else
                         {
                             home.wood += 3.2f * effort;
-                            home.fruit += 8.2f * effort;
+                            home.fruit += 8.2f * effort * gather;
                         }
                         break;
                     case Labor.Hunt:
-                        home.meat += 8.5f * effort;
+                        float hunt = LandLabor(home, Labor.Hunt);
+                        float kept = home.herd > 0 ? 0.7f * home.herd : 0f;
+                        home.meat += (8.5f + kept) * effort * hunt;
                         home.wood += 0.35f * effort;
                         break;
                     case Labor.Farm:
@@ -1465,7 +1512,8 @@ namespace Elyon
                         float field = home.fields > 0 ? 1f : 0.35f;
                         float night = age >= AgeId.ElectricLight && !home.lights ? 0.85f : 1f;
                         float law = home.lawKept ? 1.12f : 1f;
-                        home.grain += 9f * effort * mill * engine * field * night * law;
+                        float season = LandLabor(home, Labor.Farm);
+                        home.grain += 9f * effort * mill * engine * field * night * law * season;
                         if (home.lawKept) person.body.fear = Mathf.Max(0f, person.body.fear - 2f * years);
                         break;
                     case Labor.Smith:
@@ -1676,6 +1724,15 @@ namespace Elyon
                     Note(dealLine + " At the year's end grain, wood, and a spare tool may be carried off.");
                     jobStamp = -1;
                     break;
+                case "rain":
+                    SendTheRain(hold);
+                    break;
+                case "drought":
+                    DryTheGround(hold);
+                    break;
+                case "herd":
+                    KeepTheHerd(hold);
+                    break;
                 default:
                     return;
             }
@@ -1705,7 +1762,7 @@ namespace Elyon
             if (home == null) return;
             Vector3 site = Dry(home.Hearth);
             Transform tree = null;
-            string label = WorkPhrase(labor, home, person);
+            string label = WorkPhrase(labor, home, person) + LandPhrase(labor, home);
             switch (labor)
             {
                 case Labor.Gather:
@@ -1986,6 +2043,10 @@ namespace Elyon
                 + ", grain " + Mathf.RoundToInt(hold.grain)
                 + ", wood " + Mathf.RoundToInt(hold.wood)
                 + ", faith " + Mathf.RoundToInt(hold.faith)
+                + ". The season is " + SeasonName()
+                + ". The sky is " + SkyName(hold.sky)
+                + ". Herd " + hold.herd
+                + ". Fish " + Mathf.RoundToInt(hold.fish)
                 + ". " + law + " " + bond + strife + between + born + lost;
         }
 
@@ -1995,6 +2056,210 @@ namespace Elyon
             string next = string.IsNullOrEmpty(book) ? line.Trim() : (book + " " + line.Trim()).Trim();
             if (next.Length > 240) next = next.Substring(next.Length - 240).Trim();
             book = next;
+        }
+
+        Season SeasonNow()
+        {
+            return (Season)((Mathf.Max(1, year) - 1) % 4);
+        }
+
+        string SeasonName()
+        {
+            switch (SeasonNow())
+            {
+                case Season.Spring: return "Spring";
+                case Season.Summer: return "Summer";
+                case Season.Autumn: return "Autumn";
+                default: return "Winter";
+            }
+        }
+
+        static string SkyName(Sky sky)
+        {
+            switch (sky)
+            {
+                case Sky.Rain: return "rain";
+                case Sky.Drought: return "drought";
+                case Sky.Flood: return "flood";
+                default: return "clear";
+            }
+        }
+
+        float SeenMeals(Settlement hold)
+        {
+            float seen = hold.Meals;
+            if (SeasonNow() == Season.Winter) seen -= 2f;
+            if (hold.sky == Sky.Drought) seen -= 3f;
+            return seen;
+        }
+
+        float LandLabor(Settlement home, Labor labor)
+        {
+            float season = 1f;
+            switch (SeasonNow())
+            {
+                case Season.Spring:
+                    if (labor == Labor.Farm) season = 1.08f;
+                    break;
+                case Season.Summer:
+                    if (labor == Labor.Farm) season = 0.92f;
+                    else if (labor == Labor.Gather) season = 1.12f;
+                    else if (labor == Labor.Hunt) season = 1.08f;
+                    break;
+                case Season.Autumn:
+                    if (labor == Labor.Farm) season = 1.2f;
+                    else if (labor == Labor.Gather) season = 1.06f;
+                    break;
+                default:
+                    if (labor == Labor.Farm) season = 0.72f;
+                    else if (labor == Labor.Gather) season = 0.8f;
+                    else if (labor == Labor.Hunt) season = 0.75f;
+                    break;
+            }
+            float sky = 1f;
+            if (home.sky == Sky.Rain && labor == Labor.Farm) sky = 1.28f;
+            else if (home.sky == Sky.Rain && labor == Labor.Gather) sky = 1.1f;
+            else if (home.sky == Sky.Drought && (labor == Labor.Farm || labor == Labor.Gather || labor == Labor.Hunt)) sky = 0.5f;
+            else if (home.sky == Sky.Flood && labor == Labor.Farm) sky = 0.55f;
+            else if (home.sky == Sky.Flood && labor == Labor.Hunt) sky = 0.8f;
+            return season * sky;
+        }
+
+        string LandPhrase(Labor labor, Settlement home)
+        {
+            bool outdoors = labor == Labor.Farm || labor == Labor.Gather || labor == Labor.Hunt;
+            if (home.sky == Sky.Drought && outdoors) return " on dry ground";
+            if (home.sky == Sky.Flood && (labor == Labor.Farm || labor == Labor.Gather)) return " in the flood";
+            if (home.sky == Sky.Rain && labor == Labor.Farm) return " in the rain";
+            if (SeasonNow() == Season.Winter && outdoors) return " in the cold";
+            if (SeasonNow() == Season.Autumn && labor == Labor.Farm) return " at the harvest";
+            if (home.herd > 0 && labor == Labor.Hunt) return " with the herd";
+            return "";
+        }
+
+        void TendWild()
+        {
+            Season season = SeasonNow();
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned || Members(hold) <= 0) continue;
+                if (hold.sky == Sky.Drought)
+                {
+                    hold.fish = 0f;
+                    hold.water *= 0.5f;
+                    if (hold.herd > 0)
+                    {
+                        hold.herd--;
+                        Note("Drought takes a head from the herd at " + hold.placeName + ".");
+                    }
+                }
+                else if (season == Season.Winter)
+                {
+                    if (hold.fish >= 1f) hold.fish -= 1f;
+                    if (hold.wood > 0.5f) hold.wood -= 0.4f;
+                    if (hold.herd > 0)
+                    {
+                        float feed = hold.herd * 0.4f;
+                        if (hold.grain >= feed) hold.grain -= feed;
+                        else
+                        {
+                            hold.herd--;
+                            Note("Winter takes a head from the herd at " + hold.placeName + ". The stores could not feed them.");
+                        }
+                    }
+                }
+                else if ((season == Season.Summer || season == Season.Autumn) && hold.herd > 0 && hold.herd < 6 && hold.Meals >= 6f && hold.sky != Sky.Flood)
+                {
+                    hold.herd++;
+                    Note("The herd at " + hold.placeName + " grows. They keep " + hold.herd + " head.");
+                }
+            }
+        }
+
+        void SendTheRain(Settlement home)
+        {
+            home.sky = Sky.Rain;
+            home.water += 12f;
+            if (home.fields > 0) home.grain += 4f;
+            else home.fruit += 2f;
+            home.fish = Mathf.Min(12f, home.fish + 3f);
+            home.faith = Mathf.Clamp(home.faith + 2f, 0f, 100f);
+            Note(home.fields > 0
+                ? "Rain falls on the fields at " + home.placeName + ". The nets take fish."
+                : "Rain fills the stores at " + home.placeName + ". The nets take fish.");
+            TouchWork();
+        }
+
+        void DryTheGround(Settlement home)
+        {
+            home.sky = Sky.Drought;
+            home.water = Mathf.Max(0f, home.water - 10f);
+            home.grain *= 0.7f;
+            home.fruit *= 0.8f;
+            home.fish = 0f;
+            home.faith = Mathf.Max(0f, home.faith - 2f);
+            if (home.herd > 0)
+            {
+                home.herd--;
+                Note("The drought thins the herd at " + home.placeName + ".");
+            }
+            foreach (var member in people)
+            {
+                if (member.alive && member.settlementId == home.id)
+                {
+                    member.body.fear = Mathf.Min(100f, member.body.fear + 3f);
+                }
+            }
+            Note("Drought lies on " + home.placeName + ". The fish are gone. Unless a house was blessed, no child is born, and a thin hold may raid.");
+            TouchWork();
+        }
+
+        void SendTheFlood(Settlement home)
+        {
+            home.sky = Sky.Flood;
+            home.water += 8f;
+            home.grain = Mathf.Max(0f, home.grain - 4f);
+            home.wood = Mathf.Max(0f, home.wood - 2f);
+            home.fish *= 0.5f;
+            home.faith = Mathf.Max(0f, home.faith - 2f);
+            if (home.herd > 0)
+            {
+                home.herd--;
+                Note("The flood scatters a head of the herd at " + home.placeName + ".");
+            }
+            foreach (var member in people)
+            {
+                if (member.alive && member.settlementId == home.id)
+                {
+                    member.body.fear = Mathf.Min(100f, member.body.fear + 4f);
+                }
+            }
+            Note("A flood runs through " + home.placeName + ". Grain and wood are carried off. Unless a house was blessed, no child is born.");
+            TouchWork();
+        }
+
+        void KeepTheHerd(Settlement home)
+        {
+            if (home.sky == Sky.Drought)
+            {
+                Note("The ground is dry at " + home.placeName + ". A herd will not stay.");
+                return;
+            }
+            if (home.sky == Sky.Flood)
+            {
+                Note("The flood is on " + home.placeName + ". A herd will not stay.");
+                return;
+            }
+            int before = home.herd;
+            home.herd = Mathf.Min(6, home.herd + 2);
+            if (home.herd == before)
+            {
+                Note("The herd at " + home.placeName + " is already as large as the grass will hold.");
+                return;
+            }
+            home.meat += 1f;
+            Note(home.placeName + " keeps a herd. " + home.herd + " head.");
+            TouchWork();
         }
 
         AgeFacts Facts()
@@ -2060,6 +2325,25 @@ namespace Elyon
                 if (hold.abandoned) empty++;
             }
             if (empty > 0) line += "   empty " + empty;
+            int herd = 0;
+            float fish = 0f;
+            bool rain = false;
+            bool drought = false;
+            bool flood = false;
+            foreach (var hold in settlements)
+            {
+                if (hold.abandoned) continue;
+                herd += hold.herd;
+                fish += hold.fish;
+                if (hold.sky == Sky.Rain) rain = true;
+                if (hold.sky == Sky.Drought) drought = true;
+                if (hold.sky == Sky.Flood) flood = true;
+            }
+            if (herd > 0) line += "   herd " + herd;
+            if (fish >= 1f) line += "   fish " + (int)fish;
+            if (drought) line += "   drought";
+            else if (flood) line += "   flood";
+            else if (rain) line += "   rain";
             if (LivingHolds() > 1)
             {
                 if (pactWithheld) line += "   pact withheld";
@@ -2890,7 +3174,7 @@ namespace Elyon
             var area = new Rect(Screen.width - 336f, 16f, 320f, Screen.height - 32f);
             GUILayout.BeginArea(area);
             GUI.color = new Color(0.96f, 0.9f, 0.75f);
-            GUILayout.Label(Ages.Name(age) + "  ·  year " + year);
+            GUILayout.Label(Ages.Name(age) + "  ·  year " + year + "  ·  " + SeasonName());
             GUILayout.Label(Ages.Living(age));
             GUILayout.Label(Ages.Hand(age));
             GUILayout.Label(StockLine());
@@ -2917,8 +3201,11 @@ namespace Elyon
             DivineAct.SetFruit,
             DivineAct.Calm,
             DivineAct.SendGame,
+            DivineAct.KeepHerd,
             DivineAct.RaiseShelter,
             DivineAct.SendRain,
+            DivineAct.SendDrought,
+            DivineAct.SendFlood,
             DivineAct.BlessField,
             DivineAct.GiftOre,
             DivineAct.Mend,
@@ -3002,6 +3289,9 @@ namespace Elyon
         public bool raided;
         public bool lawKept;
         public bool willRaid;
+        public int herd;
+        public float fish;
+        public int sky;
 
         public static SettlementRecord From(Settlement settlement)
         {
@@ -3041,6 +3331,9 @@ namespace Elyon
                 raided = settlement.raided,
                 lawKept = settlement.lawKept,
                 willRaid = settlement.willRaid,
+                herd = settlement.herd,
+                fish = settlement.fish,
+                sky = (int)settlement.sky,
             };
         }
 
@@ -3082,6 +3375,9 @@ namespace Elyon
                 raided = raided,
                 lawKept = lawKept,
                 willRaid = willRaid,
+                herd = herd,
+                fish = fish,
+                sky = (Sky)sky,
             };
         }
     }
