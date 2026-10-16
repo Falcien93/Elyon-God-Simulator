@@ -40,7 +40,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
-canvas { display: block; width: 100%; height: 100%; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
 #hud { position: absolute; inset: 0; pointer-events: none; }
 #topbar, #quest, #log, #dock, #status { pointer-events: auto; }

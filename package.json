@@ -29,7 +29,8 @@
       "js/**/*",
       "assets/**/*",
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "node_modules/three/**/*"
     ],
     "linux": {
       "target": [
@@ -54,5 +55,8 @@
       "icon": "assets/icon.png",
       "category": "public.app-category.games"
     }
+  },
+  "dependencies": {
+    "three": "^0.160.1"
   }
 }

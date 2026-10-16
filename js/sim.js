@@ -64,6 +64,8 @@ export function createNewGame(seed = 1) {
     },
     ending: null,
     talk: null,
+    works: [],
+    minds: { adam: [], eve: [], creatures: [] },
     nextEntity: 1,
     beastBrush: 0,
     settings: { music: 0.32, sfx: 0.7 },
@@ -846,14 +848,122 @@ export function interact(state) {
   const target = nearestTalkTarget(state);
   if (!target) {
     const creature = nearestCreature(state);
-    if (creature) {
-      const called = creature.name ? `${creature.name}` : `an unnamed ${creature.kind}`;
-      addLog(state, `You regard ${called}.`);
-      return { ok: true, cue: "ui" };
-    }
+    if (creature) return { ok: true, hear: creature.kind, id: creature.id, cue: "ui" };
     return { ok: false, reason: "empty" };
   }
   return startDialogue(state, target.kind, "walk");
+}
+
+export function hearTarget(state) {
+  const near = state.mode === "walk" ? nearestTalkTarget(state) || nearestCreature(state) : null;
+  if (near) return { hear: near.kind, id: near.id };
+  const adam = findKind(state.world, "adam");
+  if (adam) return { hear: "adam", id: adam.id };
+  const eve = findKind(state.world, "eve");
+  if (eve) return { hear: "eve", id: eve.id };
+  const creature = state.world.entities.find((entity) => isCreature(entity.kind));
+  if (creature) return { hear: creature.kind, id: creature.id };
+  return null;
+}
+
+function mindBucket(who) {
+  if (who === "adam" || who === "eve") return who;
+  return "creatures";
+}
+
+function remember(state, who, line) {
+  if (!state.minds) state.minds = { adam: [], eve: [], creatures: [] };
+  const bucket = mindBucket(who);
+  if (!Array.isArray(state.minds[bucket])) state.minds[bucket] = [];
+  const text = String(line || "").trim().slice(0, 180);
+  if (!text) return;
+  state.minds[bucket].push(text);
+  if (state.minds[bucket].length > 12) state.minds[bucket].splice(0, state.minds[bucket].length - 12);
+}
+
+function beingBy(state, who, id) {
+  if (id) {
+    const match = state.world.entities.find((entity) => entity.id === id);
+    if (match) return match;
+  }
+  return findKind(state.world, who);
+}
+
+export function placeWork(state, work) {
+  if (!state.works) state.works = [];
+  const label = String(work?.label || work?.what || "a made thing").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!label) return null;
+  const x = clamp(Number(work?.x), 1, WORLD_W - 1.2);
+  const y = clamp(Number(work?.y), 1, WORLD_H - 1.2);
+  const made = {
+    id: `w${state.nextEntity}`,
+    x: Number.isFinite(x) ? x : 20,
+    y: Number.isFinite(y) ? y : 15,
+    label,
+    verb: String(work?.verb || work?.do || "make").slice(0, 32),
+  };
+  state.nextEntity += 1;
+  state.works.push(made);
+  if (state.works.length > 24) state.works.splice(0, state.works.length - 24);
+  addLog(state, `${label} stands in the garden.`);
+  return made;
+}
+
+function enactDeed(state, who, id, deed) {
+  if (!deed || typeof deed !== "object") return;
+  const verb = String(deed.do || deed.verb || "make").toLowerCase();
+  const person = beingBy(state, who, id);
+  const x = Number(deed.x);
+  const y = Number(deed.y);
+  if (person && (verb === "go" || verb === "walk" || verb === "move" || verb === "approach_elyon" || verb === "approach")) {
+    if (verb === "approach_elyon" || verb === "approach") {
+      person.tx = state.player.x;
+      person.ty = state.player.y;
+    } else if (Number.isFinite(x) && Number.isFinite(y)) {
+      person.tx = clamp(x, 0.6, WORLD_W - 0.6);
+      person.ty = clamp(y, 0.6, WORLD_H - 0.6);
+    }
+    person.pause = 0;
+    return;
+  }
+  if (person && (verb === "rest" || verb === "sleep")) {
+    person.pause = 8;
+    return;
+  }
+  const anchor = person || state.player;
+  placeWork(state, {
+    label: deed.what || deed.detail || verb,
+    verb,
+    x: Number.isFinite(x) ? x : anchor.x + 0.8,
+    y: Number.isFinite(y) ? y : anchor.y + 0.4,
+  });
+}
+
+export function applyMind(state, who, reply, heard) {
+  if (!reply || typeof reply !== "object") return { ok: false, reason: "empty" };
+  if (heard) remember(state, who, `Elyon said: ${String(heard).slice(0, 160)}`);
+  if (typeof reply.speech === "string" && reply.speech.trim()) {
+    const speaker = who === "adam" ? state.names.adam : who === "eve" ? state.names.eve : who;
+    addLog(state, `${speaker}: ${reply.speech.trim().slice(0, 400)}`);
+    remember(state, who, reply.remember || reply.speech);
+  } else if (reply.remember) {
+    remember(state, who, reply.remember);
+  }
+  if ((who === "adam" || who === "eve") && Number.isFinite(Number(reply.trust))) {
+    bumpRelation(state, who, "trust", clamp(Number(reply.trust), -8, 8));
+  }
+  const deeds = Array.isArray(reply.deeds) ? reply.deeds.slice(0, 3) : [];
+  for (const deed of deeds) enactDeed(state, who, reply.id, deed);
+  return { ok: true };
+}
+
+export function applyMoments(state, moments) {
+  if (!Array.isArray(moments)) return { ok: false };
+  for (const moment of moments.slice(0, 4)) {
+    if (!moment || typeof moment.who !== "string") continue;
+    applyMind(state, moment.who, moment);
+  }
+  return { ok: true };
 }
 
 function nearestCreature(state) {
@@ -901,7 +1011,15 @@ export function clickWorld(state, x, y, tool) {
     }
     return startDialogue(state, entity.kind, state.mode);
   }
+  if (entity && isCreature(entity.kind)) {
+    return { ok: true, hear: entity.kind, id: entity.id, cue: "ui" };
+  }
   if (tool) return paint(state, x, y, tool);
+  if (!blocksFoot(state.world, x + 0.5, y + 0.5)) {
+    state.player.x = x + 0.5;
+    state.player.y = y + 0.5;
+    return { ok: true, cue: "ui" };
+  }
   return { ok: false, reason: "empty" };
 }
 

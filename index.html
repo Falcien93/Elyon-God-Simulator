@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.x.ai">
   <title>Elyon</title>
   <link rel="icon" href="assets/icon.svg">
   <link rel="stylesheet" href="css/game.css">
@@ -78,6 +78,10 @@
         <button id="btn-resume" class="primary" type="button">Resume</button>
         <label>Music <input id="music" type="range" min="0" max="100" value="32"></label>
         <label>Effects <input id="sfx" type="range" min="0" max="100" value="70"></label>
+        <label>xAI key <input id="xai-key" type="password" autocomplete="off" spellcheck="false" placeholder="Kept only in this browser"></label>
+        <button id="btn-keep-key" type="button">Keep the key here</button>
+        <button id="btn-forget-key" type="button">Forget the key</button>
+        <p class="fine">The key is localStorage <b>elyon-xai-key</b>. It is never written into the garden record.</p>
         <button id="btn-fullscreen" type="button">Fullscreen</button>
         <button id="btn-export" type="button">Export the record</button>
         <button id="btn-import" type="button">Import a record</button>
@@ -135,14 +139,28 @@
     </div>
   </section>
 
+  <section id="panel-grok" class="scrim" hidden role="dialog" aria-modal="true" aria-labelledby="grok-who">
+    <div class="panel">
+      <p class="sub">A living mind</p>
+      <h2 id="grok-who">Adam</h2>
+      <p id="grok-line"></p>
+      <textarea id="grok-input" maxlength="400" placeholder="Speak as Elyon."></textarea>
+      <div class="actions">
+        <button id="btn-grok-send" class="primary" type="button">Speak</button>
+        <button id="btn-grok-close" type="button">Leave them</button>
+      </div>
+    </div>
+  </section>
+
   <section id="panel-help" class="scrim" hidden role="dialog" aria-modal="true">
     <div class="panel wide">
       <p class="sub">How to shape a world</p>
       <h2>Guidance</h2>
       <p>Speak the great words in order: light, waters, land, grove, luminaries, creatures, then the two people. Smaller acts spend divine breath, which returns on its own.</p>
-      <p>Descend to walk. Draw near to Adam and Eve and press <b>E</b>, or click them when you are close. In the sky, click them from anywhere.</p>
+      <p>Drag the sky to orbit the garden. Descend to walk among them: drag looks around, and WASD follows your gaze. Click a person to speak the campaign, or click the ground to move your presence.</p>
+      <p><b>Hear them</b> lets Adam, Eve, and the creatures answer through a living mind. They believe they are those people. Without an xAI key the garden still runs, and that panel says a key is needed. The key stays in localStorage and out of the save.</p>
       <p>After they have names for the beasts, inscribe a commandment or keep silent. Then speak with Eve. The garden will keep one of four endings, and it will remain open afterward.</p>
-      <p><b>M</b> ascend or descend · <b>1–8</b> tools · <b>E</b> speak · <b>Esc</b> pause · <b>H</b> help · <b>F</b> fullscreen · scroll to look closer</p>
+      <p><b>M</b> ascend or descend · <b>1–8</b> tools · <b>E</b> speak · <b>Esc</b> pause · <b>H</b> help · <b>F</b> fullscreen · drag to look · scroll to move closer</p>
       <div class="actions"><button id="btn-help-close" class="primary" type="button">Return</button></div>
     </div>
   </section>

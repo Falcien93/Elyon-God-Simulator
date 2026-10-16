@@ -19,9 +19,13 @@ const KINDS = new Set([
   "serpent",
 ]);
 
+const SECRET_FIELDS = ["apiKey", "xaiKey", "key", "elyon-xai-key", "elyon-xai-model"];
+
 export function serialize(state) {
   state.updatedAt = Date.now();
-  return JSON.stringify(state);
+  const copy = JSON.parse(JSON.stringify(state));
+  for (const field of SECRET_FIELDS) delete copy[field];
+  return JSON.stringify(copy);
 }
 
 export function normalize(raw) {
@@ -82,6 +86,8 @@ export function normalize(raw) {
     state.ending = { id: data.ending.id, at: Number(data.ending.at) || 0 };
   }
   state.talk = sanitizeTalk(data.talk);
+  state.works = sanitizeWorks(data.works);
+  state.minds = sanitizeMinds(data.minds);
   state.nextEntity = clampNum(data.nextEntity, 1, 100000, state.world.entities.length + 1);
   state.beastBrush = clampNum(data.beastBrush, 0, 1000, 0);
   state.settings = {
@@ -90,6 +96,34 @@ export function normalize(raw) {
   };
   if (state.mode === "walk" && !state.flags.ritual_land) state.mode = "sky";
   return state;
+}
+
+function sanitizeWorks(works) {
+  if (!Array.isArray(works)) return [];
+  return works.slice(-24).map((work) => {
+    if (!work || typeof work !== "object") return null;
+    const label = String(work.label || "").replace(/\s+/g, " ").trim().slice(0, 80);
+    const x = Number(work.x);
+    const y = Number(work.y);
+    if (!label || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return {
+      id: String(work.id || "work").slice(0, 40),
+      x: Math.max(0, Math.min(WORLD_W, x)),
+      y: Math.max(0, Math.min(WORLD_H, y)),
+      label,
+      verb: String(work.verb || "make").slice(0, 32),
+    };
+  }).filter(Boolean);
+}
+
+function sanitizeMinds(minds) {
+  const source = minds && typeof minds === "object" ? minds : {};
+  const take = (list) => (Array.isArray(list) ? list.filter((line) => typeof line === "string").map((line) => line.slice(0, 180)).slice(-12) : []);
+  return {
+    adam: take(source.adam),
+    eve: take(source.eve),
+    creatures: take(source.creatures),
+  };
 }
 
 function sanitizeTalk(talk) {

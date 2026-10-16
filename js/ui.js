@@ -49,6 +49,16 @@ export function mount(next) {
   on("btn-ending-new", "click", () => handlers.requestNew());
   on("music", "input", (event) => handlers.volume("music", Number(event.target.value) / 100));
   on("sfx", "input", (event) => handlers.volume("sfx", Number(event.target.value) / 100));
+  on("btn-keep-key", "click", () => handlers.keepKey(document.getElementById("xai-key").value));
+  on("btn-forget-key", "click", () => handlers.forgetKey());
+  on("btn-grok-send", "click", () => handlers.sendHear(document.getElementById("grok-input").value));
+  on("btn-grok-close", "click", () => handlers.closeOverlay());
+  on("grok-input", "keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handlers.sendHear(event.target.value);
+    }
+  });
 }
 
 export function setContinueEnabled(enabled) {
@@ -67,6 +77,7 @@ export function sync(state, view) {
   show("panel-codex", view.overlay === "codex");
   show("panel-journal", view.overlay === "journal");
   show("panel-voice", view.overlay === "voice");
+  show("panel-grok", view.overlay === "grok");
   const talking = Boolean(state?.talk) && view.screen === "play" && !view.pause && !view.overlay && !view.confirm;
   show("panel-dialogue", talking);
   text("status", view.status || "");
@@ -116,6 +127,10 @@ export function sync(state, view) {
   if (view.overlay === "codex") buildCodex(state);
   if (view.overlay === "journal") buildJournal(state);
   if (view.overlay === "voice") buildVoice(state);
+  if (view.overlay === "grok") {
+    text("grok-who", view.hearName || "A living mind");
+    text("grok-line", view.hearText || "");
+  }
   if (view.confirm) text("confirm-text", view.confirm.text);
   if (view.overlay === "ending" && state.ending) {
     const ending = view.endingText;
@@ -157,6 +172,9 @@ function buildDock(state, view, primary, shapes, beast) {
     utilitySlot.append(actionButton("Ascend", () => handlers.mode("sky")));
   }
   if (state.flags.eve_made) utilitySlot.append(actionButton("The word", () => handlers.openVoice()));
+  if (state.flags.adam_made || state.flags.ritual_creatures) {
+    utilitySlot.append(actionButton("Hear them", () => handlers.hear()));
+  }
   utilitySlot.append(actionButton("Codex", () => handlers.openOverlay("codex")));
   utilitySlot.append(actionButton("Journal", () => handlers.openOverlay("journal")));
   utilitySlot.append(actionButton("Help", () => handlers.openOverlay("help")));

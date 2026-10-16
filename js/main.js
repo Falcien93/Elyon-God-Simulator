@@ -1,9 +1,12 @@
 import { createAudio } from "./audio.js";
 import { ENDINGS } from "./content.js";
-import { render, screenToWorld } from "./render.js";
+import { converse, forgetKey, getKey, liveMoment, missingKeyLine, setKey } from "./grok.js";
+import { lookBy, orbitBy, pick, render, resize as resizeView, walkAxes, zoomBy } from "./render.js";
 import { clearLocal, loadBest, normalize, serialize, writeBest } from "./save.js";
 import {
   REASONS,
+  applyMind,
+  applyMoments,
   availableShapes,
   chooseSilence,
   chooseTalk,
@@ -11,6 +14,7 @@ import {
   createNewGame,
   enterSky,
   enterWalk,
+  hearTarget,
   movePlayer,
   performRitual,
   primaryAction,
@@ -25,7 +29,6 @@ import { WORLD_H, WORLD_W } from "./world.js";
 import { mount, nearestHint, resetPanels, setContinueEnabled, sync } from "./ui.js";
 
 const canvas = document.getElementById("view");
-const ctx = canvas.getContext("2d");
 const audio = createAudio();
 
 const preview = createNewGame(11);
@@ -214,6 +217,40 @@ mount({
     state.settings[channel] = value;
     audio.setVolumes(state.settings.music, state.settings.sfx);
   },
+  keepKey(value) {
+    setKey(value);
+    setToast(getKey() ? "The key stays on this computer, outside the garden record." : "No key was kept.");
+  },
+  forgetKey() {
+    forgetKey();
+    const field = document.getElementById("xai-key");
+    if (field) field.value = "";
+    setToast("The key is forgotten. The garden record is unchanged.");
+  },
+  hear() {
+    if (!state) return;
+    const target = hearTarget(state);
+    if (!target) {
+      setStatus("No one is awake to hear you yet.");
+      return;
+    }
+    openHear(target.hear, target.id);
+  },
+  async sendHear(text) {
+    if (!state || !view.hear) return;
+    const line = String(text || "");
+    if (!getKey()) {
+      view.hearText = missingKeyLine();
+      return;
+    }
+    view.hearText = "They are listening…";
+    const reply = await converse(state, view.hear.kind, line);
+    if (!reply.missingKey) applyMind(state, view.hear.kind, { ...reply, id: view.hear.id }, line);
+    view.hearText = reply.speech || missingKeyLine();
+    const field = document.getElementById("grok-input");
+    if (field && reply.ok) field.value = "";
+    resetPanels();
+  },
 });
 
 function adopt(next) {
@@ -239,8 +276,19 @@ function runPrimary(action) {
   resetPanels();
 }
 
+function openHear(kind, id) {
+  const person = state.world.entities.find((entity) => entity.id === id);
+  const name = kind === "adam" ? state.names.adam : kind === "eve" ? state.names.eve : person?.name || kind;
+  view.hear = { kind, id };
+  view.hearName = name;
+  view.hearText = getKey() ? `${name} is here. Speak, and they will answer from the life they believe is theirs.` : missingKeyLine();
+  view.overlay = "grok";
+  resetPanels();
+}
+
 function applyResult(result) {
   if (!result) return;
+  if (result.ok && result.hear) openHear(result.hear, result.id);
   if (!result.ok) {
     if (result.reason && result.reason !== "empty" && result.reason !== "bounds") {
       setStatus(REASONS[result.reason] || "That did not take.");
@@ -280,10 +328,7 @@ function toggleFullscreen() {
 function resize() {
   cssW = window.innerWidth;
   cssH = window.innerHeight;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.max(1, Math.floor(cssW * dpr));
-  canvas.height = Math.max(1, Math.floor(cssH * dpr));
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  resizeView(cssW, cssH);
 }
 
 function frameMetrics(subject) {
@@ -294,26 +339,8 @@ function frameMetrics(subject) {
   return { w: cssW, h: cssH, tile, camX, camY, hover, now: performance.now(), flash, mode: subject?.mode };
 }
 
-function placeCamera(subject, dt) {
-  const metrics = frameMetrics(subject);
-  if (!subject || subject.mode !== "walk") {
-    if (zoom <= 1.01) {
-      camX = WORLD_W / 2;
-      camY = WORLD_H / 2 + 0.4;
-    }
-  } else {
-    const targetX = subject.player.x;
-    const targetY = subject.player.y + 1.05;
-    const blend = 1 - Math.exp(-7 * dt);
-    camX += (targetX - camX) * blend;
-    camY += (targetY - camY) * blend;
-  }
-  const halfW = cssW / metrics.tile / 2;
-  const halfH = cssH / metrics.tile / 2;
-  if (halfW * 2 >= WORLD_W) camX = WORLD_W / 2;
-  else camX = clamp(camX, halfW, WORLD_W - halfW);
-  if (halfH * 2 >= WORLD_H) camY = WORLD_H / 2;
-  else camY = clamp(camY, halfH, WORLD_H - halfH);
+function placeCamera() {
+  /* The 3D camera lives in the renderer. */
 }
 
 function clamp(n, a, b) {
@@ -334,17 +361,18 @@ canvas.addEventListener("pointerdown", (event) => {
 });
 
 canvas.addEventListener("pointermove", (event) => {
-  const metrics = frameMetrics(live ? state : preview);
-  const world = screenToWorld(event.clientX, event.clientY, metrics);
-  hover = { x: Math.floor(world.x), y: Math.floor(world.y) };
+  const world = pick(event.clientX, event.clientY);
+  hover = world ? { x: world.x, y: world.y } : null;
   if (!drag) return;
-  if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 6) {
+  const dx = event.clientX - drag.x;
+  const dy = event.clientY - drag.y;
+  if (Math.hypot(dx, dy) > 6) {
     drag.moved = true;
-    const metricsNow = frameMetrics(live ? state : preview);
-    if (zoom > 1 || (live && state?.mode === "walk")) {
-      camX = drag.camX - (event.clientX - drag.x) / metricsNow.tile;
-      camY = drag.camY - (event.clientY - drag.y) / metricsNow.tile;
-    }
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    const subject = live ? state : preview;
+    if (subject?.mode === "walk") lookBy(dx, dy);
+    else orbitBy(dx, dy);
   }
 });
 
@@ -353,20 +381,16 @@ window.addEventListener("pointerup", (event) => {
   const moved = drag.moved;
   drag = null;
   if (moved || !playing() || view.overlay) return;
-  const metrics = frameMetrics(state);
-  const world = screenToWorld(event.clientX, event.clientY, metrics);
-  const tx = Math.floor(world.x);
-  const ty = Math.floor(world.y);
-  applyResult(clickWorld(state, tx, ty, state.mode === "sky" ? view.tool : null));
+  const world = pick(event.clientX, event.clientY);
+  if (!world) return;
+  applyResult(clickWorld(state, world.x, world.y, state.mode === "sky" ? view.tool : null));
   resetPanels();
 });
 
 canvas.addEventListener("wheel", (event) => {
   event.preventDefault();
-  const walk = live && state?.mode === "walk";
-  const min = walk ? 0.85 : 1;
-  const max = walk ? 1.4 : 2.4;
-  zoom = clamp(zoom + (event.deltaY > 0 ? -0.08 : 0.08), min, max);
+  const subject = live ? state : preview;
+  zoomBy(event.deltaY, subject?.mode);
 }, { passive: false });
 
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
@@ -384,8 +408,13 @@ window.addEventListener("keydown", (event) => {
     else if (state?.talk && view.screen === "play") {
       state.talk = null;
       resetPanels();
-    } else if (view.screen === "play") view.pause = !view.pause;
-    else if (view.screen === "prologue") handlersFallbackPrologue();
+    } else if (view.screen === "play") {
+      view.pause = !view.pause;
+      if (view.pause) {
+        const field = document.getElementById("xai-key");
+        if (field && !field.value) field.value = getKey();
+      }
+    } else if (view.screen === "prologue") handlersFallbackPrologue();
     return;
   }
   if (!playing() || view.overlay) return;
@@ -443,11 +472,10 @@ function loop(now) {
     if (view.toast && now > view.toastUntil) view.toast = "";
     flash = Math.max(0, flash - dt * 0.8);
     const subject = view.screen === "title" || !state ? preview : state;
-    placeCamera(subject, dt);
+    placeCamera();
     const metrics = frameMetrics(subject);
-    metrics.camX = camX;
-    metrics.camY = camY;
-    render(ctx, subject, metrics);
+    render(canvas, subject, metrics);
+    maybeLife(now);
     sync(state, view);
   } catch (error) {
     if (!reported) {
@@ -457,16 +485,45 @@ function loop(now) {
   }
 }
 
+let lifeAt = 0;
+let lifeBusy = false;
+
+function maybeLife(now) {
+  if (!playing() || view.overlay || !state?.flags?.ritual_light || !getKey() || lifeBusy) return;
+  if (now - lifeAt < 24000) return;
+  lifeAt = now;
+  lifeBusy = true;
+  liveMoment(state).then((moments) => {
+    applyMoments(state, moments);
+  }).finally(() => {
+    lifeBusy = false;
+  });
+}
+
 function steer(dt) {
+  const axes = walkAxes();
   let x = 0;
   let y = 0;
-  if (keys.has("KeyW") || keys.has("ArrowUp")) y -= 1;
-  if (keys.has("KeyS") || keys.has("ArrowDown")) y += 1;
-  if (keys.has("KeyA") || keys.has("ArrowLeft")) x -= 1;
-  if (keys.has("KeyD") || keys.has("ArrowRight")) x += 1;
+  if (keys.has("KeyW") || keys.has("ArrowUp")) {
+    x += axes.fx;
+    y += axes.fy;
+  }
+  if (keys.has("KeyS") || keys.has("ArrowDown")) {
+    x -= axes.fx;
+    y -= axes.fy;
+  }
+  if (keys.has("KeyA") || keys.has("ArrowLeft")) {
+    x -= axes.rx;
+    y -= axes.ry;
+  }
+  if (keys.has("KeyD") || keys.has("ArrowRight")) {
+    x += axes.rx;
+    y += axes.ry;
+  }
   if (x || y) {
     state.dest = null;
     movePlayer(state, x, y, dt);
+    state.player.facing = Math.abs(axes.fx) > Math.abs(axes.fy) ? (axes.fx > 0 ? "e" : "w") : axes.fy > 0 ? "s" : "n";
   }
 }
 

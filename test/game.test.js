@@ -4,6 +4,7 @@ import { NODES } from "../js/content.js";
 import { normalize, serialize } from "../js/save.js";
 import {
   advanceTalk,
+  applyMind,
   chooseSilence,
   chooseTalk,
   clickWorld,
@@ -208,6 +209,28 @@ test("word choices hide until a word or a silence exists", () => {
   state.flags.commandment_spoken = true;
   const later = visibleChoices(state, currentNode(state)).map((choice) => choice.goto);
   assert.equal(later.includes("adam_topic_word"), true);
+});
+
+test("a living deed is kept and an xAI key is not", () => {
+  const state = garden(7);
+  state.apiKey = "secret-key";
+  state["elyon-xai-key"] = "also-secret";
+  applyMind(state, "adam", {
+    speech: "I will weave a place to sit.",
+    trust: 4,
+    remember: "Elyon asked for a mat.",
+    deeds: [{ do: "weave", what: "a reed mat", x: 19, y: 15 }],
+  }, "Make somewhere to rest.");
+  assert.equal(state.works.length, 1);
+  assert.equal(state.works[0].label, "a reed mat");
+  assert.ok(state.minds.adam.some((line) => line.includes("reed") || line.includes("mat") || line.includes("Elyon")));
+  const text = serialize(state);
+  assert.equal(text.includes("secret-key"), false);
+  assert.equal(text.includes("also-secret"), false);
+  assert.equal(text.includes("elyon-xai-key"), false);
+  const restored = normalize(text);
+  assert.equal(restored.works[0].label, "a reed mat");
+  assert.equal(restored.apiKey, undefined);
 });
 
 test("click to walk does not cross water and sky click speaks", () => {
