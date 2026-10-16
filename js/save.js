@@ -1,7 +1,7 @@
 /** Save validation and browser/desktop persistence. */
 
 import { ACHIEVEMENT_IDS, sanitizeChat, sealCount } from "./converse.js";
-import { NODES } from "./content.js";
+import { ENDINGS, NODES } from "./content.js";
 import { SAVE_VERSION, createNewGame, sanitizeName } from "./sim.js";
 import { TILE, WORLD_H, WORLD_W } from "./world.js";
 
@@ -89,7 +89,7 @@ export function normalize(raw) {
     eve: sanitizeBeing(data.beings?.eve, 64, 42),
   };
   state.thread = sanitizeThread(data.thread, state);
-  if (data.ending && typeof data.ending.id === "string") {
+  if (data.ending && typeof data.ending.id === "string" && ENDINGS[data.ending.id]) {
     state.ending = { id: data.ending.id, at: Number(data.ending.at) || 0 };
   }
   state.talk = sanitizeTalk(data.talk);

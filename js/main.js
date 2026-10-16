@@ -23,8 +23,10 @@ import {
   chooseTalk,
   clickWorld,
   createNewGame,
+  drawNear,
   enterSky,
   enterWalk,
+  linePending,
   movePlayer,
   performRitual,
   primaryAction,
@@ -32,6 +34,7 @@ import {
   startDialogue,
   submitTalkInput,
   tick,
+  toggleMode,
   advanceTalk,
   interact,
   addressBeing,
@@ -247,7 +250,7 @@ mount({
   },
   mode(next) {
     if (!state) return;
-    applyResult(next === "walk" ? enterWalk(state) : enterSky(state));
+    applyResult(next === state.mode ? { ok: true } : toggleMode(state));
     zoom = 1;
   },
   openVoice() {
@@ -342,9 +345,7 @@ mount({
     view.confirm = null;
   },
   advance() {
-    if (!state?.talk) return;
-    applyResult(advanceTalk(state));
-    resetPanels();
+    advanceDialogue();
   },
   choose(index) {
     applyResult(chooseTalk(state, index));
@@ -490,10 +491,24 @@ function adopt(next) {
 }
 
 function runPrimary(action) {
+  if (!state || !action) return;
   if (action.type === "ritual") applyResult(performRitual(state, action.id));
   else if (action.type === "walk") applyResult(enterWalk(state));
   else if (action.type === "sky") applyResult(enterSky(state));
-  zoom = action.type === "walk" || action.type === "sky" ? 1 : zoom;
+  else if (action.type === "talk") applyResult(startDialogue(state, action.who));
+  else if (action.type === "near") applyResult(drawNear(state));
+  else if (action.type === "word") view.overlay = "voice";
+  if (action.type === "walk" || action.type === "sky") zoom = 1;
+  resetPanels();
+}
+
+function advanceDialogue() {
+  if (!state?.talk) return;
+  if (linePending(state, view.reveal, settings.textSpeed)) {
+    view.reveal = 1e9;
+    return;
+  }
+  applyResult(advanceTalk(state));
   resetPanels();
 }
 
@@ -673,19 +688,18 @@ window.addEventListener("keydown", (event) => {
   }
   if (!playing() || view.overlay) return;
   if (event.key === "e" || event.key === "E") {
-    if (state.talk) applyResult(advanceTalk(state));
-    else applyResult(interact(state));
-    resetPanels();
+    if (state.talk) advanceDialogue();
+    else {
+      applyResult(interact(state));
+      resetPanels();
+    }
   } else if (event.key === "m" || event.key === "M") {
-    applyResult(state.mode === "walk" ? enterSky(state) : enterWalk(state));
+    applyResult(toggleMode(state));
     zoom = 1;
   } else if (event.key === "h" || event.key === "H") view.overlay = "help";
   else if (event.key === "f" || event.key === "F") toggleFullscreen();
   else if (event.key === "Enter" || event.code === "Space") {
-    if (state.talk) {
-      applyResult(advanceTalk(state));
-      resetPanels();
-    }
+    if (state.talk) advanceDialogue();
   } else if (/^[1-8]$/.test(event.key) && state.mode === "sky") {
     const shapes = availableShapes(state);
     const next = shapes[Number(event.key) - 1];
