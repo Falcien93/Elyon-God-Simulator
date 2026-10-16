@@ -41,8 +41,12 @@ class LinearColor:
 
 
 # light_color on directional and sky lights is FColor. Fog inscattering is FLinearColor.
-FCOLOR_PROPS = {"light_color"}
-LINEAR_PROPS = {"fog_inscattering_luminance"}
+FCOLOR_PROPS = {"light_color", "bloom_tint", "volumetric_fog_albedo"}
+LINEAR_PROPS = {
+    "fog_inscattering_luminance",
+    "directional_inscattering_luminance",
+    "volumetric_fog_emissive",
+}
 
 
 class Comp:
@@ -185,6 +189,11 @@ class FakeUnreal:
         self.PostProcessVolume = type("PostProcessVolume", (), {})
         self.PostProcessSettings = PostProcessSettings
         self.AutoExposureMethod = AutoExposureMethod
+        self.CineCameraActor = type("CineCameraActor", (), {})
+        self.CineCameraComponent = type("CineCameraComponent", (), {})
+        self.LevelSequenceActor = type("LevelSequenceActor", (), {})
+        self.SkyAtmosphereComponent = type("SkyAtmosphereComponent", (), {})
+        self.VolumetricCloudComponent = type("VolumetricCloudComponent", (), {})
         self.StaticMeshComponent = type("StaticMeshComponent", (), {})
         self.DirectionalLightComponent = type("DirectionalLightComponent", (), {})
         self.SkyLightComponent = type("SkyLightComponent", (), {})
@@ -239,6 +248,9 @@ class GardenLogicTests(unittest.TestCase):
             "Elyon.Clouds",
             "Elyon.Exposure",
             "Elyon.River",
+            "Elyon.Lake",
+            "Elyon.GodCamera",
+            "Elyon.GodFlythrough",
             "Elyon.PlayerStart",
             "Elyon.Adam",
             "Elyon.LetThereBeLight",
@@ -249,6 +261,31 @@ class GardenLogicTests(unittest.TestCase):
         self.assertEqual(sum(1 for name in names if name.startswith("Elyon.Rock.")), garden_logic.COUNTS["rock"])
         self.assertEqual(sum(1 for name in names if name.startswith("Elyon.Plant.")), garden_logic.COUNTS["plant"])
         self.assertEqual(plan["map"], "/Game/Maps/Day1_Garden")
+
+    def test_god_flight_stays_high_and_moves_smoothly(self):
+        flight = garden_logic.god_flight()
+        self.assertGreaterEqual(flight[-1]["t"], 20.0)
+        self.assertGreater(abs(flight[0]["x"] - flight[-1]["x"]) + abs(flight[0]["y"] - flight[-1]["y"]), 500.0)
+        previous = None
+        toward_sun = False
+        for sample in flight:
+            self.assertGreaterEqual(sample["z"], 1200.0)
+            self.assertLess(sample["pitch"], 15.0)
+            if previous is not None:
+                step = (
+                    (sample["x"] - previous["x"]) ** 2
+                    + (sample["y"] - previous["y"]) ** 2
+                    + (sample["z"] - previous["z"]) ** 2
+                ) ** 0.5
+                self.assertLess(step, 800.0)
+            previous = sample
+            # The low sun sits toward negative X/Y. One stretch of the path looks that way.
+            if sample["x"] > 1000.0 and sample["yaw"] < -90.0:
+                toward_sun = True
+        self.assertTrue(toward_sun)
+        self.assertTrue(garden_logic.light_state(True)["enable_volumetric_fog"])
+        self.assertTrue(garden_logic.light_state(True)["enable_light_shaft_bloom"])
+        self.assertFalse(garden_logic.light_state(False)["enable_light_shaft_bloom"])
 
     def test_free_meshes_prefer_starter_then_engine_shapes(self):
         starter = {
@@ -324,6 +361,25 @@ class LevelBuildTests(unittest.TestCase):
         self.assertEqual(settings.props["auto_exposure_min_brightness"], 12.0)
         self.assertEqual(settings.props["auto_exposure_max_brightness"], 14.0)
         self.assertEqual(settings.props["auto_exposure_bias"], 0.35)
+        self.assertEqual(settings.props["bloom_intensity"], 0.55)
+        self.assertEqual(settings.props["white_temp"], 4900.0)
+        self.assertTrue(fog_comp.props["enable_volumetric_fog"])
+        self.assertIsInstance(fog_comp.props["volumetric_fog_albedo"], ByteColor)
+        self.assertIsInstance(fog_comp.props["volumetric_fog_emissive"], LinearColor)
+        self.assertIsInstance(fog_comp.props["directional_inscattering_luminance"], LinearColor)
+        self.assertTrue(sun_comp.props["cast_volumetric_shadow"])
+        self.assertTrue(sun_comp.props["enable_light_shaft_bloom"])
+        self.assertIsInstance(sun_comp.props["bloom_tint"], ByteColor)
+        self.assertEqual(sun_comp.props["bloom_tint"].rgba, (255, 184, 102, 255))
+        with self.assertRaises(TypeError):
+            fog_comp.set_editor_property("volumetric_fog_albedo", ue.LinearColor(1, 1, 1, 1))
+        camera = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.GodCamera")
+        lens = camera.get_component_by_class(ue.CineCameraComponent)
+        self.assertEqual(lens.props["current_focal_length"], 24.0)
+        self.assertGreaterEqual(camera.location.z, 1200.0)
+        lake = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Lake")
+        lake_mesh = lake.get_component_by_class(ue.StaticMeshComponent)
+        self.assertEqual(lake_mesh.mesh, "/Engine/BasicShapes/Cube")
 
         old = Actor(ue.StaticMeshActor)
         old.set_actor_label("Elyon.OldRock")
@@ -345,6 +401,9 @@ class LevelBuildTests(unittest.TestCase):
         self.assertEqual(dark_settings.props["auto_exposure_min_brightness"], -1.0)
         self.assertEqual(dark_settings.props["auto_exposure_max_brightness"], 2.0)
         self.assertEqual(fog_comp.props["fog_density"], 0.02)
+        self.assertFalse(sun_comp.props["enable_light_shaft_bloom"])
+        self.assertEqual(settings.props["white_temp"], 4900.0)
+        self.assertEqual(dark_settings.props["white_temp"], 9000.0)
 
     def test_starter_content_replaces_engine_shapes(self):
         ue = FakeUnreal()
@@ -364,6 +423,21 @@ class LevelBuildTests(unittest.TestCase):
         rock = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Rock.01")
         rock_mesh = rock.get_component_by_class(ue.StaticMeshComponent)
         self.assertEqual(rock_mesh.mesh, "/Game/StarterContent/Props/SM_Rock")
+
+    def test_flythrough_failure_still_saves_the_garden(self):
+        ue = FakeUnreal()
+        ue.LevelSequence = type("LevelSequence", (), {})
+        ue.LevelSequenceFactoryNew = type("Factory", (), {})
+
+        class Tools:
+            def get_asset_tools(self):
+                raise RuntimeError("sequencer unavailable")
+
+        ue.AssetToolsHelpers = Tools()
+        level_build.build(dawn=True, ue=ue)
+        self.assertEqual(ue.EditorLevelLibrary.saves, 1)
+        self.assertIn("Elyon.GodCamera", labels(ue))
+        self.assertIn("Elyon.Lake", labels(ue))
 
     def test_run_all_keeps_the_editor_open(self):
         ue = FakeUnreal()

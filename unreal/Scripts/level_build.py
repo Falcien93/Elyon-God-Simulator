@@ -5,6 +5,7 @@ from garden_logic import (
     MATERIAL_CANDIDATES,
     MESH_CANDIDATES,
     ROLE_MATERIAL,
+    SEQUENCE_PATH,
     plan_level,
     planned_labels,
     resolve_candidate,
@@ -22,6 +23,8 @@ CLASS_NAMES = {
     "player_start": "PlayerStart",
     "marker": "TargetPoint",
     "post_process": "PostProcessVolume",
+    "cine_camera": "CineCameraActor",
+    "level_sequence": "LevelSequenceActor",
 }
 
 
@@ -54,6 +57,20 @@ def _linear_color(ue, rgba):
     """FLinearColor properties take unreal.LinearColor channels as 0-1 floats."""
     red, green, blue, alpha = rgba
     return ue.LinearColor(float(red), float(green), float(blue), float(alpha))
+
+
+def _warn(ue, message):
+    log_warning = getattr(ue, "log_warning", None)
+    if log_warning:
+        log_warning(message)
+
+
+def _try_set(target, name, value, ue):
+    """Optional cinematic properties. A missing name must not abort the level save."""
+    try:
+        target.set_editor_property(name, value)
+    except Exception as exc:
+        _warn(ue, f"Elyon skipped {name}: {exc}")
 
 
 def _by_label(ue):
@@ -150,6 +167,10 @@ def _place(actor, ue, spec, available):
                 comp.set_material(0, material)
     if spec["kind"] == "marker":
         actor.set_editor_property("tags", [spec.get("state", "dawn")])
+    if spec["kind"] == "cine_camera":
+        comp = actor.get_component_by_class(ue.CineCameraComponent)
+        comp.set_editor_property("current_focal_length", 24.0)
+        comp.set_editor_property("current_aperture", 2.8)
 
 
 def _apply_light(ue, light):
@@ -160,13 +181,33 @@ def _apply_light(ue, light):
         comp = sun.get_component_by_class(ue.DirectionalLightComponent)
         comp.set_editor_property("intensity", light["sun_intensity"])
         comp.set_editor_property("light_color", _byte_color(ue, light["sun_color"]))
+        comp.set_editor_property("atmosphere_sun_light", light["atmosphere_sun_light"])
+        comp.set_editor_property("light_source_angle", light["light_source_angle"])
+        comp.set_editor_property("cast_volumetric_shadow", light["cast_volumetric_shadow"])
+        comp.set_editor_property("volumetric_scattering_intensity", light["volumetric_scattering_intensity"])
+        comp.set_editor_property("enable_light_shaft_bloom", light["enable_light_shaft_bloom"])
+        comp.set_editor_property("enable_light_shaft_occlusion", light["enable_light_shaft_occlusion"])
+        comp.set_editor_property("bloom_scale", light["bloom_scale"])
+        comp.set_editor_property("bloom_threshold", light["bloom_threshold"])
+        comp.set_editor_property("bloom_max_brightness", light["bloom_max_brightness"])
+        comp.set_editor_property("bloom_tint", _byte_color(ue, light["bloom_tint"]))
     sky = actors.get("Elyon.SkyLight")
     if sky:
         comp = sky.get_component_by_class(ue.SkyLightComponent)
         comp.set_editor_property("intensity", light["skylight_intensity"])
         comp.set_editor_property("light_color", _byte_color(ue, light["sky_color"]))
+        _try_set(comp, "real_time_capture", True, ue)
+        _try_set(comp, "volumetric_scattering_intensity", 1.2, ue)
         if hasattr(comp, "recapture_sky"):
             comp.recapture_sky()
+    atmosphere = actors.get("Elyon.SkyAtmosphere")
+    if atmosphere and hasattr(ue, "SkyAtmosphereComponent"):
+        comp = atmosphere.get_component_by_class(ue.SkyAtmosphereComponent)
+        _try_set(comp, "mie_anisotropy", light["mie_anisotropy"], ue)
+        _try_set(comp, "mie_scattering_scale", light["mie_scattering_scale"], ue)
+        _try_set(comp, "sky_luminance_factor", _linear_color(ue, light["sky_luminance_factor"]), ue)
+        _try_set(comp, "aerial_perspective_view_distance_scale", light["aerial_perspective_view_distance_scale"], ue)
+        _try_set(comp, "height_fog_contribution", 1.0, ue)
     fog = actors.get("Elyon.Fog")
     if fog:
         comp = fog.get_component_by_class(ue.ExponentialHeightFogComponent)
@@ -175,6 +216,21 @@ def _apply_light(ue, light):
         comp.set_editor_property("start_distance", light["fog_start_distance"])
         comp.set_editor_property("fog_max_opacity", light["fog_max_opacity"])
         comp.set_editor_property("fog_inscattering_luminance", _linear_color(ue, light["fog_color"]))
+        comp.set_editor_property("enable_volumetric_fog", light["enable_volumetric_fog"])
+        comp.set_editor_property("volumetric_fog_albedo", _byte_color(ue, light["volumetric_fog_albedo"]))
+        comp.set_editor_property("volumetric_fog_emissive", _linear_color(ue, light["volumetric_fog_emissive"]))
+        comp.set_editor_property("volumetric_fog_scattering_distribution", light["volumetric_fog_scattering_distribution"])
+        comp.set_editor_property("volumetric_fog_extinction_scale", light["volumetric_fog_extinction_scale"])
+        comp.set_editor_property("volumetric_fog_distance", light["volumetric_fog_distance"])
+        comp.set_editor_property("volumetric_fog_start_distance", light["volumetric_fog_start_distance"])
+        comp.set_editor_property("directional_inscattering_exponent", light["directional_inscattering_exponent"])
+        comp.set_editor_property("directional_inscattering_start_distance", light["directional_inscattering_start_distance"])
+        comp.set_editor_property("directional_inscattering_luminance", _linear_color(ue, light["directional_inscattering"]))
+    clouds = actors.get("Elyon.Clouds")
+    if clouds and hasattr(ue, "VolumetricCloudComponent"):
+        comp = clouds.get_component_by_class(ue.VolumetricCloudComponent)
+        _try_set(comp, "layer_bottom_altitude", light["cloud_bottom_km"], ue)
+        _try_set(comp, "layer_height", light["cloud_height_km"], ue)
     marker = actors.get("Elyon.LetThereBeLight")
     if marker:
         marker.set_editor_property("tags", [light["name"]])
@@ -196,6 +252,12 @@ def _apply_exposure(actor, ue, light):
     settings.set_editor_property("auto_exposure_max_brightness", light["exposure_max_ev"])
     settings.set_editor_property("override_auto_exposure_bias", True)
     settings.set_editor_property("auto_exposure_bias", light["exposure_bias"])
+    settings.set_editor_property("override_bloom_intensity", True)
+    settings.set_editor_property("bloom_intensity", light["bloom_intensity"])
+    settings.set_editor_property("override_vignette_intensity", True)
+    settings.set_editor_property("vignette_intensity", light["vignette_intensity"])
+    settings.set_editor_property("override_white_temp", True)
+    settings.set_editor_property("white_temp", light["white_temp"])
     actor.set_editor_property("settings", settings)
 
 
@@ -206,6 +268,92 @@ def _destroy_stale(ue, labels):
         actor = actors.get(label)
         if actor:
             sub.destroy_actor(actor)
+
+
+def _frame_editor(ue, key):
+    library = getattr(ue, "EditorLevelLibrary", None)
+    if library is None or not hasattr(library, "set_level_viewport_camera_info"):
+        return
+    try:
+        library.set_level_viewport_camera_info(
+            _vec(ue, key["x"], key["y"], key["z"]),
+            _rot(ue, key["pitch"], key["yaw"], 0.0),
+        )
+    except Exception as exc:
+        _warn(ue, f"Elyon could not move the editor camera: {exc}")
+
+
+def _channel(ue, section, name):
+    return ue.MovieSceneSectionExtensions.get_channel_by_name(section, name)
+
+
+def _build_flythrough(ue, camera, keys):
+    """Key the god camera on a level sequence. Failure leaves the still camera in place."""
+    if camera is None or not keys or not hasattr(ue, "LevelSequence") or not hasattr(ue, "AssetToolsHelpers"):
+        return None
+    try:
+        assets = ue.EditorAssetLibrary
+        if assets.does_asset_exist(SEQUENCE_PATH):
+            assets.delete_asset(SEQUENCE_PATH)
+        tools = ue.AssetToolsHelpers.get_asset_tools()
+        sequence = tools.create_asset(
+            "LS_GodFlythrough",
+            "/Game/Cinematics",
+            ue.LevelSequence,
+            ue.LevelSequenceFactoryNew(),
+        )
+        fps = 24
+        end_frame = int(round(keys[-1]["t"] * fps))
+        if hasattr(sequence, "set_display_rate") and hasattr(ue, "FrameRate"):
+            sequence.set_display_rate(ue.FrameRate(fps, 1))
+        if hasattr(sequence, "set_playback_start"):
+            sequence.set_playback_start(0)
+        if hasattr(sequence, "set_playback_end"):
+            sequence.set_playback_end(end_frame)
+        binding = ue.MovieSceneSequenceExtensions.add_possessable(sequence, camera)
+        track = binding.add_track(ue.MovieScene3DTransformTrack)
+        section = track.add_section()
+        start = ue.FrameNumber(0)
+        end = ue.FrameNumber(end_frame)
+        section.set_range(start, end)
+        channels = {
+            "x": _channel(ue, section, "Location.X"),
+            "y": _channel(ue, section, "Location.Y"),
+            "z": _channel(ue, section, "Location.Z"),
+            "pitch": _channel(ue, section, "Rotation.Y"),
+            "yaw": _channel(ue, section, "Rotation.Z"),
+        }
+        for key in keys:
+            frame = ue.FrameNumber(int(round(key["t"] * fps)))
+            channels["x"].add_key(frame, key["x"])
+            channels["y"].add_key(frame, key["y"])
+            channels["z"].add_key(frame, key["z"])
+            channels["pitch"].add_key(frame, key["pitch"])
+            channels["yaw"].add_key(frame, key["yaw"])
+        for axis in ("Scale.X", "Scale.Y", "Scale.Z"):
+            _channel(ue, section, axis).add_key(start, 1.0)
+        cut_track = ue.MovieSceneSequenceExtensions.add_master_track(sequence, ue.MovieSceneCameraCutTrack)
+        cut = cut_track.add_section()
+        cut.set_range(start, end)
+        binding_id = ue.MovieSceneSequenceExtensions.get_binding_id(sequence, binding)
+        cut.set_camera_binding_id(binding_id)
+        assets.save_asset(SEQUENCE_PATH, False)
+        actor = _by_label(ue).get("Elyon.GodFlythrough")
+        if actor is not None and hasattr(actor, "set_sequence"):
+            actor.set_sequence(sequence)
+        if actor is not None and hasattr(ue, "MovieSceneSequencePlaybackSettings"):
+            playback = ue.MovieSceneSequencePlaybackSettings()
+            playback.set_editor_property("auto_play", True)
+            actor.set_editor_property("playback_settings", playback)
+        library = getattr(ue, "LevelSequenceEditorBlueprintLibrary", None)
+        if library is not None:
+            library.open_level_sequence(sequence)
+            if hasattr(library, "play"):
+                library.play()
+        return sequence
+    except Exception as exc:
+        _warn(ue, f"Elyon god flythrough sequence was not created: {exc}")
+        return None
 
 
 def build(dawn=True, ue=None):
@@ -225,6 +373,8 @@ def build(dawn=True, ue=None):
             actor = sub.spawn_actor_from_class(cls, _vec(ue, spec["x"], spec["y"], spec["z"]), _rot(ue, spec.get("pitch", 0.0), spec.get("yaw", 0.0), 0.0))
         _place(actor, ue, spec, available)
     _apply_light(ue, plan["light"])
+    _build_flythrough(ue, _by_label(ue).get("Elyon.GodCamera"), plan["flight"])
+    _frame_editor(ue, plan["flight"][0])
     ue.EditorLevelLibrary.save_current_level()
     return plan
 
