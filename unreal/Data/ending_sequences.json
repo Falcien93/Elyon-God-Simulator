@@ -1,0 +1,81 @@
+{
+  "source": "Level Sequence scaffolds for the four endings in endings.json",
+  "folder": "/Game/Cinematics/Endings",
+  "fps": 24,
+  "fadeInSeconds": 1.5,
+  "secondsPerParagraph": 6,
+  "holdSeconds": 2,
+  "cameraName": "EndingCamera",
+  "endings": {
+    "harmony": {
+      "shots": [
+        {
+          "at": 0.0,
+          "location": [650.0, -180.0, 190.0],
+          "rotation": [-6.0, 200.0, 0.0],
+          "note": "Evening beside the tree. They stay."
+        },
+        {
+          "at": 1.0,
+          "location": [280.0, -40.0, 170.0],
+          "rotation": [-3.0, 160.0, 0.0],
+          "note": "Closer. The fruit is still on the branch."
+        }
+      ]
+    },
+    "exile": {
+      "shots": [
+        {
+          "at": 0.0,
+          "location": [500.0, -200.0, 220.0],
+          "rotation": [-8.0, 20.0, 0.0],
+          "note": "The garden, before the walk east."
+        },
+        {
+          "at": 0.45,
+          "location": [2400.0, 700.0, 260.0],
+          "rotation": [-6.0, 15.0, 0.0],
+          "note": "Along the river toward the wild grass."
+        },
+        {
+          "at": 1.0,
+          "location": [5400.0, 1100.0, 180.0],
+          "rotation": [-4.0, 10.0, 0.0],
+          "note": "East of the garden, where the river loosens."
+        }
+      ]
+    },
+    "wonder": {
+      "shots": [
+        {
+          "at": 0.0,
+          "location": [300.0, -300.0, 200.0],
+          "rotation": [-10.0, 40.0, 0.0],
+          "note": "Among them, with no fence in frame."
+        },
+        {
+          "at": 1.0,
+          "location": [0.0, -800.0, 1400.0],
+          "rotation": [-35.0, 70.0, 0.0],
+          "note": "The orchard opens. The camera rises and stays inside the garden."
+        }
+      ]
+    },
+    "order": {
+      "shots": [
+        {
+          "at": 0.0,
+          "location": [900.0, -600.0, 240.0],
+          "rotation": [-12.0, 50.0, 0.0],
+          "note": "A wide peaceful evening."
+        },
+        {
+          "at": 1.0,
+          "location": [420.0, -360.0, 150.0],
+          "rotation": [-2.0, 30.0, 0.0],
+          "note": "Close on the guarded tree. The question is shut."
+        }
+      ]
+    }
+  }
+}
