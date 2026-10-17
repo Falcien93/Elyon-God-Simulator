@@ -94,6 +94,11 @@ def resolve_candidate(candidates, available):
     return candidates[-1]
 
 
+def physical_ev100(fstop, shutter_per_second, iso):
+    """EV100 for a camera. shutter_per_second is 250 for a 1/250 s shutter."""
+    return math.log2((float(fstop) ** 2) * float(shutter_per_second) * (100.0 / float(iso)))
+
+
 def light_state(dawn):
     if dawn:
         return {
@@ -112,11 +117,14 @@ def light_state(dawn):
             "fog_height_falloff": 0.22,
             "fog_start_distance": 8000.0,
             "fog_max_opacity": 0.15,
-            # Manual compensation, not an EV100. Physical camera exposure is off, so
-            # positive bias brightens. A bias of +12 reported Exposure -12 on the laptop.
-            # Sunny-16 for this 120000 lux sun is EV 15 (f/16, 1/125 s, ISO 100), so the
-            # compensation is -15. That lands inside the cached-lighting window [-4, 16].
-            "exposure_bias": -15.0,
+            # Physical camera, bias 0. ISO 100, 1/250 s, f/8 is EV 14 for this sun.
+            # A manual bias of -15 crushed the unlit frame to black. EV 14 sits inside
+            # the cached-lighting window [-4, 16].
+            "exposure_bias": 0.0,
+            "apply_physical_camera_exposure": True,
+            "camera_iso": 100.0,
+            "camera_shutter_speed": 250.0,
+            "camera_fstop": 8.0,
             "enable_volumetric_fog": False,
             "volumetric_fog_albedo": (0.8, 0.82, 0.84, 1.0),
             "volumetric_fog_emissive": (0.0, 0.0, 0.0, 1.0),

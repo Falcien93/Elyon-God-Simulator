@@ -43,12 +43,33 @@ def _subsystem(ue):
     return ue.get_editor_subsystem(ue.EditorActorSubsystem)
 
 
+def _editor_subsystem(ue, class_name):
+    getter = getattr(ue, "get_editor_subsystem", None)
+    cls = getattr(ue, class_name, None)
+    if getter is None or cls is None:
+        return None
+    try:
+        return getter(cls)
+    except Exception:
+        return None
+
+
 def _vec(ue, x, y, z):
     return ue.Vector(float(x), float(y), float(z))
 
 
 def _rot(ue, pitch=0.0, yaw=0.0, roll=0.0):
-    return ue.Rotator(float(pitch), float(yaw), float(roll))
+    """Build a rotator from named axes.
+
+    unreal.Rotator(roll, pitch, yaw) follows Make Rotator. Passing pitch as the
+    first argument stored the dawn sun as pitch 35, yaw 0, roll -20, so the
+    light pointed up and the garden was black.
+    """
+    rotator = ue.Rotator()
+    rotator.pitch = float(pitch)
+    rotator.yaw = float(yaw)
+    rotator.roll = float(roll)
+    return rotator
 
 
 def _byte_color(ue, rgba):
@@ -216,7 +237,7 @@ def _place(actor, ue, spec, available):
         comp = actor.get_component_by_class(ue.CineCameraComponent)
         comp.set_editor_property("current_focal_length", 24.0)
         comp.set_editor_property("current_aperture", 8.0)
-        # f/8 must not drive exposure. The unbound volume owns the compensation.
+        # The flythrough camera does not drive exposure. The unbound volume does.
         _try_set(comp, "post_process_blend_weight", 0.0, ue)
 
 
@@ -334,12 +355,14 @@ def _queue_sky_recapture(comp, ue):
 
 
 def _apply_exposure(actor, ue, light):
-    """Fixed manual exposure. Keep bloom, fringe, vignette, and flares quiet.
+    """Fixed exposure. Keep bloom, fringe, vignette, and flares quiet.
 
     UE 5.8 PostProcessSettings has no histogram log min/max properties.
-    Manual mode does not meter the scene, so a stuck eye adaptation cannot
-    hold the view black. Physical camera exposure stays off. Bias is a
-    compensation: positive brightens, and the reported EV100 is the negation.
+    Manual mode does not meter the scene. With physical camera exposure off,
+    bias is a compensation and positive brightens: bias +12 reported Exposure
+    -12 and blew the view white, and bias -15 reported a dark exposure. Dawn
+    turns physical camera exposure on and leaves bias at 0, so ISO, shutter,
+    and f-stop set the EV100.
     """
     actor.set_editor_property("unbound", True)
     actor.set_editor_property("priority", 10.0)
@@ -348,8 +371,16 @@ def _apply_exposure(actor, ue, light):
     settings.set_editor_property("auto_exposure_method", ue.AutoExposureMethod.AEM_MANUAL)
     settings.set_editor_property("override_auto_exposure_bias", True)
     settings.set_editor_property("auto_exposure_bias", light["exposure_bias"])
+    physical = bool(light.get("apply_physical_camera_exposure", False))
     _try_set(settings, "override_auto_exposure_apply_physical_camera_exposure", True, ue)
-    _try_set(settings, "auto_exposure_apply_physical_camera_exposure", False, ue)
+    _try_set(settings, "auto_exposure_apply_physical_camera_exposure", physical, ue)
+    if physical:
+        _try_set(settings, "override_camera_iso", True, ue)
+        _try_set(settings, "camera_iso", light["camera_iso"], ue)
+        _try_set(settings, "override_camera_shutter_speed", True, ue)
+        _try_set(settings, "camera_shutter_speed", light["camera_shutter_speed"], ue)
+        _try_set(settings, "override_depth_of_field_fstop", True, ue)
+        _try_set(settings, "depth_of_field_fstop", light["camera_fstop"], ue)
     settings.set_editor_property("override_bloom_intensity", True)
     settings.set_editor_property("bloom_intensity", light["bloom_intensity"])
     settings.set_editor_property("override_vignette_intensity", True)
@@ -377,7 +408,7 @@ def _destroy_stale(ue, labels):
 
 
 def _frame_editor(ue, key):
-    library = getattr(ue, "EditorLevelLibrary", None)
+    library = _editor_subsystem(ue, "UnrealEditorSubsystem")
     if library is None or not hasattr(library, "set_level_viewport_camera_info"):
         return
     try:

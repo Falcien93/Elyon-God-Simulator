@@ -1,4 +1,3 @@
-import math
 import sys
 import unittest
 from pathlib import Path
@@ -17,8 +16,12 @@ class Vec:
 
 
 class Rot:
-    def __init__(self, pitch, yaw, roll):
-        self.pitch, self.yaw, self.roll = pitch, yaw, roll
+    """Python unreal.Rotator argument order is roll, pitch, yaw."""
+
+    def __init__(self, roll=0.0, pitch=0.0, yaw=0.0):
+        self.roll = float(roll)
+        self.pitch = float(pitch)
+        self.yaw = float(yaw)
 
 
 class ByteColor:
@@ -169,19 +172,6 @@ class LevelLib:
         self.loaded = None
         self.created = None
         self.saves = 0
-        self.viewport = None
-        self.invalidated = 0
-
-    def set_level_viewport_camera_info(self, location, rotation):
-        self.viewport = (location, rotation)
-
-    def get_level_viewport_camera_info(self):
-        if self.viewport is None:
-            return (Vec(0.0, 0.0, 0.0), Rot(0.0, 0.0, 0.0))
-        return self.viewport
-
-    def editor_invalidate_viewports(self):
-        self.invalidated += 1
 
     def load_level(self, path):
         self.loaded = path
@@ -192,6 +182,27 @@ class LevelLib:
 
     def save_current_level(self):
         self.saves += 1
+
+
+class ViewportSubsystem:
+    def __init__(self):
+        self.viewport = None
+
+    def set_level_viewport_camera_info(self, location, rotation):
+        self.viewport = (location, rotation)
+
+    def get_level_viewport_camera_info(self):
+        if self.viewport is None:
+            return (Vec(0.0, 0.0, 0.0), Rot())
+        return self.viewport
+
+
+class LevelEditorSubsystem:
+    def __init__(self):
+        self.invalidated = 0
+
+    def editor_invalidate_viewports(self):
+        self.invalidated += 1
 
 
 class SystemLibrary:
@@ -242,14 +253,27 @@ class FakeUnreal:
         self.EditorPythonScripting = EditorPythonScripting()
         self.EditorAssetLibrary = AssetLib()
         self.EditorLevelLibrary = LevelLib(self.EditorAssetLibrary)
+        self.UnrealEditorSubsystem = type("UnrealEditorSubsystem", (), {})
+        self.LevelEditorSubsystem = type("LevelEditorSubsystem", (), {})
+        self.viewport_subsystem = ViewportSubsystem()
+        self.level_editor = LevelEditorSubsystem()
         self.SystemLibrary = SystemLibrary()
         self.logs = []
+        self.warnings = []
         self.sub = Subsystem()
 
     def log(self, message):
         self.logs.append(message)
 
+    def log_warning(self, message):
+        self.warnings.append(message)
+        self.logs.append(message)
+
     def get_editor_subsystem(self, cls):
+        if cls is self.UnrealEditorSubsystem:
+            return self.viewport_subsystem
+        if cls is self.LevelEditorSubsystem:
+            return self.level_editor
         return self.sub
 
 
@@ -278,15 +302,14 @@ class GardenLogicTests(unittest.TestCase):
         self.assertGreaterEqual(dawn["sun_intensity"], 100000.0)
         self.assertGreaterEqual(dawn["sun_pitch"], -25.0)
         self.assertLessEqual(dawn["sun_pitch"], -15.0)
-        # Bias +12 reported Exposure -12. Direct sun is EV 15, inside [-4, 16].
-        self.assertEqual(dawn["exposure_bias"], -15.0)
-        self.assertEqual(-dawn["exposure_bias"], 15.0)
-        self.assertGreaterEqual(-dawn["exposure_bias"], 14.0)
-        self.assertLessEqual(-dawn["exposure_bias"], 15.0)
-        self.assertGreaterEqual(-dawn["exposure_bias"], -4.0)
-        self.assertLessEqual(-dawn["exposure_bias"], 16.0)
-        sunny = math.log2((16.0 ** 2) / (1.0 / 125.0))
-        self.assertAlmostEqual(sunny, 15.0, delta=0.1)
+        # ISO 100, 1/250 s, f/8 is about EV 14, inside the [-4, 16] cache window.
+        self.assertEqual(dawn["exposure_bias"], 0.0)
+        self.assertTrue(dawn["apply_physical_camera_exposure"])
+        ev = garden_logic.physical_ev100(dawn["camera_fstop"], dawn["camera_shutter_speed"], dawn["camera_iso"])
+        self.assertAlmostEqual(ev, 14.0, delta=0.1)
+        self.assertGreaterEqual(ev, -4.0)
+        self.assertLessEqual(ev, 16.0)
+        self.assertFalse(dark.get("apply_physical_camera_exposure", False))
         self.assertEqual(dark["exposure_bias"], -2.0)
         self.assertLess(dawn["fog_density"], 0.01)
         self.assertLessEqual(dawn["fog_max_opacity"], 0.15)
@@ -435,10 +458,13 @@ class LevelBuildTests(unittest.TestCase):
         self.assertEqual(exposure.props["priority"], 10.0)
         settings = exposure.props["settings"]
         self.assertEqual(settings.props["auto_exposure_method"], "AEM_MANUAL")
-        self.assertEqual(settings.props["auto_exposure_bias"], -15.0)
+        self.assertEqual(settings.props["auto_exposure_bias"], 0.0)
         self.assertNotIn("auto_exposure_histogram_log_min", settings.props)
         self.assertNotIn("auto_exposure_histogram_log_max", settings.props)
-        self.assertFalse(settings.props["auto_exposure_apply_physical_camera_exposure"])
+        self.assertTrue(settings.props["auto_exposure_apply_physical_camera_exposure"])
+        self.assertEqual(settings.props["camera_iso"], 100.0)
+        self.assertEqual(settings.props["camera_shutter_speed"], 250.0)
+        self.assertEqual(settings.props["depth_of_field_fstop"], 8.0)
         self.assertEqual(settings.props["bloom_intensity"], 0.05)
         self.assertEqual(settings.props["vignette_intensity"], 0.0)
         self.assertEqual(settings.props["scene_fringe_intensity"], 0.0)
@@ -485,6 +511,7 @@ class LevelBuildTests(unittest.TestCase):
         dark_settings = exposure.props["settings"]
         self.assertEqual(dark_settings.props["auto_exposure_method"], "AEM_MANUAL")
         self.assertEqual(dark_settings.props["auto_exposure_bias"], -2.0)
+        self.assertFalse(dark_settings.props["auto_exposure_apply_physical_camera_exposure"])
         self.assertEqual(fog_comp.props["fog_density"], 0.0025)
         self.assertFalse(sun_comp.props["enable_light_shaft_bloom"])
         self.assertEqual(dark_settings.props["vignette_intensity"], 0.0)
@@ -665,7 +692,7 @@ class LevelBuildTests(unittest.TestCase):
         self.assertTrue(ue.EditorPythonScripting.alive)
         self.assertIn("Elyon run_all finished", ue.logs)
         self.assertIn("Elyon garden build finished", ue.logs)
-        location, rotation = ue.EditorLevelLibrary.viewport
+        location, rotation = ue.viewport_subsystem.viewport
         self.assertEqual((location.x, location.y, location.z), (0.0, -4800.0, 2600.0))
         self.assertEqual((rotation.pitch, rotation.yaw), (-24.0, 90.0))
 
@@ -698,20 +725,47 @@ class LevelBuildTests(unittest.TestCase):
 
         ue = FakeUnreal()
         level_build.build(dawn=True, ue=ue)
-        ue.EditorLevelLibrary.viewport = (Vec(1.0, 2.0, 3.0), Rot(0.0, 0.0, 0.0))
+        ue.viewport_subsystem.viewport = (Vec(1.0, 2.0, 3.0), Rot())
         diag_shot.diagnose(ue)
         text = "\n".join(ue.logs)
         self.assertIn("intensity_lux=120000.0", text)
         self.assertIn("pitch=-20.0", text)
+        self.assertIn("yaw=35.0", text)
+        self.assertIn("roll=0.0", text)
         self.assertIn("method=AEM_MANUAL", text)
-        self.assertIn("bias=-15.0", text)
+        self.assertIn("bias=0.0", text)
+        self.assertIn("physical_camera=True", text)
+        self.assertIn("iso=100.0", text)
+        self.assertIn("shutter=250.0", text)
+        self.assertIn("fstop=8.0", text)
         self.assertIn("x=1.0 y=2.0 z=3.0", text)
         self.assertEqual(ue.SystemLibrary.commands, ["HighResShot 1920x1080"])
         self.assertIn("Saved/Screenshots", text)
-        location, rotation = ue.EditorLevelLibrary.viewport
+        self.assertIn("frame check skipped", text)
+        location, rotation = ue.viewport_subsystem.viewport
         self.assertEqual((location.x, location.y, location.z), (0.0, -4800.0, 2600.0))
         self.assertEqual(rotation.pitch, -24.0)
-        self.assertGreater(ue.EditorLevelLibrary.invalidated, 0)
+        self.assertEqual(rotation.yaw, 90.0)
+        self.assertGreater(ue.level_editor.invalidated, 0)
+        swapped = ue.Rotator(-20.0, 35.0, 0.0)
+        self.assertEqual((swapped.pitch, swapped.yaw, swapped.roll), (35.0, 0.0, -20.0))
+
+    def test_shot_check_flags_black_and_white_frames(self):
+        import shot_check
+
+        black = shot_check.write_rgb_png(4, 4, lambda _x, _y: (0, 0, 0))
+        white = shot_check.write_rgb_png(4, 4, lambda _x, _y: (255, 255, 255))
+        day = shot_check.write_rgb_png(4, 4, lambda x, _y: (40, 80, 30) if x < 2 else (180, 140, 90))
+        # A corner gizmo must not hide an otherwise black frame.
+        gizmo = shot_check.write_rgb_png(
+            8,
+            8,
+            lambda x, y: (255, 0, 0) if x == 0 and y == 7 else (0, 0, 0),
+        )
+        self.assertEqual(shot_check.classify_png(black, stride=1)[0], "black")
+        self.assertEqual(shot_check.classify_png(white, stride=1)[0], "white")
+        self.assertEqual(shot_check.classify_png(day, stride=1)[0], "ok")
+        self.assertEqual(shot_check.classify_png(gizmo, stride=1)[0], "black")
 
 
 if __name__ == "__main__":

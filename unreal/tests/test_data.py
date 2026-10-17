@@ -88,6 +88,7 @@ class DataTests(unittest.TestCase):
         self.assertIn("TSR", readme)
         self.assertIn("LS_GodFlythrough", readme)
         self.assertIn("[RTX4060_1440p]", scale)
+        self.assertNotIn("r.AntiAliasingMethod", scale)
         self.assertIn("foliage.DensityScale=1.5", scale)
         self.assertIn("r.ScreenPercentage=67", scale)
         settings = (UNREAL / "Config" / "DefaultGameUserSettings.ini").read_text(encoding="utf-8")
