@@ -145,6 +145,7 @@ class PostProcessSettings:
 
 class AutoExposureMethod:
     AEM_HISTOGRAM = "AEM_HISTOGRAM"
+    AEM_MANUAL = "AEM_MANUAL"
 
 
 class AssetLib:
@@ -276,8 +277,13 @@ class GardenLogicTests(unittest.TestCase):
         self.assertGreaterEqual(dawn["sun_intensity"], 100000.0)
         self.assertGreaterEqual(dawn["sun_pitch"], -25.0)
         self.assertLessEqual(dawn["sun_pitch"], -15.0)
-        self.assertEqual(dawn["exposure_min_ev"], 8.0)
-        self.assertEqual(dawn["exposure_max_ev"], 14.0)
+        self.assertEqual(dawn["exposure_bias"], 12.0)
+        self.assertEqual(dark["exposure_bias"], -2.0)
+        self.assertLess(dawn["fog_density"], 0.01)
+        self.assertLessEqual(dawn["fog_max_opacity"], 0.15)
+        self.assertGreater(dawn["fog_start_distance"], 1000.0)
+        self.assertGreater(garden_logic.OVERVIEW["z"], 2000.0)
+        self.assertNotIn("exposure_histogram_min_ev", dawn)
         self.assertEqual(dawn["skylight_intensity"], 1.0)
         self.assertGreater(dark["fog_density"], dawn["fog_density"])
 
@@ -419,12 +425,10 @@ class LevelBuildTests(unittest.TestCase):
         self.assertTrue(exposure.props["unbound"])
         self.assertEqual(exposure.props["priority"], 10.0)
         settings = exposure.props["settings"]
-        self.assertEqual(settings.props["auto_exposure_method"], "AEM_HISTOGRAM")
-        self.assertEqual(settings.props["auto_exposure_min_brightness"], 8.0)
-        self.assertEqual(settings.props["auto_exposure_max_brightness"], 14.0)
-        self.assertEqual(settings.props["auto_exposure_bias"], 0.0)
-        self.assertEqual(settings.props["auto_exposure_histogram_log_min"], 0.0)
-        self.assertEqual(settings.props["auto_exposure_histogram_log_max"], 16.0)
+        self.assertEqual(settings.props["auto_exposure_method"], "AEM_MANUAL")
+        self.assertEqual(settings.props["auto_exposure_bias"], 12.0)
+        self.assertNotIn("auto_exposure_histogram_log_min", settings.props)
+        self.assertNotIn("auto_exposure_histogram_log_max", settings.props)
         self.assertFalse(settings.props["auto_exposure_apply_physical_camera_exposure"])
         self.assertEqual(settings.props["bloom_intensity"], 0.05)
         self.assertEqual(settings.props["vignette_intensity"], 0.0)
@@ -470,8 +474,8 @@ class LevelBuildTests(unittest.TestCase):
         marker = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.LetThereBeLight")
         self.assertEqual(marker.props["tags"], ["darkness"])
         dark_settings = exposure.props["settings"]
-        self.assertEqual(dark_settings.props["auto_exposure_min_brightness"], -1.0)
-        self.assertEqual(dark_settings.props["auto_exposure_max_brightness"], 2.0)
+        self.assertEqual(dark_settings.props["auto_exposure_method"], "AEM_MANUAL")
+        self.assertEqual(dark_settings.props["auto_exposure_bias"], -2.0)
         self.assertEqual(fog_comp.props["fog_density"], 0.0025)
         self.assertFalse(sun_comp.props["enable_light_shaft_bloom"])
         self.assertEqual(dark_settings.props["vignette_intensity"], 0.0)
@@ -650,9 +654,35 @@ class LevelBuildTests(unittest.TestCase):
         ue = FakeUnreal()
         run_all.main(ue)
         self.assertTrue(ue.EditorPythonScripting.alive)
+        self.assertIn("Elyon run_all finished", ue.logs)
+        self.assertIn("Elyon garden build finished", ue.logs)
         location, rotation = ue.EditorLevelLibrary.viewport
         self.assertEqual((location.x, location.y, location.z), (0.0, -4800.0, 2600.0))
         self.assertEqual((rotation.pitch, rotation.yaw), (-24.0, 90.0))
+
+    def test_sky_recapture_runs_on_the_next_editor_tick(self):
+        ue = FakeUnreal()
+        callbacks = []
+
+        def register(fn):
+            callbacks.append(fn)
+            return 7
+
+        def unregister(handle):
+            self.assertEqual(handle, 7)
+
+        ue.register_slate_post_tick_callback = register
+        ue.unregister_slate_post_tick_callback = unregister
+        level_build.build(dawn=True, ue=ue)
+        sky = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.SkyLight")
+        sky_comp = sky.get_component_by_class(ue.SkyLightComponent)
+        self.assertEqual(sky_comp.recaptured, 0)
+        self.assertIn("Elyon sky recapture queued", ue.logs)
+        self.assertIn("Elyon garden build finished", ue.logs)
+        self.assertEqual(len(callbacks), 1)
+        callbacks[0](0.0)
+        self.assertEqual(sky_comp.recaptured, 1)
+        self.assertIn("Elyon sky recapture finished", ue.logs)
 
     def test_diag_shot_logs_lighting_and_saves_from_the_overview(self):
         import diag_shot
@@ -664,8 +694,8 @@ class LevelBuildTests(unittest.TestCase):
         text = "\n".join(ue.logs)
         self.assertIn("intensity_lux=120000.0", text)
         self.assertIn("pitch=-20.0", text)
-        self.assertIn("min_ev100=8.0", text)
-        self.assertIn("max_ev100=14.0", text)
+        self.assertIn("method=AEM_MANUAL", text)
+        self.assertIn("bias=12.0", text)
         self.assertIn("x=1.0 y=2.0 z=3.0", text)
         self.assertEqual(ue.SystemLibrary.commands, ["HighResShot 1920x1080"])
         self.assertIn("Saved/Screenshots", text)

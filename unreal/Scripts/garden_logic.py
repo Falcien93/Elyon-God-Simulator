@@ -112,11 +112,10 @@ def light_state(dawn):
             "fog_height_falloff": 0.22,
             "fog_start_distance": 8000.0,
             "fog_max_opacity": 0.15,
-            "exposure_min_ev": 8.0,
-            "exposure_max_ev": 14.0,
-            "exposure_bias": 0.0,
-            "exposure_histogram_min_ev": 0.0,
-            "exposure_histogram_max_ev": 16.0,
+            # Manual exposure. With physical camera exposure off, UE treats this bias
+            # as EV100. 12 is daylight for a 120000 lux sun, a little open of sunny-16
+            # so golden hour at pitch -20 stays visible.
+            "exposure_bias": 12.0,
             "enable_volumetric_fog": False,
             "volumetric_fog_albedo": (0.8, 0.82, 0.84, 1.0),
             "volumetric_fog_emissive": (0.0, 0.0, 0.0, 1.0),
@@ -162,11 +161,7 @@ def light_state(dawn):
             "fog_height_falloff": 0.2,
             "fog_start_distance": 5000.0,
             "fog_max_opacity": 0.28,
-        "exposure_min_ev": -1.0,
-        "exposure_max_ev": 2.0,
-        "exposure_bias": 0.0,
-        "exposure_histogram_min_ev": -8.0,
-        "exposure_histogram_max_ev": 4.0,
+        "exposure_bias": -2.0,
             "enable_volumetric_fog": False,
             "volumetric_fog_albedo": (0.15, 0.18, 0.28, 1.0),
             "volumetric_fog_emissive": (0.0, 0.0, 0.0, 1.0),

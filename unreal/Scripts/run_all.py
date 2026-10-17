@@ -18,6 +18,9 @@ def main(ue=None):
     level_build.build(dawn=True, ue=ue)
     # build() already frames this. Set it again so the perspective view stays on the overview.
     level_build.frame_overview(ue)
+    log = getattr(ue, "log", None)
+    if log:
+        log("Elyon run_all finished")
 
 
 if __name__ == "__main__":

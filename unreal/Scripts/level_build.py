@@ -216,12 +216,8 @@ def _place(actor, ue, spec, available):
         comp = actor.get_component_by_class(ue.CineCameraComponent)
         comp.set_editor_property("current_focal_length", 24.0)
         comp.set_editor_property("current_aperture", 8.0)
-        # f/8 must not drive exposure. Physical camera exposure would crush a
-        # piloted view. The unbound volume owns histogram auto exposure.
-        lens = ue.PostProcessSettings()
-        _try_set(lens, "override_auto_exposure_apply_physical_camera_exposure", True, ue)
-        _try_set(lens, "auto_exposure_apply_physical_camera_exposure", False, ue)
-        _try_set(comp, "post_process_settings", lens, ue)
+        # f/8 must not drive exposure. The unbound volume owns manual EV.
+        _try_set(comp, "post_process_blend_weight", 0.0, ue)
 
 
 def _apply_light(ue, light):
@@ -256,8 +252,7 @@ def _apply_light(ue, light):
         _try_set(comp, "real_time_capture", True, ue)
         _try_set(comp, "lower_hemisphere_is_black", False, ue)
         _try_set(comp, "volumetric_scattering_intensity", 1.2, ue)
-        if hasattr(comp, "recapture_sky"):
-            comp.recapture_sky()
+        _queue_sky_recapture(comp, ue)
     atmosphere = actors.get("Elyon.SkyAtmosphere")
     if atmosphere and hasattr(ue, "SkyAtmosphereComponent"):
         comp = atmosphere.get_component_by_class(ue.SkyAtmosphereComponent)
@@ -298,29 +293,63 @@ def _apply_light(ue, light):
         _apply_exposure(exposure, ue, light)
 
 
+def _log(ue, message):
+    log = getattr(ue, "log", None)
+    if log:
+        log(message)
+
+
+def _queue_sky_recapture(comp, ue):
+    """Recapture once, after this script returns.
+
+    recapture_sky() flushes the render thread. Doing that inside run_all kept the
+    Executing Python Script toast up while the viewport stayed on the old exposure.
+    """
+    if not hasattr(comp, "recapture_sky"):
+        return
+
+    def capture():
+        try:
+            comp.recapture_sky()
+            _log(ue, "Elyon sky recapture finished")
+        except Exception as exc:
+            _warn(ue, f"Elyon sky recapture failed: {exc}")
+
+    register = getattr(ue, "register_slate_post_tick_callback", None)
+    unregister = getattr(ue, "unregister_slate_post_tick_callback", None)
+    if register is None or unregister is None:
+        capture()
+        return
+    state = {}
+
+    def once(_delta):
+        try:
+            unregister(state["handle"])
+        except Exception as exc:
+            _warn(ue, f"Elyon could not clear the sky recapture callback: {exc}")
+        capture()
+
+    state["handle"] = register(once)
+    _log(ue, "Elyon sky recapture queued")
+
+
 def _apply_exposure(actor, ue, light):
-    """Histogram auto exposure in EV100. Keep bloom, fringe, vignette, and flares quiet."""
+    """Fixed manual exposure. Keep bloom, fringe, vignette, and flares quiet.
+
+    UE 5.8 PostProcessSettings has no histogram log min/max properties.
+    Manual mode does not meter the scene, so a stuck eye adaptation cannot
+    hold the view black. Physical camera exposure stays off, and the bias is
+    the EV100.
+    """
     actor.set_editor_property("unbound", True)
     actor.set_editor_property("priority", 10.0)
     settings = ue.PostProcessSettings()
     settings.set_editor_property("override_auto_exposure_method", True)
-    settings.set_editor_property("auto_exposure_method", ue.AutoExposureMethod.AEM_HISTOGRAM)
-    settings.set_editor_property("override_auto_exposure_min_brightness", True)
-    settings.set_editor_property("auto_exposure_min_brightness", light["exposure_min_ev"])
-    settings.set_editor_property("override_auto_exposure_max_brightness", True)
-    settings.set_editor_property("auto_exposure_max_brightness", light["exposure_max_ev"])
+    settings.set_editor_property("auto_exposure_method", ue.AutoExposureMethod.AEM_MANUAL)
     settings.set_editor_property("override_auto_exposure_bias", True)
     settings.set_editor_property("auto_exposure_bias", light["exposure_bias"])
-    _try_set(settings, "override_auto_exposure_histogram_log_min", True, ue)
-    _try_set(settings, "auto_exposure_histogram_log_min", light["exposure_histogram_min_ev"], ue)
-    _try_set(settings, "override_auto_exposure_histogram_log_max", True, ue)
-    _try_set(settings, "auto_exposure_histogram_log_max", light["exposure_histogram_max_ev"], ue)
     _try_set(settings, "override_auto_exposure_apply_physical_camera_exposure", True, ue)
     _try_set(settings, "auto_exposure_apply_physical_camera_exposure", False, ue)
-    _try_set(settings, "override_auto_exposure_speed_up", True, ue)
-    _try_set(settings, "auto_exposure_speed_up", 8.0, ue)
-    _try_set(settings, "override_auto_exposure_speed_down", True, ue)
-    _try_set(settings, "auto_exposure_speed_down", 8.0, ue)
     settings.set_editor_property("override_bloom_intensity", True)
     settings.set_editor_property("bloom_intensity", light["bloom_intensity"])
     settings.set_editor_property("override_vignette_intensity", True)
@@ -436,7 +465,7 @@ def _build_flythrough(ue, camera, keys):
             actor.set_sequence(sequence)
         if actor is not None and hasattr(ue, "MovieSceneSequencePlaybackSettings"):
             playback = ue.MovieSceneSequencePlaybackSettings()
-            playback.set_editor_property("auto_play", True)
+            playback.set_editor_property("auto_play", False)
             actor.set_editor_property("playback_settings", playback)
         return sequence
     except Exception as exc:
@@ -460,10 +489,15 @@ def build(dawn=True, ue=None):
             cls = getattr(ue, CLASS_NAMES[spec["kind"]])
             actor = sub.spawn_actor_from_class(cls, _vec(ue, spec["x"], spec["y"], spec["z"]), _rot(ue, spec.get("pitch", 0.0), spec.get("yaw", 0.0), 0.0))
         _place(actor, ue, spec, available)
+    # Frame before lighting so a slow save cannot leave the view inside a mesh.
+    frame_overview(ue)
     _apply_light(ue, plan["light"])
+    _log(ue, "Elyon exposure and lights applied")
     _build_flythrough(ue, _by_label(ue).get("Elyon.GodCamera"), plan["flight"])
     frame_overview(ue)
+    _log(ue, "Elyon saving level")
     ue.EditorLevelLibrary.save_current_level()
+    _log(ue, "Elyon garden build finished")
     return plan
 
 
