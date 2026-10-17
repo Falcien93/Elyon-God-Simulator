@@ -1,0 +1,149 @@
+{
+  "source": "js/content.js",
+  "world": {"width": 42, "height": 30, "cell": 200},
+  "seed": 1102,
+  "restRadius": 400,
+  "sky": {"firmamentZ": 5200, "watersAboveZ": 6800},
+  "stars": {"count": 36, "radiusMin": 1800, "radiusMax": 6200, "zMin": 5450, "zMax": 6500},
+  "order": ["waters", "land", "lights", "creatures", "humanity", "rest"],
+  "counts": {
+    "tree": 16,
+    "flower": 28,
+    "fish": 4,
+    "bird": 3,
+    "deer": 2,
+    "sheep": 2,
+    "lion": 1
+  },
+  "hours": {
+    "divided": {
+      "name": "divided",
+      "sky_color": [0.7, 0.8, 0.92, 1],
+      "skylight_intensity": 0.7,
+      "fog_color": [0.55, 0.66, 0.8, 1],
+      "fog_density": 0.02
+    },
+    "day": {
+      "name": "day",
+      "sky_color": [1.0, 0.96, 0.9, 1],
+      "skylight_intensity": 1.0,
+      "fog_color": [0.75, 0.82, 0.95, 1],
+      "fog_density": 0.012,
+      "sun_intensity": 10,
+      "sun_color": [1.0, 0.93, 0.78, 1],
+      "sun_pitch": -50,
+      "sun_yaw": 25,
+      "sun_disc": [2400, 900, 6100],
+      "moon_intensity": 0.15,
+      "moon_color": [0.45, 0.5, 0.62, 1],
+      "moon_pitch": -28,
+      "moon_yaw": 205,
+      "moon_disc": [-2600, 400, 5000],
+      "star_scale": 0.35
+    },
+    "night": {
+      "name": "night",
+      "sky_color": [0.08, 0.1, 0.18, 1],
+      "skylight_intensity": 0.05,
+      "fog_color": [0.04, 0.05, 0.09, 1],
+      "fog_density": 0.045,
+      "sun_intensity": 0.02,
+      "sun_color": [0.05, 0.07, 0.14, 1],
+      "sun_pitch": -4,
+      "sun_yaw": 25,
+      "sun_disc": [-1800, -2400, 1400],
+      "moon_intensity": 4.0,
+      "moon_color": [0.6, 0.72, 1.0, 1],
+      "moon_pitch": -42,
+      "moon_yaw": 210,
+      "moon_disc": [-800, 1800, 6000],
+      "star_scale": 2.6
+    },
+    "evening": {
+      "name": "evening",
+      "sky_color": [0.95, 0.62, 0.42, 1],
+      "skylight_intensity": 0.45,
+      "fog_color": [0.85, 0.55, 0.38, 1],
+      "fog_density": 0.02,
+      "sun_intensity": 3.2,
+      "sun_color": [1.0, 0.62, 0.32, 1],
+      "sun_pitch": -14,
+      "sun_yaw": 40,
+      "sun_disc": [3200, -200, 2800],
+      "moon_intensity": 0.8,
+      "moon_color": [0.7, 0.74, 0.86, 1],
+      "moon_pitch": -24,
+      "moon_yaw": 200,
+      "moon_disc": [-1600, 1400, 5600],
+      "star_scale": 1.2
+    }
+  },
+  "days": [
+    {
+      "id": "waters",
+      "numeral": "the second day",
+      "title": "Waters",
+      "detail": "Divide the waters. A firmament stands between the waters above and the sea, the river, and the lake.",
+      "map": "/Game/Maps/Day2_Waters",
+      "phase": "divided",
+      "requires": ["light"],
+      "completes": ["waters"],
+      "story": ["waters"]
+    },
+    {
+      "id": "land",
+      "numeral": "the third day",
+      "title": "Dry land",
+      "detail": "Call the dry land up, and let grass, flowers, and the two trees stand.",
+      "map": "/Game/Maps/Day3_Land",
+      "phase": "divided",
+      "requires": ["light", "waters"],
+      "completes": ["land", "grove"],
+      "story": ["land", "grove"]
+    },
+    {
+      "id": "lights",
+      "numeral": "the fourth day",
+      "title": "Luminaries",
+      "detail": "Set a greater light and a lesser light, and stars to mark the hours.",
+      "map": "/Game/Maps/Day4_Lights",
+      "phase": "day",
+      "requires": ["light", "waters", "land", "grove"],
+      "completes": ["lights"],
+      "story": ["lights"]
+    },
+    {
+      "id": "creatures",
+      "numeral": "the fifth day",
+      "title": "Sea and sky",
+      "detail": "Fill the sea, the river, and the lake with fish, and the air over the land with birds.",
+      "map": "/Game/Maps/Day5_Creatures",
+      "phase": "day",
+      "requires": ["light", "waters", "land", "grove", "lights"],
+      "completes": ["creatures"],
+      "story": ["creatures"]
+    },
+    {
+      "id": "humanity",
+      "numeral": "the sixth day",
+      "title": "Land and humanity",
+      "detail": "Let deer, sheep, and a lion take the grass. Form a man, and then his companion.",
+      "map": "/Game/Maps/Day6_Humanity",
+      "phase": "day",
+      "requires": ["light", "waters", "land", "grove", "lights", "creatures"],
+      "completes": ["humanity"],
+      "story": ["humanity"]
+    },
+    {
+      "id": "rest",
+      "numeral": "the seventh day",
+      "title": "Rest",
+      "detail": "Descend and draw near to each of them beneath the trees.",
+      "map": "/Game/Maps/Day7_Rest",
+      "phase": "evening",
+      "requires": ["light", "waters", "land", "grove", "lights", "creatures", "humanity"],
+      "completes": ["rest"],
+      "story": ["rest"]
+    }
+  ]
+}
