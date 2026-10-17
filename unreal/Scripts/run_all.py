@@ -5,6 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from characters_build import spawn_people
 from level_build import build
 
 
@@ -16,6 +17,7 @@ def main(ue=None):
     # ExecutePythonScript closes the editor on the next tick unless this stays set.
     ue.EditorPythonScripting.set_keep_python_script_alive(True)
     build(dawn=True, ue=ue)
+    spawn_people(ue=ue)
 
 
 if __name__ == "__main__":
