@@ -27,6 +27,8 @@ Graphics defaults in `Config/DefaultEngine.ini` and `Config/DefaultScalability.i
 
 The game and the best free local LLM for intelligent NPCs ship as one install package. The model runs on the player's machine. It is not a paid API and not a separate download. This slice does not contain the model yet.
 
+Incarnation, the walk-among-them mode, is a separate scaffold. God takes a human form in a settlement that already has shelter. Disposition is a hostility score. On wonder and exile it can reach one crucifixion beat, then an underworld passage, then a resurrection return. Harmony and order never reach that beat. The design is `docs/incarnation.md`. Data is `Data/incarnation.json`. The state machine is `Scripts/incarnation.py`. `Scripts/incarnation_build.py` places placeholder shapes on `/Game/Maps/Incarnation_Walk` and `/Game/Maps/Incarnation_Underworld` and does not run from `run_all.py`. It does not call a model or a paid API.
+
 `Data/` holds the days of creation, Adam and Eve dialogue, and the four endings, exported from the current game. The hands choice becomes wonder when silence was kept, and exile otherwise.
 
 Python remote execution is turned on in `Config/DefaultEngine.ini`. The first time you open the project, the startup map may be missing until the script has run once.

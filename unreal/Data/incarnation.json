@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "source": "unreal/docs/incarnation.md",
+  "telling": "original",
+  "phases": [
+    "sky",
+    "walking",
+    "crucifixion",
+    "underworld",
+    "returned",
+    "ascended"
+  ],
+  "transitions": [
+    {"from": "sky", "action": "enter", "to": "walking"},
+    {"from": "walking", "action": "beat", "to": "walking"},
+    {"from": "walking", "action": "beat", "to": "crucifixion", "when": "seized"},
+    {"from": "walking", "action": "ascend", "to": "ascended"},
+    {"from": "crucifixion", "action": "continue", "to": "underworld"},
+    {"from": "underworld", "action": "listen", "to": "underworld"},
+    {"from": "underworld", "action": "leave", "to": "returned"},
+    {"from": "returned", "action": "ascend", "to": "ascended"}
+  ],
+  "hostility": {
+    "start": 0,
+    "min": 0,
+    "max": 100,
+    "faithLow": 40,
+    "faithHigh": 60,
+    "fearHigh": 55,
+    "rise": 12,
+    "fall": 8,
+    "prosperityDivisor": 100,
+    "shelterStoresScaleDivisor": 2,
+    "seizeAt": 81
+  },
+  "bands": [
+    {"id": "welcome", "min": 0, "max": 30, "leader": "receive"},
+    {"id": "wary", "min": 31, "max": 60, "leader": "question"},
+    {"id": "hostile", "min": 61, "max": 80, "leader": "question"},
+    {"id": "seized", "min": 81, "max": 100, "leader": "seize"}
+  ],
+  "absenceFear": 10,
+  "prosperityOnReturn": 6,
+  "endings": {
+    "harmony": {
+      "title": "The garden kept",
+      "hostilityCap": 60,
+      "seizure": false,
+      "attitude": "loyalty",
+      "clashAllowed": false,
+      "return": {"faith": 20, "fear": -15}
+    },
+    "wonder": {
+      "title": "The open orchard",
+      "hostilityCap": 100,
+      "seizure": true,
+      "attitude": "descent",
+      "clashAllowed": true,
+      "prophetsOnReturn": true,
+      "return": {"faith": 16, "fear": -12}
+    },
+    "exile": {
+      "title": "East of the garden",
+      "hostilityCap": 100,
+      "seizure": true,
+      "attitude": "east",
+      "clashAllowed": true,
+      "easeClash": true,
+      "region": "east",
+      "return": {"faith": 10, "fear": -8}
+    },
+    "order": {
+      "title": "The closed question",
+      "hostilityCap": 60,
+      "seizure": false,
+      "attitude": "refusal",
+      "clashAllowed": false,
+      "return": {"faith": 8, "fear": -6}
+    }
+  },
+  "lines": {
+    "enter": "A human form stands in the settlement. The sky acts wait.",
+    "welcome": "They make room.",
+    "wary": "They keep a distance and watch.",
+    "hostile": "Fear has the crowd. They have not turned.",
+    "crucifixion": "The one who walked with them is no longer among the living. The moment is not shown.",
+    "underworld": "A passage under the settlement. The lost can speak. There is nothing here to win.",
+    "returned": "The same human form stands again at the center. The work can resume.",
+    "ascended": "The god view wakes. The ending locked in the garden stays locked.",
+    "peace": "They did not turn. The walk ends with no death."
+  },
+  "meetLines": {
+    "leader": "You have come down to our height. Speak, and I will answer as myself.",
+    "prophet": "I dreamed a light that had hands. I did not think it would stand in the road."
+  },
+  "returnProphet": "You went where we could not follow, and you are standing here. I will say so.",
+  "lost": [
+    {
+      "id": "mira",
+      "cause": "flood",
+      "role": "leader",
+      "x": -220,
+      "y": 180,
+      "line": "The water took the house. I am not asking you to undo the year. I am asking whether you stayed."
+    },
+    {
+      "id": "oren",
+      "cause": "clash",
+      "role": "leader",
+      "x": 0,
+      "y": 180,
+      "line": "We fought over grain, and I lost. If you walked with us, say so plainly."
+    },
+    {
+      "id": "sela",
+      "cause": "flood",
+      "role": "prophet",
+      "x": 220,
+      "y": 180,
+      "line": "I kept a lamp through a dark year. It is quiet here. Walk on when you have listened."
+    }
+  ],
+  "presentation": {
+    "walkMap": "/Game/Maps/Incarnation_Walk",
+    "underworldMap": "/Game/Maps/Incarnation_Underworld",
+    "pawn": {"x": 0.0, "y": 0.0, "z": 110.0},
+    "playerStart": {"x": -400.0, "y": -200.0, "z": 120.0, "yaw": 80.0},
+    "lights": {
+      "walking": {
+        "sun_intensity": 6.0,
+        "sun_color": [1.0, 0.91, 0.78, 1.0],
+        "sun_pitch": -42.0,
+        "sun_yaw": 18.0,
+        "fog_density": 0.02,
+        "fog_color": [0.72, 0.78, 0.86, 1.0]
+      },
+      "crucifixion": {
+        "sun_intensity": 1.2,
+        "sun_color": [0.55, 0.52, 0.48, 1.0],
+        "sun_pitch": -18.0,
+        "sun_yaw": 18.0,
+        "fog_density": 0.05,
+        "fog_color": [0.34, 0.36, 0.4, 1.0]
+      },
+      "returned": {
+        "sun_intensity": 8.0,
+        "sun_color": [1.0, 0.96, 0.86, 1.0],
+        "sun_pitch": -50.0,
+        "sun_yaw": 18.0,
+        "fog_density": 0.012,
+        "fog_color": [0.8, 0.86, 0.95, 1.0]
+      },
+      "underworld": {
+        "sun_intensity": 0.35,
+        "sun_color": [0.42, 0.48, 0.62, 1.0],
+        "sun_pitch": -8.0,
+        "sun_yaw": 0.0,
+        "fog_density": 0.06,
+        "fog_color": [0.18, 0.22, 0.3, 1.0]
+      }
+    }
+  }
+}
