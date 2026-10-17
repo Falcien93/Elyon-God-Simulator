@@ -24,7 +24,7 @@ The Steam target is an RTX 4060 laptop at 1080p to 1440p with TSR, running smoot
 
 ## God view
 
-`Elyon.GodCamera` is a cine camera with a 24mm lens, placed above the garden. The script also saves a level sequence at `/Game/Cinematics/LS_GodFlythrough` and asks the editor to play it. The move is 28 seconds: a high opening, a pass over the trees and the river, a look toward the low sun, then a wide hold. Section ranges are plain integers at the 24 fps display rate, which is what `set_range` takes in UE 5.8. The editor stays open on that camera. If the sequence does not start on its own, open `LS_GodFlythrough` and press play.
+`Elyon.GodCamera` is a cine camera with a 24mm lens, placed above the garden. The script also saves a level sequence at `/Game/Cinematics/LS_GodFlythrough` and asks the editor to play it. The move is 28 seconds: a high opening, a pass over the trees and the river, a look toward the low sun, then a wide hold. Section ranges are plain integers at the 24 fps display rate, which is what `set_range` takes in UE 5.8. The camera cut is `sequence.add_track(MovieSceneCameraCutTrack)` on a possessable of `Elyon.GodCamera`. UE 5.8 has no master-track API. The editor stays open on that camera. If the sequence does not start on its own, open `LS_GodFlythrough` and press play.
 
 ## Terrain and free foliage
 

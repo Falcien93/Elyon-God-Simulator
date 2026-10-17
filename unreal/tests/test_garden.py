@@ -511,6 +511,8 @@ class LevelBuildTests(unittest.TestCase):
             def add_track(self, cls):
                 return Track()
 
+        added_tracks = []
+
         class Sequence:
             def set_display_rate(self, rate):
                 self.rate = rate
@@ -520,6 +522,10 @@ class LevelBuildTests(unittest.TestCase):
 
             def set_playback_end(self, frame):
                 self.playback_end = frame
+
+            def add_track(self, track_type):
+                added_tracks.append(track_type)
+                return Track()
 
         class Tools:
             def create_asset(self, name, path, cls, factory):
@@ -538,10 +544,6 @@ class LevelBuildTests(unittest.TestCase):
             @staticmethod
             def add_possessable(sequence, camera):
                 return Binding()
-
-            @staticmethod
-            def add_master_track(sequence, cls):
-                return Track()
 
             @staticmethod
             def get_binding_id(sequence, binding):
@@ -566,6 +568,7 @@ class LevelBuildTests(unittest.TestCase):
         ue.log_warning = warnings.append
         level_build.build(dawn=True, ue=ue)
         end = int(round(garden_logic.god_flight()[-1]["t"] * 24))
+        self.assertEqual(added_tracks, [ue.MovieSceneCameraCutTrack])
         self.assertEqual(ranges, [(0, end), (0, end)])
         self.assertTrue(keys)
         self.assertTrue(all(isinstance(frame, tuple) and frame[0] == "frame" for frame in keys))

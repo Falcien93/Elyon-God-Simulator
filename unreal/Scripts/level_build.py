@@ -383,8 +383,12 @@ def _build_flythrough(ue, camera, keys):
         origin = ue.FrameNumber(0)
         for axis in ("Scale.X", "Scale.Y", "Scale.Z"):
             _channel(ue, section, axis).add_key(origin, 1.0)
-        cut_track = ue.MovieSceneSequenceExtensions.add_master_track(sequence, ue.MovieSceneCameraCutTrack)
+        # UE 5.8 removed master tracks. The camera cut is a normal sequence track.
+        # The level camera is possessed so the cut uses the actor already in the garden.
+        cut_track = sequence.add_track(ue.MovieSceneCameraCutTrack)
         cut = cut_track.add_section()
+        if not hasattr(cut, "set_camera_binding_id") and hasattr(cut, "cast"):
+            cut = cut.cast(ue.MovieSceneCameraCutSection)
         cut.set_range(0, end_frame)
         binding_id = ue.MovieSceneSequenceExtensions.get_binding_id(sequence, binding)
         cut.set_camera_binding_id(binding_id)
