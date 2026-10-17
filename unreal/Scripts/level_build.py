@@ -4,6 +4,7 @@ from garden_logic import (
     AUTHORED_MATERIALS,
     MATERIAL_CANDIDATES,
     MESH_CANDIDATES,
+    OVERVIEW,
     ROLE_MATERIAL,
     SEQUENCE_PATH,
     NANITE_ROLES,
@@ -73,6 +74,13 @@ def _try_set(target, name, value, ue):
         target.set_editor_property(name, value)
     except Exception as exc:
         _warn(ue, f"Elyon skipped {name}: {exc}")
+
+
+def _enum(ue, type_name, name):
+    enum = getattr(ue, type_name, None)
+    if enum is None:
+        return None
+    return getattr(enum, name, None)
 
 
 def _by_label(ue):
@@ -208,6 +216,12 @@ def _place(actor, ue, spec, available):
         comp = actor.get_component_by_class(ue.CineCameraComponent)
         comp.set_editor_property("current_focal_length", 24.0)
         comp.set_editor_property("current_aperture", 8.0)
+        # f/8 must not drive exposure. Physical camera exposure would crush a
+        # piloted view. The unbound volume owns histogram auto exposure.
+        lens = ue.PostProcessSettings()
+        _try_set(lens, "override_auto_exposure_apply_physical_camera_exposure", True, ue)
+        _try_set(lens, "auto_exposure_apply_physical_camera_exposure", False, ue)
+        _try_set(comp, "post_process_settings", lens, ue)
 
 
 def _apply_light(ue, light):
@@ -233,7 +247,14 @@ def _apply_light(ue, light):
         comp = sky.get_component_by_class(ue.SkyLightComponent)
         comp.set_editor_property("intensity", light["skylight_intensity"])
         comp.set_editor_property("light_color", _byte_color(ue, light["sky_color"]))
+        source = _enum(ue, "SkyLightSourceType", "SLS_CAPTURED_SCENE")
+        if source is not None:
+            _try_set(comp, "source_type", source, ue)
+        mobility = _enum(ue, "ComponentMobility", "MOVABLE")
+        if mobility is not None:
+            _try_set(comp, "mobility", mobility, ue)
         _try_set(comp, "real_time_capture", True, ue)
+        _try_set(comp, "lower_hemisphere_is_black", False, ue)
         _try_set(comp, "volumetric_scattering_intensity", 1.2, ue)
         if hasattr(comp, "recapture_sky"):
             comp.recapture_sky()
@@ -278,7 +299,7 @@ def _apply_light(ue, light):
 
 
 def _apply_exposure(actor, ue, light):
-    """Clamp auto exposure. Keep bloom, fringe, vignette, and flares quiet."""
+    """Histogram auto exposure in EV100. Keep bloom, fringe, vignette, and flares quiet."""
     actor.set_editor_property("unbound", True)
     actor.set_editor_property("priority", 10.0)
     settings = ue.PostProcessSettings()
@@ -290,6 +311,16 @@ def _apply_exposure(actor, ue, light):
     settings.set_editor_property("auto_exposure_max_brightness", light["exposure_max_ev"])
     settings.set_editor_property("override_auto_exposure_bias", True)
     settings.set_editor_property("auto_exposure_bias", light["exposure_bias"])
+    _try_set(settings, "override_auto_exposure_histogram_log_min", True, ue)
+    _try_set(settings, "auto_exposure_histogram_log_min", light["exposure_histogram_min_ev"], ue)
+    _try_set(settings, "override_auto_exposure_histogram_log_max", True, ue)
+    _try_set(settings, "auto_exposure_histogram_log_max", light["exposure_histogram_max_ev"], ue)
+    _try_set(settings, "override_auto_exposure_apply_physical_camera_exposure", True, ue)
+    _try_set(settings, "auto_exposure_apply_physical_camera_exposure", False, ue)
+    _try_set(settings, "override_auto_exposure_speed_up", True, ue)
+    _try_set(settings, "auto_exposure_speed_up", 8.0, ue)
+    _try_set(settings, "override_auto_exposure_speed_down", True, ue)
+    _try_set(settings, "auto_exposure_speed_down", 8.0, ue)
     settings.set_editor_property("override_bloom_intensity", True)
     settings.set_editor_property("bloom_intensity", light["bloom_intensity"])
     settings.set_editor_property("override_vignette_intensity", True)
@@ -327,6 +358,13 @@ def _frame_editor(ue, key):
         )
     except Exception as exc:
         _warn(ue, f"Elyon could not move the editor camera: {exc}")
+
+
+def frame_overview(ue=None):
+    """Put the perspective viewport above the garden, looking north and down."""
+    ue = _ue(ue)
+    _frame_editor(ue, OVERVIEW)
+    return OVERVIEW
 
 
 def _channel(ue, section, name):
@@ -400,11 +438,6 @@ def _build_flythrough(ue, camera, keys):
             playback = ue.MovieSceneSequencePlaybackSettings()
             playback.set_editor_property("auto_play", True)
             actor.set_editor_property("playback_settings", playback)
-        library = getattr(ue, "LevelSequenceEditorBlueprintLibrary", None)
-        if library is not None:
-            library.open_level_sequence(sequence)
-            if hasattr(library, "play"):
-                library.play()
         return sequence
     except Exception as exc:
         _warn(ue, f"Elyon god flythrough sequence was not created: {exc}")
@@ -429,7 +462,7 @@ def build(dawn=True, ue=None):
         _place(actor, ue, spec, available)
     _apply_light(ue, plan["light"])
     _build_flythrough(ue, _by_label(ue).get("Elyon.GodCamera"), plan["flight"])
-    _frame_editor(ue, plan["flight"][0])
+    frame_overview(ue)
     ue.EditorLevelLibrary.save_current_level()
     return plan
 

@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from level_build import build
+import level_build
 
 
 def main(ue=None):
@@ -15,7 +15,9 @@ def main(ue=None):
         ue = unreal
     # ExecutePythonScript closes the editor on the next tick unless this stays set.
     ue.EditorPythonScripting.set_keep_python_script_alive(True)
-    build(dawn=True, ue=ue)
+    level_build.build(dawn=True, ue=ue)
+    # build() already frames this. Set it again so the perspective view stays on the overview.
+    level_build.frame_overview(ue)
 
 
 if __name__ == "__main__":

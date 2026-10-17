@@ -9,6 +9,8 @@ FLY_SECONDS = 28.0
 FLY_HZ = 4
 
 GARDEN_HALF = 4000.0
+# South of the garden, high enough to clear the trees, looking north and down.
+OVERVIEW = {"x": 0.0, "y": -4800.0, "z": 2600.0, "pitch": -24.0, "yaw": 90.0}
 RIVER = {"x0": -4500.0, "x1": 4500.0, "y0": 800.0, "y1": 1600.0}
 ADAM = {"x": 400.0, "y": -400.0, "z": 110.0, "clear": 400.0}
 PLAYER = {"x": -800.0, "y": -1600.0, "z": 120.0}
@@ -96,20 +98,25 @@ def light_state(dawn):
     if dawn:
         return {
             "name": "dawn",
-            "sun_intensity": 8.0,
+            # Lux, not a unitless 8. Extended luminance range is on, and Sky Atmosphere
+            # wants about 120000 lux at a 0.545 degree disk. Pitch, not a dim intensity,
+            # makes this golden hour. EV 12 with 8 lux is what left the viewport black.
+            "sun_intensity": 120000.0,
             "sun_color": (1.0, 0.55, 0.25, 1.0),
             "sky_color": (1.0, 0.78, 0.55, 1.0),
             "fog_color": (0.75, 0.78, 0.82, 1.0),
-            "sun_pitch": -18.0,
+            "sun_pitch": -20.0,
             "sun_yaw": 35.0,
-            "skylight_intensity": 0.45,
+            "skylight_intensity": 1.0,
             "fog_density": 0.0008,
             "fog_height_falloff": 0.22,
             "fog_start_distance": 8000.0,
             "fog_max_opacity": 0.15,
-            "exposure_min_ev": 12.0,
+            "exposure_min_ev": 8.0,
             "exposure_max_ev": 14.0,
-            "exposure_bias": 0.35,
+            "exposure_bias": 0.0,
+            "exposure_histogram_min_ev": 0.0,
+            "exposure_histogram_max_ev": 16.0,
             "enable_volumetric_fog": False,
             "volumetric_fog_albedo": (0.8, 0.82, 0.84, 1.0),
             "volumetric_fog_emissive": (0.0, 0.0, 0.0, 1.0),
@@ -158,6 +165,8 @@ def light_state(dawn):
         "exposure_min_ev": -1.0,
         "exposure_max_ev": 2.0,
         "exposure_bias": 0.0,
+        "exposure_histogram_min_ev": -8.0,
+        "exposure_histogram_max_ev": 4.0,
             "enable_volumetric_fog": False,
             "volumetric_fog_albedo": (0.15, 0.18, 0.28, 1.0),
             "volumetric_fog_emissive": (0.0, 0.0, 0.0, 1.0),

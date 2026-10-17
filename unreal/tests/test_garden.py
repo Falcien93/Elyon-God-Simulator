@@ -62,6 +62,9 @@ class Comp:
             raise TypeError(f"{name} expects unreal.LinearColor, not {type(value).__name__}")
         self.props[name] = value
 
+    def get_editor_property(self, name):
+        return self.props.get(name)
+
     def set_static_mesh(self, mesh):
         self.mesh = mesh
 
@@ -97,6 +100,12 @@ class Actor:
     def set_editor_property(self, name, value):
         self.props[name] = value
 
+    def get_editor_property(self, name):
+        return self.props.get(name)
+
+    def get_actor_rotation(self):
+        return self.rotation
+
     def get_component_by_class(self, cls):
         comp = self.comps.get(cls)
         if comp is None:
@@ -130,6 +139,9 @@ class PostProcessSettings:
     def set_editor_property(self, name, value):
         self.props[name] = value
 
+    def get_editor_property(self, name):
+        return self.props.get(name)
+
 
 class AutoExposureMethod:
     AEM_HISTOGRAM = "AEM_HISTOGRAM"
@@ -155,6 +167,19 @@ class LevelLib:
         self.loaded = None
         self.created = None
         self.saves = 0
+        self.viewport = None
+        self.invalidated = 0
+
+    def set_level_viewport_camera_info(self, location, rotation):
+        self.viewport = (location, rotation)
+
+    def get_level_viewport_camera_info(self):
+        if self.viewport is None:
+            return (Vec(0.0, 0.0, 0.0), Rot(0.0, 0.0, 0.0))
+        return self.viewport
+
+    def editor_invalidate_viewports(self):
+        self.invalidated += 1
 
     def load_level(self, path):
         self.loaded = path
@@ -165,6 +190,14 @@ class LevelLib:
 
     def save_current_level(self):
         self.saves += 1
+
+
+class SystemLibrary:
+    def __init__(self):
+        self.commands = []
+
+    def execute_console_command(self, world, command):
+        self.commands.append(command)
 
 
 class EditorPythonScripting:
@@ -197,6 +230,8 @@ class FakeUnreal:
         self.StaticMeshComponent = type("StaticMeshComponent", (), {})
         self.DirectionalLightComponent = type("DirectionalLightComponent", (), {})
         self.SkyLightComponent = type("SkyLightComponent", (), {})
+        self.SkyLightSourceType = type("SkyLightSourceType", (), {"SLS_CAPTURED_SCENE": "SLS_CAPTURED_SCENE"})
+        self.ComponentMobility = type("ComponentMobility", (), {"MOVABLE": "MOVABLE"})
         self.ExponentialHeightFogComponent = type("ExponentialHeightFogComponent", (), {})
         self.Vector = Vec
         self.Rotator = Rot
@@ -205,7 +240,12 @@ class FakeUnreal:
         self.EditorPythonScripting = EditorPythonScripting()
         self.EditorAssetLibrary = AssetLib()
         self.EditorLevelLibrary = LevelLib(self.EditorAssetLibrary)
+        self.SystemLibrary = SystemLibrary()
+        self.logs = []
         self.sub = Subsystem()
+
+    def log(self, message):
+        self.logs.append(message)
 
     def get_editor_subsystem(self, cls):
         return self.sub
@@ -233,7 +273,12 @@ class GardenLogicTests(unittest.TestCase):
         self.assertEqual(dark["name"], "darkness")
         self.assertEqual(dawn["name"], "dawn")
         self.assertLess(dark["sun_intensity"], 0.1)
-        self.assertGreater(dawn["sun_intensity"], 5)
+        self.assertGreaterEqual(dawn["sun_intensity"], 100000.0)
+        self.assertGreaterEqual(dawn["sun_pitch"], -25.0)
+        self.assertLessEqual(dawn["sun_pitch"], -15.0)
+        self.assertEqual(dawn["exposure_min_ev"], 8.0)
+        self.assertEqual(dawn["exposure_max_ev"], 14.0)
+        self.assertEqual(dawn["skylight_intensity"], 1.0)
         self.assertGreater(dark["fog_density"], dawn["fog_density"])
 
     def test_plan_has_required_actors(self):
@@ -337,7 +382,9 @@ class LevelBuildTests(unittest.TestCase):
         self.assertEqual(ue.EditorLevelLibrary.saves, 1)
         sun = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Sun")
         sun_comp = sun.get_component_by_class(ue.DirectionalLightComponent)
-        self.assertEqual(sun_comp.props["intensity"], 8.0)
+        self.assertEqual(sun_comp.props["intensity"], 120000.0)
+        self.assertEqual(sun.rotation.pitch, -20.0)
+        self.assertEqual(sun.rotation.yaw, 35.0)
         self.assertIsInstance(sun_comp.props["light_color"], ByteColor)
         self.assertEqual(sun_comp.props["light_color"].rgba, (255, 140, 64, 255))
         with self.assertRaises(TypeError):
@@ -346,6 +393,12 @@ class LevelBuildTests(unittest.TestCase):
         sky_comp = sky.get_component_by_class(ue.SkyLightComponent)
         self.assertIsInstance(sky_comp.props["light_color"], ByteColor)
         self.assertEqual(sky_comp.props["light_color"].rgba, (255, 199, 140, 255))
+        self.assertEqual(sky_comp.props["intensity"], 1.0)
+        self.assertTrue(sky_comp.props["real_time_capture"])
+        self.assertEqual(sky_comp.props["source_type"], "SLS_CAPTURED_SCENE")
+        self.assertEqual(sky_comp.props["mobility"], "MOVABLE")
+        self.assertFalse(sky_comp.props["lower_hemisphere_is_black"])
+        self.assertEqual(sky_comp.recaptured, 1)
         fog = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.Fog")
         fog_comp = fog.get_component_by_class(ue.ExponentialHeightFogComponent)
         self.assertIsInstance(fog_comp.props["fog_inscattering_luminance"], LinearColor)
@@ -367,9 +420,12 @@ class LevelBuildTests(unittest.TestCase):
         self.assertEqual(exposure.props["priority"], 10.0)
         settings = exposure.props["settings"]
         self.assertEqual(settings.props["auto_exposure_method"], "AEM_HISTOGRAM")
-        self.assertEqual(settings.props["auto_exposure_min_brightness"], 12.0)
+        self.assertEqual(settings.props["auto_exposure_min_brightness"], 8.0)
         self.assertEqual(settings.props["auto_exposure_max_brightness"], 14.0)
-        self.assertEqual(settings.props["auto_exposure_bias"], 0.35)
+        self.assertEqual(settings.props["auto_exposure_bias"], 0.0)
+        self.assertEqual(settings.props["auto_exposure_histogram_log_min"], 0.0)
+        self.assertEqual(settings.props["auto_exposure_histogram_log_max"], 16.0)
+        self.assertFalse(settings.props["auto_exposure_apply_physical_camera_exposure"])
         self.assertEqual(settings.props["bloom_intensity"], 0.05)
         self.assertEqual(settings.props["vignette_intensity"], 0.0)
         self.assertEqual(settings.props["scene_fringe_intensity"], 0.0)
@@ -594,6 +650,29 @@ class LevelBuildTests(unittest.TestCase):
         ue = FakeUnreal()
         run_all.main(ue)
         self.assertTrue(ue.EditorPythonScripting.alive)
+        location, rotation = ue.EditorLevelLibrary.viewport
+        self.assertEqual((location.x, location.y, location.z), (0.0, -4800.0, 2600.0))
+        self.assertEqual((rotation.pitch, rotation.yaw), (-24.0, 90.0))
+
+    def test_diag_shot_logs_lighting_and_saves_from_the_overview(self):
+        import diag_shot
+
+        ue = FakeUnreal()
+        level_build.build(dawn=True, ue=ue)
+        ue.EditorLevelLibrary.viewport = (Vec(1.0, 2.0, 3.0), Rot(0.0, 0.0, 0.0))
+        diag_shot.diagnose(ue)
+        text = "\n".join(ue.logs)
+        self.assertIn("intensity_lux=120000.0", text)
+        self.assertIn("pitch=-20.0", text)
+        self.assertIn("min_ev100=8.0", text)
+        self.assertIn("max_ev100=14.0", text)
+        self.assertIn("x=1.0 y=2.0 z=3.0", text)
+        self.assertEqual(ue.SystemLibrary.commands, ["HighResShot 1920x1080"])
+        self.assertIn("Saved/Screenshots", text)
+        location, rotation = ue.EditorLevelLibrary.viewport
+        self.assertEqual((location.x, location.y, location.z), (0.0, -4800.0, 2600.0))
+        self.assertEqual(rotation.pitch, -24.0)
+        self.assertGreater(ue.EditorLevelLibrary.invalidated, 0)
 
 
 if __name__ == "__main__":

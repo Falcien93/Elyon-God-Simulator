@@ -16,7 +16,7 @@ The script builds the level `/Game/Maps/Day1_Garden` and saves it, then leaves t
 
 The sky is a `SkyAtmosphere` plus a `VolumetricCloud`. The script does not spawn a sky sphere. Clouds sit at a normal altitude (layer bottom about 1.6 km). UE 5.8 warns that cached Lumen and real-time sky capture lighting will be clipped when exposure sits above about EV 12. `Config/DefaultEngine.ini` sets `r.EyeAdaptation.CachedLightingPreExposure=8` so daylight near EV 13 stays inside the cache.
 
-`Elyon.Exposure` is an unbound post-process volume. Dawn clamps histogram auto exposure from EV 12 to EV 14. Bloom stays at 0.05. Vignette, chromatic aberration, and lens flares are 0. Light shafts and volumetric fog are off. `Elyon.Fog` is a subtle exponential height fog: dawn density 0.0008, starting 8000 units out, max opacity 0.15. Darkness dims the sun. It does not drop a thick fog in front of the camera.
+`Elyon.Exposure` is an unbound post-process volume. Dawn uses histogram auto exposure from EV 8 to EV 14, which is a daylight window, not a lock at EV 12. The sun is 120000 lux with pitch -20 (golden hour, about 20 degrees above the horizon). `Elyon.SkyLight` captures the scene in real time at intensity 1. Bloom stays at 0.05. Vignette, chromatic aberration, and lens flares are 0. Light shafts and volumetric fog are off. `Elyon.Fog` is a subtle exponential height fog: dawn density 0.0008, starting 8000 units out, max opacity 0.15. Darkness dims the sun. It does not drop a thick fog in front of the camera.
 
 Water uses Lumen reflections with screen traces on the opaque world, and screen-space reflections for the translucent river and lake (`r.SSR.Quality=2`). Hardware ray tracing is off. Software Lumen (mesh distance fields) is the global illumination path.
 
@@ -24,7 +24,9 @@ The Steam target is an RTX 4060 laptop at 1080p to 1440p with TSR, running smoot
 
 ## God view
 
-`Elyon.GodCamera` is a cine camera with a 24mm lens, placed above the garden. The script also saves a level sequence at `/Game/Cinematics/LS_GodFlythrough` and asks the editor to play it. The move is 28 seconds: a high opening, a pass over the trees and the river, a look toward the low sun, then a wide hold. Section ranges are plain integers at the 24 fps display rate, which is what `set_range` takes in UE 5.8. The camera cut is `sequence.add_track(MovieSceneCameraCutTrack)` on a possessable of `Elyon.GodCamera`. UE 5.8 has no master-track API. The editor stays open on that camera. If the sequence does not start on its own, open `LS_GodFlythrough` and press play.
+`Elyon.GodCamera` is a cine camera with a 24mm lens, placed above the garden. The script also saves a level sequence at `/Game/Cinematics/LS_GodFlythrough`. The move is 28 seconds: a high opening, a pass over the trees and the river, a look toward the low sun, then a wide hold. Section ranges are plain integers at the 24 fps display rate, which is what `set_range` takes in UE 5.8. The camera cut is `sequence.add_track(MovieSceneCameraCutTrack)` on a possessable of `Elyon.GodCamera`. UE 5.8 has no master-track API. The script does not play the sequence, so the perspective viewport is not left inside that camera. It frames an overview south of the garden, looking north and down. Open `LS_GodFlythrough` and press play when you want the flythrough.
+
+`Scripts/diag_shot.py` logs the sun rotation and lux, the exposure min and max EV100, and the viewport location, then moves to that same overview and runs `HighResShot 1920x1080`. The image lands in `Saved/Screenshots`.
 
 ## Terrain and free foliage
 
