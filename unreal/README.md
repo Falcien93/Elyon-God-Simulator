@@ -20,6 +20,7 @@ What the level contains:
 - A river made from a long flat cube.
 - A player start.
 - A sphere marker labeled Adam.
+- Adam and Eve, placed by the same script after the garden actors. See below.
 
 No paid or Marketplace assets are required.
 
@@ -30,3 +31,27 @@ The game and the best free local LLM for intelligent NPCs ship as one install pa
 `Data/` holds the days of creation, Adam and Eve dialogue, and the four endings, exported from the current game. The hands choice becomes wonder when silence was kept, and exile otherwise.
 
 Python remote execution is turned on in `Config/DefaultEngine.ini`. The first time you open the project, the startup map may be missing until the script has run once.
+
+## Adam and Eve
+
+`run_all.py` saves the garden, then places `Elyon.Person.Adam` and `Elyon.Person.Eve` in `/Game/Maps/Day1_Garden`. They are engine cylinders. Adam is heavier and taller (78 kg, 1.78 m) than Eve (58 kg, 1.62 m). The sphere marker `Elyon.Adam` stays where it is. Running the script again moves the same two actors instead of stacking copies. A garden rebuild drops them, because the garden plan does not list them, and `run_all.py` puts them back.
+
+The day follows `Data/characters.json`: wake, eat, drink, work, rest. Hunger, thirst, and fatigue change with that day. Eating, drinking, and rest ease the matching need when the fire has a meal, water, and a place to lie down. A tired person moves more slowly, and the card line says so. Work is gathering on the near bank. They walk around the river. They do not step in it. `come` leads along that bank toward Elyon, or toward a point a later voice names. `stay` and `resume` send them back to the day. `work` holds them at the work until rest, or until they are told to resume.
+
+Speech is a hook for a later local voice. Addressing someone records `needs_voice: true` and leaves `model_called` false. The request carries who they are, the act, the needs, the scripted node in `Data/dialogue.json`, and that node's first line. With no voice attached, that scripted line is what they say. Nothing in this folder downloads a model or calls an API.
+
+From the editor Python console, after `run_all.py`:
+
+```
+import characters_build
+characters_build.step_day(30)
+characters_build.address("eve", "Are you awake?")
+```
+
+`step_day` moves them and does not save. The garden build saves, then spawn saves again so Adam and Eve are in the level.
+
+Tests, from the repo root:
+
+```
+python3 -m unittest discover -s unreal/tests -v
+```

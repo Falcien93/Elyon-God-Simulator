@@ -1,0 +1,99 @@
+{
+  "source": "ElyonFirstLight/Assets/Elyon/Person.cs",
+  "map": "/Game/Maps/Day1_Garden",
+  "day_seconds": 1200,
+  "start_time": 0.05,
+  "phases": [
+    {"id": "wake", "until": 0.08},
+    {"id": "eat", "until": 0.18},
+    {"id": "drink", "until": 0.26},
+    {"id": "work", "until": 0.72},
+    {"id": "rest", "until": 1.01}
+  ],
+  "rates": {
+    "hunger": 0.09,
+    "hunger_scarce": 0.2,
+    "thirst": 0.11,
+    "fatigue_work": 0.22,
+    "fatigue_idle": -0.04,
+    "fear_when_tired": 0.02,
+    "tired_fatigue": 70,
+    "slow_fatigue": 55,
+    "bleeding_heal": 0.02,
+    "hear_eat_relief": 8
+  },
+  "relief": {
+    "meal": 22,
+    "meal_without": 6,
+    "fear_without_meal": 4,
+    "water": 28,
+    "water_without": 8,
+    "rest": 24,
+    "rest_without": 8
+  },
+  "body_defaults": {
+    "hunger": 42,
+    "thirst": 36,
+    "fatigue": 12,
+    "fever": 0,
+    "bleeding": 0,
+    "grief": 0,
+    "fear": 0,
+    "age": 30,
+    "child_in_care": false,
+    "trust": 40,
+    "scarce": false
+  },
+  "arrive_cm": 170,
+  "waypoint_cm": 35,
+  "shore_margin": 80,
+  "gate_gap": 40,
+  "places": {
+    "pot": {"x": 480, "y": -180},
+    "cup": {"x": 330, "y": -180},
+    "work": {"x": 120, "y": -1500}
+  },
+  "acts": ["come", "stay", "resume", "work"],
+  "people": [
+    {
+      "id": "adam",
+      "name": "Adam",
+      "mass_kg": 78,
+      "height_m": 1.78,
+      "radius_m": 0.18,
+      "mesh": "cylinder",
+      "label": "Elyon.Person.Adam",
+      "seat": {"x": 250, "y": -560},
+      "offset": {"x": 0, "y": 0},
+      "scripted_node": "adam_first",
+      "voice_id": "adam",
+      "ambient": {
+        "wake": "I am awake at the fire. The morning has not asked me to stand yet.",
+        "eat": "I am eating. The pot is warm, and I am still hungry enough to know it.",
+        "drink": "I am drinking from the cup. The thirst eases.",
+        "work": "I am gathering along the bank. I keep my feet on the ground.",
+        "rest": "I am resting by the fire. The work can wait."
+      }
+    },
+    {
+      "id": "eve",
+      "name": "Eve",
+      "mass_kg": 58,
+      "height_m": 1.62,
+      "radius_m": 0.16,
+      "mesh": "cylinder",
+      "label": "Elyon.Person.Eve",
+      "seat": {"x": 620, "y": -420},
+      "offset": {"x": 110, "y": -70},
+      "scripted_node": "eve_first",
+      "voice_id": "eve",
+      "ambient": {
+        "wake": "I am awake. I was already looking when the light arrived.",
+        "eat": "I am eating beside him. Hunger is plain. It does not decide for me.",
+        "drink": "I am drinking. The cup is cool.",
+        "work": "I am working the near shore. The water is not a path.",
+        "rest": "I am resting. The garden can be quiet and still be unfinished."
+      }
+    }
+  ]
+}
