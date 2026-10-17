@@ -71,6 +71,8 @@ class DataTests(unittest.TestCase):
         self.assertIn("r.ReflectionMethod=1", engine)
         self.assertIn("r.Nanite.ProjectEnabled=True", engine)
         self.assertIn("r.Shadow.Virtual.Enable=1", engine)
+        self.assertIn("+D3D12TargetedShaderFormats=PCD3D_SM6", engine)
+        self.assertIn("[/Script/WindowsTargetPlatform.WindowsTargetSettings]", engine)
         self.assertIn("r.EyeAdaptation.CachedLightingPreExposure=8", engine)
         self.assertIn("r.VolumetricFog=0", engine)
         self.assertIn("r.Lumen.HardwareRayTracing=False", engine)

@@ -24,7 +24,7 @@ The Steam target is an RTX 4060 laptop at 1080p to 1440p with TSR, running smoot
 
 ## God view
 
-`Elyon.GodCamera` is a cine camera with a 24mm lens, placed above the garden. The script also saves a level sequence at `/Game/Cinematics/LS_GodFlythrough` and asks the editor to play it. The move is 28 seconds: a high opening, a pass over the trees and the river, a look toward the low sun, then a wide hold. The editor stays open on that camera. If the sequence does not start on its own, open `LS_GodFlythrough` and press play.
+`Elyon.GodCamera` is a cine camera with a 24mm lens, placed above the garden. The script also saves a level sequence at `/Game/Cinematics/LS_GodFlythrough` and asks the editor to play it. The move is 28 seconds: a high opening, a pass over the trees and the river, a look toward the low sun, then a wide hold. Section ranges are plain integers at the 24 fps display rate, which is what `set_range` takes in UE 5.8. The editor stays open on that camera. If the sequence does not start on its own, open `LS_GodFlythrough` and press play.
 
 ## Terrain and free foliage
 
@@ -64,7 +64,7 @@ What else the level contains:
 - The river, the lake, a player start, and a sphere marker labeled Adam.
 - The god camera and the flythrough sequence.
 
-Graphics defaults are Lumen global illumination, Lumen reflections with screen traces, Nanite, virtual shadow maps, TSR, and DirectX 12, tuned for an RTX 4060 laptop at 1440p. Surfaces should use high-quality free engine and Starter Content materials only.
+Graphics defaults are Lumen global illumination, Lumen reflections with screen traces, Nanite, virtual shadow maps, TSR, and DirectX 12, tuned for an RTX 4060 laptop at 1440p. Virtual shadow maps need Shader Model 6, so `Config/DefaultEngine.ini` adds `PCD3D_SM6` under the Windows D3D12 targeted shader formats. Surfaces should use high-quality free engine and Starter Content materials only. The sky atmosphere distance scale uses the engine property `aerial_pespective_view_distance_scale` (UE spells Pespective without an r).
 
 The game and the best free local LLM for intelligent NPCs ship as one install package. The model runs on the player's machine. It is not a paid API and not a separate download. This slice does not contain the model yet.
 

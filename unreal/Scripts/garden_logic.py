@@ -138,7 +138,7 @@ def light_state(dawn):
             "mie_anisotropy": 0.7,
             "mie_scattering_scale": 0.008,
             "sky_luminance_factor": (1.0, 0.96, 0.9, 1.0),
-            "aerial_perspective_view_distance_scale": 1.0,
+            "aerial_pespective_view_distance_scale": 1.0,
             "cloud_bottom_km": 1.6,
             "cloud_height_km": 4.5,
         }
@@ -186,7 +186,7 @@ def light_state(dawn):
             "mie_anisotropy": 0.6,
             "mie_scattering_scale": 0.004,
             "sky_luminance_factor": (0.15, 0.2, 0.35, 1.0),
-            "aerial_perspective_view_distance_scale": 1.0,
+            "aerial_pespective_view_distance_scale": 1.0,
             "cloud_bottom_km": 2.0,
             "cloud_height_km": 3.5,
     }

@@ -243,7 +243,8 @@ def _apply_light(ue, light):
         _try_set(comp, "mie_anisotropy", light["mie_anisotropy"], ue)
         _try_set(comp, "mie_scattering_scale", light["mie_scattering_scale"], ue)
         _try_set(comp, "sky_luminance_factor", _linear_color(ue, light["sky_luminance_factor"]), ue)
-        _try_set(comp, "aerial_perspective_view_distance_scale", light["aerial_perspective_view_distance_scale"], ue)
+        # UE 5.8 still spells this AerialPespective (no "r"). The corrected name is not a property.
+        _try_set(comp, "aerial_pespective_view_distance_scale", light["aerial_pespective_view_distance_scale"], ue)
         _try_set(comp, "height_fog_contribution", 1.0, ue)
     fog = actors.get("Elyon.Fog")
     if fog:
@@ -329,7 +330,12 @@ def _frame_editor(ue, key):
 
 
 def _channel(ue, section, name):
-    return ue.MovieSceneSectionExtensions.get_channel_by_name(section, name)
+    """UE 5.8 names this get_channel. Older builds used get_channel_by_name."""
+    extensions = ue.MovieSceneSectionExtensions
+    getter = getattr(extensions, "get_channel", None)
+    if getter is None:
+        getter = extensions.get_channel_by_name
+    return getter(section, name)
 
 
 def _build_flythrough(ue, camera, keys):
@@ -358,9 +364,8 @@ def _build_flythrough(ue, camera, keys):
         binding = ue.MovieSceneSequenceExtensions.add_possessable(sequence, camera)
         track = binding.add_track(ue.MovieScene3DTransformTrack)
         section = track.add_section()
-        start = ue.FrameNumber(0)
-        end = ue.FrameNumber(end_frame)
-        section.set_range(start, end)
+        # UE 5.8 SetRange takes display-rate int32 frames. FrameNumber fails to nativize.
+        section.set_range(0, end_frame)
         channels = {
             "x": _channel(ue, section, "Location.X"),
             "y": _channel(ue, section, "Location.Y"),
@@ -375,11 +380,12 @@ def _build_flythrough(ue, camera, keys):
             channels["z"].add_key(frame, key["z"])
             channels["pitch"].add_key(frame, key["pitch"])
             channels["yaw"].add_key(frame, key["yaw"])
+        origin = ue.FrameNumber(0)
         for axis in ("Scale.X", "Scale.Y", "Scale.Z"):
-            _channel(ue, section, axis).add_key(start, 1.0)
+            _channel(ue, section, axis).add_key(origin, 1.0)
         cut_track = ue.MovieSceneSequenceExtensions.add_master_track(sequence, ue.MovieSceneCameraCutTrack)
         cut = cut_track.add_section()
-        cut.set_range(start, end)
+        cut.set_range(0, end_frame)
         binding_id = ue.MovieSceneSequenceExtensions.get_binding_id(sequence, binding)
         cut.set_camera_binding_id(binding_id)
         assets.save_asset(SEQUENCE_PATH, False)

@@ -480,6 +480,98 @@ class LevelBuildTests(unittest.TestCase):
         plant_mesh = plant.get_component_by_class(ue.StaticMeshComponent)
         self.assertNotIn("disallow_nanite", plant_mesh.props)
 
+    def test_sky_uses_the_engine_aerial_perspective_spelling(self):
+        ue = FakeUnreal()
+        level_build.build(dawn=True, ue=ue)
+        sky = next(actor for actor in ue.sub.actors if actor.get_actor_label() == "Elyon.SkyAtmosphere")
+        comp = sky.get_component_by_class(ue.SkyAtmosphereComponent)
+        self.assertEqual(comp.props["aerial_pespective_view_distance_scale"], 1.0)
+        self.assertNotIn("aerial_perspective_view_distance_scale", comp.props)
+        self.assertNotIn("aerial_perspective_view_distance_scale", garden_logic.light_state(False))
+
+    def test_flythrough_range_uses_display_rate_ints(self):
+        ue = FakeUnreal()
+        ranges = []
+        keys = []
+
+        class Section:
+            def set_range(self, start, end):
+                if type(start) is not int or type(end) is not int:
+                    raise TypeError("Cannot nativize FrameNumber as StartFrame (IntProperty)")
+                ranges.append((start, end))
+
+            def set_camera_binding_id(self, binding_id):
+                self.binding_id = binding_id
+
+        class Track:
+            def add_section(self):
+                return Section()
+
+        class Binding:
+            def add_track(self, cls):
+                return Track()
+
+        class Sequence:
+            def set_display_rate(self, rate):
+                self.rate = rate
+
+            def set_playback_start(self, frame):
+                self.playback_start = frame
+
+            def set_playback_end(self, frame):
+                self.playback_end = frame
+
+        class Tools:
+            def create_asset(self, name, path, cls, factory):
+                return Sequence()
+
+        class Helpers:
+            @staticmethod
+            def get_asset_tools():
+                return Tools()
+
+        class Channel:
+            def add_key(self, frame, value):
+                keys.append(frame)
+
+        class SequenceExtensions:
+            @staticmethod
+            def add_possessable(sequence, camera):
+                return Binding()
+
+            @staticmethod
+            def add_master_track(sequence, cls):
+                return Track()
+
+            @staticmethod
+            def get_binding_id(sequence, binding):
+                return "binding"
+
+        class SectionExtensions:
+            @staticmethod
+            def get_channel(section, name):
+                return Channel()
+
+        ue.LevelSequence = type("LevelSequence", (), {})
+        ue.LevelSequenceFactoryNew = lambda: None
+        ue.AssetToolsHelpers = Helpers
+        ue.FrameRate = lambda numerator, denominator: (numerator, denominator)
+        ue.FrameNumber = lambda number: ("frame", int(number))
+        ue.MovieSceneSequenceExtensions = SequenceExtensions
+        ue.MovieSceneSectionExtensions = SectionExtensions
+        ue.MovieScene3DTransformTrack = type("TransformTrack", (), {})
+        ue.MovieSceneCameraCutTrack = type("CutTrack", (), {})
+        ue.EditorAssetLibrary.save_asset = lambda path, only_if_is_dirty=False: None
+        warnings = []
+        ue.log_warning = warnings.append
+        level_build.build(dawn=True, ue=ue)
+        end = int(round(garden_logic.god_flight()[-1]["t"] * 24))
+        self.assertEqual(ranges, [(0, end), (0, end)])
+        self.assertTrue(keys)
+        self.assertTrue(all(isinstance(frame, tuple) and frame[0] == "frame" for frame in keys))
+        self.assertEqual(ue.EditorLevelLibrary.saves, 1)
+        self.assertFalse(any("flythrough" in message for message in warnings))
+
     def test_flythrough_failure_still_saves_the_garden(self):
         ue = FakeUnreal()
         ue.LevelSequence = type("LevelSequence", (), {})
