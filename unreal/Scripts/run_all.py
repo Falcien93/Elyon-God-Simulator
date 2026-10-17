@@ -5,7 +5,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from level_build import build
+import diag_shot
+import level_build
 
 
 def main(ue=None):
@@ -15,7 +16,12 @@ def main(ue=None):
         ue = unreal
     # ExecutePythonScript closes the editor on the next tick unless this stays set.
     ue.EditorPythonScripting.set_keep_python_script_alive(True)
-    build(dawn=True, ue=ue)
+    level_build.build(dawn=True, ue=ue)
+    # The overview HighResShot runs after the actors and lights exist.
+    diag_shot.diagnose(ue)
+    log = getattr(ue, "log", None)
+    if log:
+        log("Elyon run_all finished")
 
 
 if __name__ == "__main__":
