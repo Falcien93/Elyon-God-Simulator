@@ -4,7 +4,7 @@ Design sketch for the layer that begins once humanity is in the world and the ga
 
 The garden already tracks `order` and `wonder` (0–100), plus trust, wonder, and will on Adam and Eve. Faith, prosperity, fear, and population are new stats for tribes. They sit beside the garden stats. They do not replace them.
 
-Incarnation, a later mode in which God walks among the people, is specified in (f). Quantum miracles, a later layer of paired outcomes, are specified in (g). Laws of Creation, later layers in which God wields or reveals physical law, are specified in (h). None of these are in the Python sketch.
+Incarnation, a later mode in which God walks among the people, is specified in (f). Quantum miracles, a later layer of paired outcomes and of one miracle seen in two places, are specified in (g). Higher dimensions, visual fakes of a fourth dimension in that same later band, are specified in (h). Laws of Creation, later layers in which God wields or reveals physical law, are specified in (i). None of these are in the Python sketch.
 
 A pure-Python sketch of the rules lives in `unreal/Scripts/civ_sim.py`. It does not import Unreal and it does not call a model. Tests in `unreal/tests/test_civ.py` run with the existing `python3 -m unittest discover -s unreal/tests -v` step.
 
@@ -117,10 +117,22 @@ Quantum miracles wait until the first list is playing one locked ending. They ar
 2. The first NPC who sees it collapses it from that NPC's faith versus fear or doubt.
 3. Write the result into faith, power, and wrath.
 4. Then let wrath and the collapse touch Incarnation: hostility on the walk, the seizure beat, the pause in the underworld, and the bias after the return.
+5. Optional entanglement: a second mouth on that same marker. The first NPC to see either mouth collapses both.
+
+**Later layer, beside quantum miracles**
+
+Higher dimensions wait until that same first list is playing one locked ending. They are visual fakes of a fourth dimension, in the same band as (g), and they are not a 4D solver. The rules are (h). The underworld map from Incarnation should exist before the impossible interior dresses it. The steps:
+
+1. One portal pair: a SceneCapture2D or a render target on each mouth, and a teleport that keeps facing and speed.
+2. One non-Euclidean interior for the underworld: a stencil mask and a streamed sublevel that is larger than its doorway.
+3. One looping bound: a wrap teleport that keeps velocity, with the far side drawn through the portal path.
+4. An optional tesseract slice or 4D shadow, off unless a law is revealed or a prophet glimpses an uncollapsed miracle.
+
+None of these four steps write faith, power, or wrath by themselves.
 
 **Later layers, after the core civ sim**
 
-Laws of Creation wait until that same first list is playing one locked ending. Each law is its own layer. The rules are (h). Suggested order, because later laws spend earlier ones:
+Laws of Creation wait until that same first list is playing one locked ending. Each law is its own layer. The rules are (i). Suggested order, because later laws spend earlier ones:
 
 1. Conservation: a ledger, so an act that adds energy or matter has to take it from somewhere.
 2. Thermodynamics: entropy on neglected settlements, seasons, and fire that burns fuel.
@@ -166,7 +178,7 @@ The event is one beat. The pawn is gone. The picture does not stay on the death.
 
 ### The underworld
 
-Death loads a playable section under the settlement. It is a passage, not a punishment gallery. A few figures already lost to flood or clash are there. They can speak, one `needs_voice` line each, under the same rule as the living: the local model, and never a crowd call. God-interventions stay unavailable. The living utility tick pauses. The player walks and listens. Leaving is the resurrection. There is no fight that earns it.
+Death loads a playable section under the settlement. It is a passage, not a punishment gallery. A few figures already lost to flood or clash are there. They can speak, one `needs_voice` line each, under the same rule as the living: the local model, and never a crowd call. God-interventions stay unavailable. The living utility tick pauses. The player walks and listens. Leaving is the resurrection. There is no fight that earns it. Higher dimensions (h) can later make this passage larger inside than its doorway, or loop it. That dressing waits until this small map exists.
 
 ### The return
 
@@ -230,6 +242,14 @@ Belief at that moment is faith versus fear or doubt. Doubt here means faith unde
 
 The comparison is numbers. The observer does not call Qwen3 4B to pick the branch. If that observer is a leader or a prophet, they may emit `needs_voice` afterward, to speak about what they saw. A crowd member who collapses it stays silent. The crowd tick still does not call the model.
 
+### Entanglement
+
+Two places can hold one undecided miracle. That is entanglement in this layer: one pair with two mouths, not two casts. The first NPC to see either mouth collapses both. At the cast, God sets the far mouth to land the same branch or the opposite branch. The default is the same branch. Distance does not matter. There is still one observer, and that observer still does not call the model.
+
+A mouth in the underworld does not count. The dead do not collapse a miracle, and the living tick is paused, so an open pair waits. God is still not an observer.
+
+**Implementation.** The marker gains an optional `linked_place` and a `correlation` of `same` or `opposite`. The collapse writes both mouths from the one observer's faith versus fear or doubt, then applies the faith, power, and wrath table once for the mouth that was seen. If the other mouth belongs to another tribe, that tribe receives the correlated row of the table. A linked mouth counts as that settlement's one active marker, so it does not stack a second pair on top. One link. This stays inside (g). It does not enter the core tick.
+
 ### Faith, power, and wrath
 
 The collapse writes back into three stats. Faith is the tribe stat the core sim already has. Power and wrath are new, 0–100, and they belong to this layer. Power starts at 50. Wrath starts at 10. They are not prosperity and they are not fear. Prosperity, fear, and population stay on the core tick until a later tune says otherwise.
@@ -277,11 +297,59 @@ A new cast after the return works the same as any other cast. It does not reopen
 
 After the core civ sim, as a later layer. The utility tick, the four deterministic interventions, the locked ending, and one settlement come first. This layer does not enter `civ_sim.py` in that slice.
 
-The four steps are listed under build order. They sit after Incarnation in that order because wrath has to have a walk, a fail state, a descent, and a return to touch. Mass, Niagara, and the model binary are still later. A marker and a stat write are enough for the collapse to be real.
+The steps are listed under build order. They sit after Incarnation in that order because wrath has to have a walk, a fail state, a descent, and a return to touch. Mass, Niagara, and the model binary are still later. A marker and a stat write are enough for the collapse to be real.
 
-Laws of Creation (h) attach a cost and a field reading to this marker. They do not replace the observer rule.
+Higher dimensions (h) sit in this same later band. A prophet may glimpse an uncollapsed marker as a tesseract slice. The glimpse does not collapse it, and it does not replace the observer. Laws of Creation (i) attach a cost and a field reading to this marker. They do not replace the observer rule.
 
-## (h) Laws of Creation
+## (h) Higher dimensions
+
+These are visual fakes of a fourth spatial dimension. The engine stays three-dimensional. A player and an NPC still move on three axes. What changes is the camera, the mask, the teleport, or a picture of a slice. This is the same later band as quantum miracles (superposition and entanglement). It is not a fifth ending, and it is not in `civ_sim.py`. The locked ending id stays locked.
+
+Established geometry is the guide. A portal is a window onto another place plus a teleport when the viewer crosses the plane. A non-Euclidean room is a space whose interior measure is larger than the shell that opens onto it. A loop is a space identified with itself at a boundary. A tesseract slice is a three-dimensional cross-section of a four-dimensional cube as the extra coordinate moves. None of these solve a 4D metric or add a fourth axis of locomotion.
+
+### Portals
+
+Each mouth is a plane. A SceneCaptureComponent2D, or any capture that writes a render target onto that plane, shows the linked place as if the opening were a hole. When the pawn crosses the plane, the pawn teleports to the linked mouth's exit offset. Facing and velocity carry over. The capture updates to the view from the arrival, so the crossing reads as one continuous move. A second capture, for one bounce of recursion, is optional. Deeper recursion stays off.
+
+**Hook.** God's realm is a place the settlement mesh does not contain. God enters through a portal that has no ordinary door. From inside, the settlement is what the return portal shows. Interventions still land in the settlement, not in the extra volume. Mortals do not see the mouth. A prophet may. That prophet can emit `needs_voice`. The crowd does not call the model.
+
+**Implementation.** One pair, `Elyon.PortalA` and `Elyon.PortalB`, each a plane plus a capture aimed from the other plane's transform. Overlap teleports to the linked exit and moves the capture with the pawn. One pair in this layer. The Day 1 garden is left without portals. No physics rewrite.
+
+### Non-Euclidean rooms
+
+The shell is small. The interior is a larger level that does not have to fit inside the shell's bounds. A stencil (or a custom-depth mask) on the doorway draws the interior only through the opening, so the large room is invisible from the side of the shell. Level streaming loads that interior when the opening is in view and unloads it when the pawn has left.
+
+**Hook.** The underworld's impossible geometry. Section (f) already loads one small passage under the settlement. This layer dresses that passage: a stair under a house that opens into a hall larger than the settlement above. It stays a passage, not a punishment gallery. The living utility tick stays paused. No new quantum cast below. The exit is still the resurrection, and the large hall does not come back up with the body.
+
+**Implementation.** The doorway writes the stencil. The interior is one streamed sublevel, positioned so the shell's collision stays the small footprint and the settlement above is unchanged. World Partition can own that interior later. Until then, one sublevel is enough. This dresses whichever underworld map (f) shipped. It does not replace that map.
+
+### Space that loops
+
+Past a boundary, the place joins its opposite side. The pawn teleports across the period with velocity unchanged. The boundary is also a portal, or a duplicate of the near actors offset by that period, so the seam shows the continuation instead of a pop.
+
+**Hook.** God's realm can be a closed sky. A step that would leave the realm arrives on the far side. Mortal settlements stay on the ordinary map and do not wrap. A loop is a joining of space. Relativity, in (i), is the separate mechanic that slows clocks. A loop does not rewind the sim and does not age the underworld.
+
+**Implementation.** Axis-aligned bounds and a wrap teleport. Draw the far side with the same capture path as portals, or with one offset copy of the nearby actors, hidden except at the seam. The same crossing on the same seed always lands on the same offset. No random fold.
+
+### A 4D shadow, or a tesseract slice
+
+Optional picture for a revelation. A tesseract's three-dimensional shadow, or a slice at a moving fourth coordinate `w`, reads as cubes that grow, pass through one another, and shrink. The mesh is a preauthored projection: a short table of 3D positions at a few values of `w`, interpolated. It is a diagram of a slice. It has no 4D collision and no extra axis to walk.
+
+**Hook.** Prophets glimpsing beyond. The slice plays when a law is revealed, or when a prophet stands near an uncollapsed quantum miracle. The crowd sees weather, or nothing. The prophet sees the slice and may emit `needs_voice`. A glimpse does not unlock a science-tree node. Unlocking stays the reveal rule in (i). A glimpse does not collapse a miracle. An NPC still has to observe the marker, and God is still not an observer.
+
+By ending, the picture stays inside the locked choice. Harmony shows the slice as a tending sign inside the larger garden room. Wonder gives the prophet the voice. Exile, if a portal exists at all, opens it in the east and does not lead back through the gate. Order may show the slice as a closed diagram. Wonder is not restored, and the question stays closed.
+
+**Implementation.** One mesh or a Niagara ribbon driven by `w` from 0 to 1. Off unless a reveal or a prophet glimpse turns it on. One instance, at the prophet or at the reveal point. Skip a second copy.
+
+### What these fakes do not change
+
+The crucifixion stays the committed fail state from (f). A quantum miracle stays two modes until a person sees a mouth. Entanglement still collapses both mouths from that one observer. Showing a slice does not reopen silence, move exile back through the gate, or turn order into wonder. Harmony does not gain clash because a room was larger inside.
+
+### Where it sits in the build
+
+After the core civ sim, as a later layer beside quantum miracles. The four steps are listed under build order. Incarnation's small underworld comes first, then the stencil and the stream. The quantum marker can be what a prophet glimpses, and the portals do not require that marker. Laws of Creation can use the slice as the revelation picture once both layers exist. Mass and the model binary stay later. None of this enters the first Python slice.
+
+## (i) Laws of Creation
 
 These are physical laws God wields or reveals. They are not another list of miracles. A miracle asks the world for an outcome. A law is a constraint the world already has, which God can spend directly or show to a people so they can learn it. The science below is the established kind: conservation, thermodynamics, relativity, chaos, and quantum field theory. The sim does not solve the real equations. It keeps the constraint that makes each law a mechanic.
 
@@ -350,7 +418,7 @@ Showing a law does not reopen silence, move exile back through the gate, or turn
 
 After the core civ sim, as later layers, in the order under build order. Conservation can land before quantum miracles so that (g) has a ledger to pay. Quantum field theory lands after (g), because it only explains that marker. None of this enters the first Python slice. Mass and Niagara can show heat and seasons later. They are not required for the ledger, the entropy number, the clock multiplier, or the seeded diff to be true.
 
-## (i) Open questions for John
+## (j) Open questions for John
 
 1. Is "falls" the closed question (wonder falls, the people remain) or exile (the people leave)? The shipped text has no collapse ending.
 2. Do civilizations only play out the locked garden ending, or can a long sim drift into another? `resolveEnding` keeps the first one.
@@ -367,6 +435,9 @@ After the core civ sim, as later layers, in the order under build order. Conserv
 13. Do power and wrath stay their own stats, or should power stand in for prosperity and wrath for fear?
 14. Do the four core interventions stay single outcomes, with quantum miracles as an extra cast only?
 15. Is one uncollapsed miracle per settlement the right limit?
-16. On revealing a law, should faith move by ending as in (h), or should reason rise while faith always holds?
+16. On revealing a law, should faith move by ending as in (i), or should reason rise while faith always holds?
 17. If the conservation ledger cannot pay, is the act refused, or taken as debt that raises wrath?
 18. Is the default one god step to one mortal year, with dilation only where God sets it?
+19. Is God's realm a portal the player walks, or the existing god camera inside a room that is larger than its shell?
+20. The underworld in (f) is one small map. Should (h) only dress that map, which is what this sketch does, or replace it with the impossible interior from the start?
+21. This sketch plays the tesseract slice both for a law revealed under (i) and for a prophet near an uncollapsed miracle. Should the glimpse stay revelation-only?
