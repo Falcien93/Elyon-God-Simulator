@@ -14,9 +14,9 @@ The script builds the level `/Game/Maps/Day1_Garden` and saves it, then leaves t
 
 ## Sky, haze, and the 4060 preset
 
-The sky is a `SkyAtmosphere` plus a `VolumetricCloud`. The script does not spawn a sky sphere. Clouds sit at a normal altitude (layer bottom about 1.6 km). `Config/DefaultEngine.ini` sets `r.EyeAdaptation.CachedLightingPreExposure=8`. On UE 5.8 that keeps cached Lumen and real-time sky capture valid from EV -4 to EV 16.
+The sky is a `SkyAtmosphere` plus a `VolumetricCloud`. The script does not spawn a sky sphere. Dawn clouds sit low (layer bottom 1.2 km, height 2.8 km) with a warm ground albedo, and the view sample scale is 0.6 so the 4060 is not asked for a full cloud march. `Config/DefaultEngine.ini` sets `r.EyeAdaptation.CachedLightingPreExposure=8`. On UE 5.8 that keeps cached Lumen and real-time sky capture valid from EV -4 to EV 16.
 
-`Elyon.Exposure` is an unbound post-process volume with manual exposure, so the view does not wait on eye adaptation. Dawn turns on physical camera exposure: ISO 100, shutter 1/250 s, f/8, bias 0. That is about EV 14 for the 120000 lux sun, inside the cached-lighting window. A manual bias of -15 left the frame black, and +12 left it white. UE 5.8 has no histogram log min/max on `PostProcessSettings`. The sun pitch is -20 (golden hour). Python's `Rotator` constructor is roll, pitch, yaw, so the script sets the named fields. `Elyon.SkyLight` is a movable real-time capture at intensity 1. Its recapture is queued for the next editor tick so `run_all.py` can finish. Bloom stays at 0.05. Vignette, chromatic aberration, and lens flares are 0. Light shafts and volumetric fog are off. `Elyon.Fog` is a thin exponential height fog: dawn density 0.0008, starting 8000 units out, max opacity 0.15. It is not a wall in front of the camera. The terrain is a flat plane on the ground. The overview camera sits at z 2600, south of the garden. Darkness dims the sun. It does not drop a thick fog in front of the camera.
+`Elyon.Exposure` is an unbound post-process volume with manual exposure, so the view does not wait on eye adaptation. Dawn turns on physical camera exposure: ISO 100, shutter 1/250 s, f/8, bias 0. That is about EV 14 for the 120000 lux sun, inside the cached-lighting window. A manual bias of -15 left the frame black, and +12 left it white. White balance at dawn is 4300 K. UE 5.8 has no histogram log min/max on `PostProcessSettings`. The sun pitch is -20 (golden hour), color warm orange. Python's `Rotator` constructor is roll, pitch, yaw, so the script sets the named fields. `Elyon.SkyLight` is a movable real-time capture at intensity 0.6 with a warm tint, so a blue captured sky does not paint the shadows cyan. Its recapture is queued for the next editor tick so `run_all.py` can finish. Bloom stays at 0.05. Vignette, chromatic aberration, and lens flares are 0. Light shafts and volumetric fog are off. `Elyon.Fog` is a thin warm exponential height fog: dawn density 0.0016, inscatter a golden haze, starting 4500 units out, max opacity 0.2. It is not a wall in front of the camera. The terrain is a flat plane on the ground. The overview camera sits at z 2600, south of the garden. Darkness dims the sun. It does not drop a thick fog in front of the camera.
 
 Water uses Lumen reflections with screen traces on the opaque world, and screen-space reflections for the translucent river and lake (`r.SSR.Quality=2`). Hardware ray tracing is off. Software Lumen (mesh distance fields) is the global illumination path.
 
@@ -26,7 +26,7 @@ The Steam target is an RTX 4060 laptop at 1080p to 1440p with TSR, running smoot
 
 `Elyon.GodCamera` is a cine camera with a 24mm lens, placed above the garden. The script also saves a level sequence at `/Game/Cinematics/LS_GodFlythrough`. The move is 28 seconds: a high opening, a pass over the trees and the river, a look toward the low sun, then a wide hold. Section ranges are plain integers at the 24 fps display rate, which is what `set_range` takes in UE 5.8. The camera cut is `sequence.add_track(MovieSceneCameraCutTrack)` on a possessable of `Elyon.GodCamera`. UE 5.8 has no master-track API. The script does not play the sequence, so the perspective viewport is not left inside that camera. It frames an overview south of the garden, looking north and down. Open `LS_GodFlythrough` and press play when you want the flythrough.
 
-`Scripts/diag_shot.py` logs the sun rotation and lux, the exposure camera, and the viewport location, then moves to that same overview and runs `HighResShot 1920x1080`. The image lands in `Saved/Screenshots`. The script warns if that frame is all black or all white. Viewport calls go through `UnrealEditorSubsystem` and `LevelEditorSubsystem`.
+`Scripts/run_all.py` calls `Scripts/diag_shot.py` after the build. That logs the sun rotation and lux, the exposure camera, and the viewport location, then moves to the overview and runs `HighResShot 1920x1080`. The image lands in `Saved/Screenshots`. The script warns if that frame is all black or all white. Viewport calls go through `UnrealEditorSubsystem` and `LevelEditorSubsystem`. You can also run `diag_shot.py` on its own.
 
 ## Terrain and free foliage
 
@@ -34,17 +34,19 @@ The Steam target is an RTX 4060 laptop at 1080p to 1440p with TSR, running smoot
 
 Foliage uses only free assets. The script checks these paths in order and uses the first one that exists:
 
-| Role | First choice (optional Fab) | Starter Content | Engine fallback |
+| Role | First choice | Starter Content | Engine fallback |
 | --- | --- | --- | --- |
-| Tree | `/Game/Fab/Foliage/SM_Tree` | `/Game/StarterContent/Props/SM_Bush` | `/Engine/BasicShapes/Cone` |
+| Tree | `/Game/Fab/Foliage/SM_Tree` | `/Game/StarterContent/Props/SM_Bush` | `/Engine/BasicShapes/Sphere` crown on a cylinder trunk |
+| Trunk | | `/Game/StarterContent/Materials/M_Wood_Oak` (bark) | `/Engine/BasicShapes/Cylinder` |
 | Rock | `/Game/Fab/Foliage/SM_Rock` | `/Game/StarterContent/Props/SM_Rock` | `/Engine/BasicShapes/Sphere` |
-| Plant | `/Game/Fab/Foliage/SM_Plant` | `/Game/StarterContent/Props/SM_Bush` | `/Engine/BasicShapes/Cone` |
+| Plant | `/Game/Fab/Foliage/SM_Plant` | `/Game/StarterContent/Props/SM_Bush` | `/Engine/BasicShapes/Sphere` |
 | Grass material | `/Game/Fab/Foliage/M_Grass` | `/Game/StarterContent/Materials/M_Ground_Grass` | `/Game/Materials/M_Elyon_Grass` |
 | Leaf material | `/Game/Fab/Foliage/M_Leaf` | `/Game/StarterContent/Materials/M_Ground_Moss` | `/Game/Materials/M_Elyon_Leaf` |
 | Rock material | | `/Game/StarterContent/Materials/M_Rock_Basalt` | `/Game/Materials/M_Elyon_Rock` |
-| Water material | | `/Game/StarterContent/Materials/M_Water_Lake` | `/Game/Materials/M_Elyon_Water` |
+| Bark material | | `/Game/StarterContent/Materials/M_Wood_Oak` | `/Game/Materials/M_Elyon_Bark` |
+| Water material | `/Water/Materials/WaterSurface/Water_Material_Lake` | `/Game/StarterContent/Materials/M_Water_Lake` | `/Game/Materials/M_Elyon_Water` |
 
-`Elyon.River` is the long channel. `Elyon.Lake` is a still body of water on the west side. Both use the water material above. The authored water fallback is translucent, with low roughness, so screen-space reflections have a surface to hit. Foliage is kept off the river and the lake. The scatter is 48 trees, 28 rocks, and 200 plants, and it is deterministic.
+`Elyon.River` is the long channel. `Elyon.Lake` is a still body of water on the west side. Both stay thin cubes. The Water plugin is enabled so its free lake material can be used when that asset is mounted. The script does not spawn Water Body splines. The authored water fallback is Single Layer Water when the engine exposes that shading model, deep green-black rather than cyan, translucent, with roughness that moves. Screen-space reflections and Lumen have a surface to hit. The authored grass and bark lerp two colors through world-position noise, so the ground is not one flat green. Foliage is kept off the river and the lake. The scatter is 48 trees, 28 rocks, and 200 plants, and it is deterministic. A complete Fab `SM_Tree` hides the extra trunk. A bush or a sphere crown keeps the cylinder.
 
 Trees, rocks, and the terrain mesh are Nanite. On a project mesh (Fab or any copied Starter mesh under `/Game`), the script turns Nanite on and saves the asset. Engine Basic Shapes are left untouched; in UE 5.8 those shapes already ship as Nanite meshes. Plants stay ordinary cards, because masked grass often costs more as Nanite than it saves.
 
@@ -54,9 +56,9 @@ To add the free Starter Content pack (included with Unreal, not a purchase):
 
 1. In the editor, open the Content Browser.
 2. Add Feature or Content Pack, then add Starter Content.
-3. Run the script again. Trees and plants pick up `SM_Bush`, rocks pick up `SM_Rock`, and the terrain can use `M_Ground_Grass`.
+3. Run the script again. Tree crowns and plants pick up `SM_Bush`, rocks pick up `SM_Rock`, and the terrain can use `M_Ground_Grass`.
 
-Optional free Fab foliage, if you download it yourself and place it at those exact paths: `SM_Tree`, `SM_Rock`, `SM_Plant`, `M_Grass`, and `M_Leaf` under `/Game/Fab/Foliage/`. The script does not download Fab. If neither Starter Content nor those Fab assets are present, the garden falls back to engine cones and spheres with the authored green, rock, and water materials.
+Optional free Fab foliage, if you download it yourself and place it at those exact paths: `SM_Tree`, `SM_Rock`, `SM_Plant`, `M_Grass`, and `M_Leaf` under `/Game/Fab/Foliage/`. The script does not download Fab. If neither Starter Content nor those Fab assets are present, each tree is a cylinder trunk with a sphere crown, plants are small spheres, and the ground, bark, and water use the authored materials. Nothing in this list is a paid asset.
 
 The PCG plugin is enabled for later work and is not used by this script.
 

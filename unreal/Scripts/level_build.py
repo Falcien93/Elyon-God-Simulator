@@ -13,6 +13,9 @@ from garden_logic import (
     planned_labels,
     resolve_candidate,
     stale_labels,
+    tree_canopy_placement,
+    trunk_hidden,
+    trunk_placement,
     _shape_scale,
 )
 
@@ -129,20 +132,127 @@ def _available_assets(ue):
     return found
 
 
+def _expr(library, material, ue, cls, x, y):
+    return library.create_material_expression(material, cls, x, y)
+
+
+def _constant3(library, material, ue, rgba, x, y):
+    expr = _expr(library, material, ue, ue.MaterialExpressionConstant3Vector, x, y)
+    red, green, blue, alpha = rgba
+    expr.set_editor_property("constant", ue.LinearColor(float(red), float(green), float(blue), float(alpha)))
+    return expr
+
+
+def _constant(library, material, ue, value, x, y):
+    expr = _expr(library, material, ue, ue.MaterialExpressionConstant, x, y)
+    expr.set_editor_property("r", float(value))
+    return expr
+
+
+def _connect_property(library, expr, material_property, ue):
+    try:
+        library.connect_material_property(expr, "", material_property)
+        return True
+    except Exception as exc:
+        _warn(ue, f"Elyon skipped a material link: {exc}")
+        return False
+
+
+def _link(library, source, dest, pin, ue):
+    try:
+        library.connect_material_expressions(source, "", dest, pin)
+        return True
+    except Exception as exc:
+        _warn(ue, f"Elyon skipped a material link: {exc}")
+        return False
+
+
+def _author_flat_color(library, material, ue, desc):
+    color_expr = _constant3(library, material, ue, desc["color"], -350, 0)
+    _connect_property(library, color_expr, ue.MaterialProperty.MP_BASE_COLOR, ue)
+
+
+def _author_varied_color(library, material, ue, desc):
+    """World-position noise (the Noise node defaults to it) blends two colors."""
+    try:
+        noise = _expr(library, material, ue, ue.MaterialExpressionNoise, -720, 0)
+        noise.set_editor_property("scale", 0.003)
+        color_a = _constant3(library, material, ue, desc["color"], -720, 180)
+        color_b = _constant3(library, material, ue, desc["color_b"], -720, 360)
+        blend = _expr(library, material, ue, ue.MaterialExpressionLinearInterpolate, -360, 120)
+    except Exception as exc:
+        _warn(ue, f"Elyon color variation fell back to a flat color: {exc}")
+        return False
+    linked = (
+        _link(library, color_a, blend, "A", ue)
+        and _link(library, color_b, blend, "B", ue)
+        and _link(library, noise, blend, "Alpha", ue)
+        and _connect_property(library, blend, ue.MaterialProperty.MP_BASE_COLOR, ue)
+    )
+    if not linked:
+        _warn(ue, "Elyon color variation fell back to a flat color")
+    return linked
+
+
+def _author_still_roughness(library, material, ue, desc):
+    rough = _constant(library, material, ue, desc["roughness"], -350, 180)
+    _connect_property(library, rough, ue.MaterialProperty.MP_ROUGHNESS, ue)
+
+
+def _author_animated_roughness(library, material, ue, desc):
+    """A slow sine on roughness so a flat water sheet reads as a moving surface."""
+    try:
+        clock = _expr(library, material, ue, ue.MaterialExpressionTime, -900, 200)
+        wave = _expr(library, material, ue, ue.MaterialExpressionSine, -700, 200)
+        low = _constant(library, material, ue, desc["roughness"], -700, 360)
+        high = _constant(library, material, ue, desc.get("roughness_b", desc["roughness"]), -700, 500)
+        blend = _expr(library, material, ue, ue.MaterialExpressionLinearInterpolate, -400, 280)
+    except Exception as exc:
+        _warn(ue, f"Elyon water animation fell back to a still surface: {exc}")
+        _author_still_roughness(library, material, ue, desc)
+        return
+    linked = (
+        _link(library, clock, wave, "", ue)
+        and _link(library, low, blend, "A", ue)
+        and _link(library, high, blend, "B", ue)
+        and _link(library, wave, blend, "Alpha", ue)
+        and _connect_property(library, blend, ue.MaterialProperty.MP_ROUGHNESS, ue)
+    )
+    if not linked:
+        _warn(ue, "Elyon water animation fell back to a still surface")
+        _author_still_roughness(library, material, ue, desc)
+
+
 def _author_material(ue, asset_path, desc):
     package, name = asset_path.rsplit("/", 1)
     tools = ue.AssetToolsHelpers.get_asset_tools()
     material = tools.create_asset(name, package, ue.Material, ue.MaterialFactoryNew())
     library = ue.MaterialEditingLibrary
-    color_expr = library.create_material_expression(material, ue.MaterialExpressionConstant3Vector, -350, 0)
-    red, green, blue, alpha = desc["color"]
-    color_expr.set_editor_property("constant", ue.LinearColor(float(red), float(green), float(blue), float(alpha)))
-    library.connect_material_property(color_expr, "", ue.MaterialProperty.MP_BASE_COLOR)
-    rough_expr = library.create_material_expression(material, ue.MaterialExpressionConstant, -350, 180)
-    rough_expr.set_editor_property("r", float(desc["roughness"]))
-    library.connect_material_property(rough_expr, "", ue.MaterialProperty.MP_ROUGHNESS)
+    varied = False
+    if desc.get("variation") and "color_b" in desc:
+        varied = _author_varied_color(library, material, ue, desc)
+    if not varied:
+        _author_flat_color(library, material, ue, desc)
+    if desc.get("animated"):
+        _author_animated_roughness(library, material, ue, desc)
+    else:
+        _author_still_roughness(library, material, ue, desc)
+    shading = None
+    if desc.get("shading") == "single_layer_water":
+        shading = _enum(ue, "MaterialShadingModel", "MSM_SINGLELAYERWATER")
+        if shading is not None:
+            _try_set(material, "shading_model", shading, ue)
     if desc.get("blend") == "translucent" and hasattr(ue, "BlendMode"):
         _try_set(material, "blend_mode", ue.BlendMode.BLEND_TRANSLUCENT, ue)
+    # Opacity is the translucent fallback. Single Layer Water uses its own absorption.
+    if desc.get("animated") and shading is None and hasattr(ue, "MaterialProperty"):
+        opacity = getattr(ue.MaterialProperty, "MP_OPACITY", None)
+        if opacity is not None:
+            try:
+                mask = _constant(library, material, ue, 0.82, -350, 360)
+                _connect_property(library, mask, opacity, ue)
+            except Exception as exc:
+                _warn(ue, f"Elyon skipped water opacity: {exc}")
     library.recompile_material(material)
     ue.EditorAssetLibrary.save_asset(asset_path, False)
     return material
@@ -199,7 +309,16 @@ def _resolve_spec(spec, available):
     resolved = dict(spec)
     mesh = resolve_candidate(MESH_CANDIDATES[role], available)
     resolved["mesh"] = mesh
-    resolved["scale"] = _shape_scale(role, spec.get("scatter_scale", 1.0), mesh)
+    scatter = spec.get("scatter_scale", 1.0)
+    if role == "tree":
+        resolved["z"], resolved["scale"] = tree_canopy_placement(scatter, mesh)
+    elif role == "trunk":
+        resolved["z"], resolved["scale"] = trunk_placement(scatter)
+        if trunk_hidden(available):
+            resolved["hidden"] = True
+            resolved["scale"] = (0.01, 0.01, 0.01)
+    else:
+        resolved["scale"] = _shape_scale(role, scatter, mesh)
     material_key = ROLE_MATERIAL.get(role)
     if material_key and mesh.startswith("/Engine/BasicShapes/"):
         resolved["material"] = resolve_candidate(MATERIAL_CANDIDATES[material_key], available)
@@ -215,6 +334,10 @@ def _place(actor, ue, spec, available):
     scale = spec.get("scale")
     if scale:
         actor.set_actor_scale3d(_vec(ue, scale[0], scale[1], scale[2]))
+    if spec.get("hidden"):
+        hide = getattr(actor, "set_is_temporarily_hidden_in_editor", None)
+        if hide:
+            hide(True)
     mesh = spec.get("mesh")
     role = spec.get("role")
     if mesh:
@@ -306,6 +429,9 @@ def _apply_light(ue, light):
         comp = clouds.get_component_by_class(ue.VolumetricCloudComponent)
         _try_set(comp, "layer_bottom_altitude", light["cloud_bottom_km"], ue)
         _try_set(comp, "layer_height", light["cloud_height_km"], ue)
+        _try_set(comp, "view_sample_count_scale", light.get("cloud_view_sample_scale", 1.0), ue)
+        if "cloud_ground_albedo" in light:
+            _try_set(comp, "ground_albedo", _linear_color(ue, light["cloud_ground_albedo"]), ue)
     marker = actors.get("Elyon.LetThereBeLight")
     if marker:
         marker.set_editor_property("tags", [light["name"]])

@@ -24,8 +24,9 @@ MESH_CANDIDATES = {
     "tree": [
         "/Game/Fab/Foliage/SM_Tree",
         "/Game/StarterContent/Props/SM_Bush",
-        "/Engine/BasicShapes/Cone",
+        "/Engine/BasicShapes/Sphere",
     ],
+    "trunk": ["/Engine/BasicShapes/Cylinder"],
     "rock": [
         "/Game/Fab/Foliage/SM_Rock",
         "/Game/StarterContent/Props/SM_Rock",
@@ -34,7 +35,7 @@ MESH_CANDIDATES = {
     "plant": [
         "/Game/Fab/Foliage/SM_Plant",
         "/Game/StarterContent/Props/SM_Bush",
-        "/Engine/BasicShapes/Cone",
+        "/Engine/BasicShapes/Sphere",
     ],
     "river": ["/Engine/BasicShapes/Cube"],
     "lake": ["/Engine/BasicShapes/Cube"],
@@ -57,14 +58,20 @@ MATERIAL_CANDIDATES = {
         "/Game/Materials/M_Elyon_Rock",
     ],
     "water": [
+        "/Water/Materials/WaterSurface/Water_Material_Lake",
         "/Game/StarterContent/Materials/M_Water_Lake",
         "/Game/Materials/M_Elyon_Water",
+    ],
+    "bark": [
+        "/Game/StarterContent/Materials/M_Wood_Oak",
+        "/Game/Materials/M_Elyon_Bark",
     ],
 }
 
 ROLE_MATERIAL = {
     "terrain": "grass",
     "tree": "leaf",
+    "trunk": "bark",
     "plant": "leaf",
     "rock": "rock",
     "river": "water",
@@ -72,13 +79,27 @@ ROLE_MATERIAL = {
 }
 
 AUTHORED_MATERIALS = {
-    "/Game/Materials/M_Elyon_Grass": {"color": (0.16, 0.34, 0.08, 1.0), "roughness": 0.92},
-    "/Game/Materials/M_Elyon_Leaf": {"color": (0.22, 0.4, 0.08, 1.0), "roughness": 0.72},
+    "/Game/Materials/M_Elyon_Grass": {
+        "color": (0.18, 0.32, 0.08, 1.0),
+        "color_b": (0.46, 0.38, 0.14, 1.0),
+        "roughness": 0.9,
+        "variation": True,
+    },
+    "/Game/Materials/M_Elyon_Leaf": {"color": (0.22, 0.38, 0.07, 1.0), "roughness": 0.72},
     "/Game/Materials/M_Elyon_Rock": {"color": (0.35, 0.28, 0.2, 1.0), "roughness": 0.88},
+    "/Game/Materials/M_Elyon_Bark": {
+        "color": (0.32, 0.18, 0.08, 1.0),
+        "color_b": (0.16, 0.09, 0.05, 1.0),
+        "roughness": 0.86,
+        "variation": True,
+    },
     "/Game/Materials/M_Elyon_Water": {
-        "color": (0.05, 0.22, 0.24, 1.0),
+        "color": (0.02, 0.06, 0.05, 1.0),
         "roughness": 0.04,
+        "roughness_b": 0.16,
         "blend": "translucent",
+        "shading": "single_layer_water",
+        "animated": True,
     },
 }
 
@@ -108,15 +129,16 @@ def light_state(dawn):
             # makes this golden hour. EV 12 with 8 lux is what left the viewport black.
             "sun_intensity": 120000.0,
             "sun_color": (1.0, 0.55, 0.25, 1.0),
-            "sky_color": (1.0, 0.78, 0.55, 1.0),
-            "fog_color": (0.75, 0.78, 0.82, 1.0),
+            # Warm fill. A neutral capture at intensity 1 left the shadows cyan.
+            "sky_color": (1.0, 0.74, 0.5, 1.0),
+            "fog_color": (0.96, 0.7, 0.46, 1.0),
             "sun_pitch": -20.0,
             "sun_yaw": 35.0,
-            "skylight_intensity": 1.0,
-            "fog_density": 0.0008,
-            "fog_height_falloff": 0.22,
-            "fog_start_distance": 8000.0,
-            "fog_max_opacity": 0.15,
+            "skylight_intensity": 0.6,
+            "fog_density": 0.0016,
+            "fog_height_falloff": 0.18,
+            "fog_start_distance": 4500.0,
+            "fog_max_opacity": 0.2,
             # Physical camera, bias 0. ISO 100, 1/250 s, f/8 is EV 14 for this sun.
             # A manual bias of -15 crushed the unlit frame to black. EV 14 sits inside
             # the cached-lighting window [-4, 16].
@@ -134,7 +156,7 @@ def light_state(dawn):
             "volumetric_fog_start_distance": 4000.0,
             "directional_inscattering_exponent": 8.0,
             "directional_inscattering_start_distance": 4000.0,
-            "directional_inscattering": (0.85, 0.72, 0.5, 1.0),
+            "directional_inscattering": (1.0, 0.55, 0.28, 1.0),
             "cast_volumetric_shadow": False,
             "volumetric_scattering_intensity": 0.2,
             "atmosphere_sun_light": True,
@@ -149,13 +171,16 @@ def light_state(dawn):
             "vignette_intensity": 0.0,
             "scene_fringe_intensity": 0.0,
             "lens_flare_intensity": 0.0,
-            "white_temp": 5200.0,
-            "mie_anisotropy": 0.7,
-            "mie_scattering_scale": 0.008,
-            "sky_luminance_factor": (1.0, 0.96, 0.9, 1.0),
+            # 4300 K pulls the blue sky toward golden hour. 5200 still read as teal.
+            "white_temp": 4300.0,
+            "mie_anisotropy": 0.78,
+            "mie_scattering_scale": 0.02,
+            "sky_luminance_factor": (1.0, 0.58, 0.28, 1.0),
             "aerial_pespective_view_distance_scale": 1.0,
-            "cloud_bottom_km": 1.6,
-            "cloud_height_km": 4.5,
+            "cloud_bottom_km": 1.2,
+            "cloud_height_km": 2.8,
+            "cloud_view_sample_scale": 0.6,
+            "cloud_ground_albedo": (0.55, 0.32, 0.16, 1.0),
         }
     return {
         "name": "darkness",
@@ -256,13 +281,37 @@ def _prop(label, kind, x, y, z, yaw=0.0, **extra):
     return spec
 
 
+def tree_canopy_placement(scatter_scale, mesh_path):
+    """Crown height and scale. A full tree mesh sits on the ground. A crown sits on the trunk."""
+    scale = float(scatter_scale)
+    if mesh_path.endswith("SM_Tree"):
+        return 0.0, (scale, scale, scale)
+    if mesh_path.endswith("SM_Bush"):
+        crown = 2.1 * scale
+        return 160.0 * scale, (crown, crown, crown)
+    return 210.0 * scale, (2.5 * scale, 2.5 * scale, 1.7 * scale)
+
+
+def trunk_placement(scatter_scale):
+    """Engine cylinder is 100 units tall and 100 across. Sit its base on the ground."""
+    scale = float(scatter_scale)
+    height = 2.2 * scale
+    radius = 0.32 * scale
+    return 50.0 * height, (radius, radius, height)
+
+
+def trunk_hidden(available):
+    """A complete tree mesh already includes its trunk."""
+    return resolve_candidate(MESH_CANDIDATES["tree"], available).endswith("SM_Tree")
+
+
 def _shape_scale(role, scale, mesh_path):
     if not mesh_path.startswith("/Engine/BasicShapes/"):
         return (scale, scale, scale)
     if role == "terrain":
         return (800.0, 800.0, 1.0)
     if role == "tree":
-        return (scale, scale, scale * 3.0)
+        return tree_canopy_placement(scale, mesh_path)[1]
     if role == "rock":
         return (scale, scale * 0.85, scale * 0.55)
     if role == "plant":
@@ -383,7 +432,8 @@ def plan_level(dawn=True):
     rocks = scatter("rock", COUNTS["rock"], SEED + 1)
     plants = scatter("plant", COUNTS["plant"], SEED + 2)
     for index, item in enumerate(trees, start=1):
-        actors.append(_foliage(f"Elyon.Tree.{index:02d}", "tree", item["x"], item["y"], 40.0, item["yaw"], item["scale"]))
+        actors.append(_foliage(f"Elyon.Tree.{index:02d}", "tree", item["x"], item["y"], 0.0, item["yaw"], item["scale"]))
+        actors.append(_foliage(f"Elyon.Trunk.{index:02d}", "trunk", item["x"], item["y"], 0.0, item["yaw"], item["scale"]))
     for index, item in enumerate(rocks, start=1):
         actors.append(_foliage(f"Elyon.Rock.{index:02d}", "rock", item["x"], item["y"], 20.0, item["yaw"], item["scale"]))
     for index, item in enumerate(plants, start=1):

@@ -99,6 +99,11 @@ class DataTests(unittest.TestCase):
         self.assertIn("free local LLM", readme)
         self.assertIn("Starter Content", readme)
         self.assertIn("/Game/Fab/Foliage/SM_Tree", readme)
+        self.assertIn("Single Layer Water", readme)
+        self.assertIn("4300", readme)
+        project = json.loads((UNREAL / "ElyonUE.uproject").read_text(encoding="utf-8"))
+        water = next(plugin for plugin in project["Plugins"] if plugin["Name"] == "Water")
+        self.assertTrue(water["Enabled"])
         self.assertIn("terrain mesh", readme)
 
 
