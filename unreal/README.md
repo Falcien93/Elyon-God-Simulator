@@ -72,6 +72,57 @@ Graphics defaults are Lumen global illumination, Lumen reflections with screen t
 
 The game and the best free local LLM for intelligent NPCs ship as one install package. The model runs on the player's machine. It is not a paid API and not a separate download. This slice does not contain the model yet.
 
+## Voice as God
+
+Spoken commands are the hook. Hold **V** and speak, or press **1–5** when you have no microphone. A hotword is optional: start the line with "elyon". The transcript hits a fuzzy phrase table in `Data/intents.json` first. Synonyms such as "let there be light", "light", and "bring forth light" all map to LIGHT. Qwen3 4B through llama.cpp is asked for a JSON intent only when that matcher misses. Speech-to-text is whisper.cpp, `small.en` then `base.en`, with the GPU left on for an RTX 4060 (the command omits whisper.cpp's `-ng` flag).
+
+What the five starter intents do:
+
+| Key | Intent | World change |
+| --- | --- | --- |
+| 1 | LIGHT | The sun rises out of darkness. Sky light and Lumen brighten. |
+| 2 | WATER | The river fills. Say it again and rain begins. |
+| 3 | GROW | Foliage appears in a ring around the gaze point, and nearby plants scale up. A PCG volume is spawned when the class exists, using `/Game/PCG/GrowAroundGaze`. |
+| 4 | CALM | Wind, clouds, and the storm settle. |
+| 5 | DESTROY | Lightning at the gaze point, plus a radial impulse of 25000 where the mesh supports it. |
+
+**P** cycles sample phrases through the same matcher. The subtitle actor `Elyon.VoiceSubtitle` shows what God said.
+
+The whisper and llama binaries are not in this repo. They ship inside the one install, under `Content/Voice/whisper` (`whisper-cli`, `ggml-small.en.bin`, `ggml-base.en.bin`) and `Content/Voice/llama` (`llama-cli`, `Qwen3-4B.gguf`). Overrides, if you already have a local build: `ELYON_WHISPER`, `ELYON_WHISPER_MODEL`, `ELYON_LLAMA`, `ELYON_LLAMA_MODEL`, `ELYON_FFMPEG`, and `ELYON_FFMPEG_INPUT` (`dshow:audio=Microphone` on Windows, `pulse:default` on Linux). Do not download weights from the editor script. If the tools are missing, the subtitle says to press 1–5 and nothing is spawned.
+
+Adding a command is a new block in `Data/intents.json` with an `id`, `phrases`, a `line`, and an existing `effect` (`light`, `water`, `grow`, `calm`, `destroy`). A brand-new effect also needs a branch in `apply_intent` and `present`.
+
+This path is separate from the desktop Living Voices option, which uses whisper-cli, Ollama, and Piper inside the Electron app and stays off until that setting is enabled.
+
+### Run it
+
+From this folder:
+
+```
+UnrealEditor.exe ElyonUE.uproject -ExecutePythonScript=Scripts/run_all.py
+```
+
+If `UnrealEditor.exe` is not on your PATH, use `Engine\Binaries\Win64\UnrealEditor.exe` inside the 5.8 install. The editor stays open. Press Play, then click the viewport so it has focus.
+
+### Keyboard, no microphone
+
+1. Run the script above.
+2. Press Play and click the viewport.
+3. Press **1** LIGHT, **2** WATER, **3** GROW, **4** CALM, **5** DESTROY.
+4. Press **P** to send the next sample phrase ("let there be light", then "fill the river", and so on).
+5. Read `Elyon.VoiceSubtitle`. The level is already at dawn after the script, with the sun at 120000 lux. LIGHT calls `let_there_be_light(True)` again and raises the sky light to at least 1.35. It does not dim the sun. Say WATER twice: the first fills the river, the second starts rain.
+
+Running the script again rebuilds the garden, clears voice-spawned actors, and arms the listener once more.
+
+### Microphone on the laptop
+
+1. Place a CUDA or Vulkan whisper.cpp build on the machine. GPU stays on: do not pass `-ng`. Put `whisper-cli` and `ggml-small.en.bin` (fallback `ggml-base.en.bin`) in `Content/Voice/whisper`, or point `ELYON_WHISPER` and `ELYON_WHISPER_MODEL` at them.
+2. Put `ffmpeg` on PATH. On Windows the default input is `dshow:audio=Microphone`. If that name is wrong, list devices with `ffmpeg -list_devices true -f dshow -i dummy` and set `ELYON_FFMPEG_INPUT=dshow:audio=Exact Device Name`. On Linux the default is `pulse:default`.
+3. Optional: put llama.cpp's `llama-cli` and a Qwen3 4B GGUF in `Content/Voice/llama` for lines the phrase table does not know. The call is local, `-n 80 --temp 0 -no-cnv`, and it returns JSON only. If llama is missing, an unmatched line stays on the subtitle and the garden does not change.
+4. Run the editor script, press Play, click the viewport.
+5. Hold **V** for about four seconds, say "let there be light" or "elyon, let there be light", and release **V**. The script records 16 kHz mono audio, then runs `whisper-cli -m <model> -f <wav> -l en -nt` with no `-ng`.
+6. The subtitle shows the line you spoke, and the sun, river, plants, wind, or lightning follow the intent.
+
 `Data/` holds the days of creation, Adam and Eve dialogue, and the four endings, exported from the current game. The hands choice becomes wonder when silence was kept, and exile otherwise.
 
 Python remote execution is turned on in `Config/DefaultEngine.ini`. The first time you open the project, the startup map may be missing until the script has run once.
