@@ -30,3 +30,15 @@ The game and the best free local LLM for intelligent NPCs ship as one install pa
 `Data/` holds the days of creation, Adam and Eve dialogue, and the four endings, exported from the current game. The hands choice becomes wonder when silence was kept, and exile otherwise.
 
 Python remote execution is turned on in `Config/DefaultEngine.ini`. The first time you open the project, the startup map may be missing until the script has run once.
+
+## Multiverse
+
+`multiverse` is a pure Python package in this folder. A universe is a 64-bit seed. That seed fixes 31 physics constants inside the playable bands in `Data/physics_constants.json`. God's major choices, listed in `Data/major_choices.json`, branch child universes. The child seed is derived from the parent seed and the choice id. The tree saves and loads as JSON.
+
+The default seed source is a local RNG (`os.urandom`, or SplitMix64 when you pass a seed). `QuantumSeedSource` is a stub for an external quantum source: it takes a local 8-byte provider and does not make a network call.
+
+See [docs/multiverse.md](docs/multiverse.md). From the repo root:
+
+```bash
+python3 -m unittest discover -s unreal/tests -v
+```
