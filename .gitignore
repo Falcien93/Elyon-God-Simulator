@@ -7,6 +7,8 @@ out/
 *.log
 .playwright-mcp/
 xai-key.local.txt
+elyon-ai-key.txt
+unreal/Saved/
 ElyonFirstLight/[Ll]ibrary/
 ElyonFirstLight/[Tt]emp/
 ElyonFirstLight/[Oo]bj/
