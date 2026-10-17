@@ -1,0 +1,108 @@
+{
+  "format": 1,
+  "note": "Edges that fork a universe. They are the lasting choices already in the garden. Branching records the fork and derives the child seed. It does not resimulate the year.",
+  "choices": [
+    {
+      "id": "let_there_be_light",
+      "label": "Let there be light",
+      "group": "light",
+      "summary": "Dawn. The Day 1 garden's let_there_be_light state is true, and the valley is lit."
+    },
+    {
+      "id": "leave_darkness",
+      "label": "Leave the dark",
+      "group": "light",
+      "summary": "The dark remains. The Day 1 garden stays in the darkness state."
+    },
+    {
+      "id": "ending_harmony",
+      "label": "The garden kept",
+      "group": "ending",
+      "summary": "They leave the fruit because God asked, and the garden is kept."
+    },
+    {
+      "id": "ending_exile",
+      "label": "East of the garden",
+      "group": "ending",
+      "summary": "They ate, and God walked them east of the garden."
+    },
+    {
+      "id": "ending_wonder",
+      "label": "The open orchard",
+      "group": "ending",
+      "summary": "No law had been set, so the bite does not exile them."
+    },
+    {
+      "id": "ending_order",
+      "label": "The closed question",
+      "group": "ending",
+      "summary": "The fruit is out of reach. Wonder is the thing that is missing."
+    },
+    {
+      "id": "keep_in_valley",
+      "label": "Keep them in the valley",
+      "group": "valley",
+      "summary": "The people stay in the valley."
+    },
+    {
+      "id": "send_out",
+      "label": "Send them out",
+      "group": "valley",
+      "summary": "The people leave the valley."
+    },
+    {
+      "id": "bless_pact",
+      "label": "Bless a pact",
+      "group": "covenant",
+      "summary": "Two holds exchange grain, wood, and a spare tool, and their people stay."
+    },
+    {
+      "id": "withhold_pact",
+      "label": "Withhold the pact",
+      "group": "covenant",
+      "summary": "Nothing is sent that year, and someone may leave the poorer hearth."
+    },
+    {
+      "id": "stop_raid",
+      "label": "Stop the raid",
+      "group": "covenant",
+      "summary": "The stores stay, and the people stay."
+    },
+    {
+      "id": "allow_raid",
+      "label": "Let the raid go",
+      "group": "covenant",
+      "summary": "A hungry hold carries off grain, wood, and a tool."
+    },
+    {
+      "id": "send_rain",
+      "label": "Send rain",
+      "group": "sky",
+      "summary": "Rain fills water and grain and puts fish in the nets."
+    },
+    {
+      "id": "send_drought",
+      "label": "Send a drought",
+      "group": "sky",
+      "summary": "Drought dries the stores, thins the herd, and slows the outdoor work."
+    },
+    {
+      "id": "send_flood",
+      "label": "Send a flood",
+      "group": "sky",
+      "summary": "A flood carries off grain and wood and scatters a head of the herd."
+    },
+    {
+      "id": "bless_present",
+      "label": "Bless the present",
+      "group": "present",
+      "summary": "The present is blessed, and the west quarter can be planted."
+    },
+    {
+      "id": "keep_commons",
+      "label": "Keep a commons",
+      "group": "present",
+      "summary": "A tenth of the richer store moves to the poorer hold."
+    }
+  ]
+}
