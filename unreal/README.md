@@ -30,3 +30,33 @@ The game and the best free local LLM for intelligent NPCs ship as one install pa
 `Data/` holds the days of creation, Adam and Eve dialogue, and the four endings, exported from the current game. The hands choice becomes wonder when silence was kept, and exile otherwise.
 
 Python remote execution is turned on in `Config/DefaultEngine.ini`. The first time you open the project, the startup map may be missing until the script has run once.
+
+## Package a playable Windows demo
+
+`Scripts/package_demo.ps1` cooks this project into a Win64 build you can zip and run. Continuous integration does not install Unreal Engine 5.8, so it never calls RunUAT. `tests/test_package_demo.py` reads the script and checks the arguments.
+
+On the Windows machine that packages the demo, install Unreal Engine 5.8 at `C:\Program Files\Epic Games\UE_5.8`. Copy this `unreal` folder to `C:\ElyonSlice` so the project file is `C:\ElyonSlice\ElyonUE.uproject`. Open that project and run `Scripts/run_all.py` once, so `/Game/Maps/Day1_Garden` is saved on disk. Then, in PowerShell:
+
+```
+powershell -ExecutionPolicy Bypass -File C:\ElyonSlice\Scripts\package_demo.ps1
+```
+
+That defaults to Shipping. The same script packages Development:
+
+```
+powershell -ExecutionPolicy Bypass -File C:\ElyonSlice\Scripts\package_demo.ps1 -Configuration Development
+```
+
+The map list defaults to `/Game/Maps/Day1_Garden`. Pass `-Maps` as a PowerShell list of `/Game/...` paths to cook more than one. The script joins that list with `+` and passes it as RunUAT `-map`:
+
+```
+powershell -ExecutionPolicy Bypass -File C:\ElyonSlice\Scripts\package_demo.ps1 -Maps '/Game/Maps/Day1_Garden','/Game/Maps/AnotherMap'
+```
+
+`AnotherMap` is only the shape of a second entry. This slice saves `/Game/Maps/Day1_Garden`.
+
+The script calls `Engine\Build\BatchFiles\RunUAT.bat` with `BuildCookRun`, `-platform=Win64`, `-clientconfig` set to Shipping or Development, and `-build -cook -stage -pak -archive -prereqs -compressed`. It refuses any other configuration, an empty map list, a map that is not a `/Game/` asset path, and paths that contain shell metacharacters.
+
+Shipping lands in `C:\ElyonSlice\Packaged\Shipping` (Development uses the `Development` folder). The playable files are the `Windows` archive inside that folder (`WindowsNoEditor` and `WindowsClient` are accepted when that is the folder RunUAT wrote). The script zips that folder to `C:\ElyonSlice\Packaged\ElyonUE-Win64-Shipping.zip` and writes `C:\ElyonSlice\Packaged\package_demo-Shipping.log`. The log records the engine, the project, the configuration, the maps, the full RunUAT command, the exit code, and the zip path. RunUAT's own console output is `package_demo-Shipping.uat.log` beside it. Unzip the archive and run `ElyonUE.exe`.
+
+`-DryRun` writes that log and the RunUAT arguments, then stops. It does not cook, and it does not zip. `-EngineRoot`, `-Project`, `-ArchiveRoot`, `-ZipPath`, and `-LogPath` override the paths above. The script does not upload the zip anywhere. While a real package is running, RunUAT's lines are printed and copied into the `.uat.log` file.
