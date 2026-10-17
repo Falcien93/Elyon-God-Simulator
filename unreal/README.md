@@ -29,4 +29,27 @@ The game and the best free local LLM for intelligent NPCs ship as one install pa
 
 `Data/` holds the days of creation, Adam and Eve dialogue, and the four endings, exported from the current game. The hands choice becomes wonder when silence was kept, and exile otherwise.
 
+## Four endings
+
+Harmony, exile, wonder, and order are the campaign endings from the page. `Scripts/endings_logic.py` tracks the word, the silence, the serpent, and which choice was taken. `Scripts/endings_build.py` builds a Level Sequence scaffold for each one.
+
+- **Harmony** — Eve leaves the fruit. The garden homes stay. The serpent is gone.
+- **Exile** — the hands choice after a spoken commandment. They are clothed, and their homes move to the eastern grass past the river.
+- **Wonder** — the hands choice after silence. They stay in the garden, uncondemned.
+- **Order** — the question is closed, from Eve or by sending the serpent away. The tree is guarded.
+
+The first ending sticks. Adam and Eve then speak their epilogue. The serpent cannot be addressed. Walking the garden continues after the sequence hold. Each sequence lives at `/Game/Cinematics/Endings/LS_Ending_<id>`. It has a cine camera, a camera cut bound to that camera, a fade up from black that stays clear, and marked frames for the title, each paragraph, and the hold. Running the script again replaces those assets instead of stacking tracks.
+
+```
+UnrealEditor.exe ElyonUE.uproject -ExecutePythonScript=Scripts/endings_build.py
+```
+
+`Scripts/run_all.py` builds the sequences too when Sequencer Scripting is loaded. That plugin is enabled on `ElyonUE.uproject`.
+
+From this folder:
+
+```
+python3 -m unittest discover -s tests -v
+```
+
 Python remote execution is turned on in `Config/DefaultEngine.ini`. The first time you open the project, the startup map may be missing until the script has run once.
