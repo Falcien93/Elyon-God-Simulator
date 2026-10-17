@@ -6,6 +6,8 @@ The garden already tracks `order` and `wonder` (0–100), plus trust, wonder, an
 
 Incarnation, a later mode in which God walks among the people, is specified in (f). Quantum miracles, a later layer of paired outcomes and of one miracle seen in two places, are specified in (g). Higher dimensions, visual fakes of a fourth dimension in that same later band, are specified in (h). Laws of Creation, later layers in which God wields or reveals physical law, are specified in (i). None of these are in the Python sketch.
 
+John-approved research ideas are in [physics-ideas.md](physics-ideas.md). Kuramoto faith sync, Lenia as Breath of Life, the Landauer miracle cost, and Ising societies are **SIGNATURE** features of the core civ layer. The other ideas in that file are later layers. None of them are in the Python sketch.
+
 A pure-Python sketch of the rules lives in `unreal/Scripts/civ_sim.py`. It does not import Unreal and it does not call a model. Tests in `unreal/tests/test_civ.py` run with the existing `python3 -m unittest discover -s unreal/tests -v` step.
 
 ## (a) Tribes on their own
@@ -98,6 +100,7 @@ None of these are in the prototype.
 - Interventions as the four stat impulses above.
 - The ending id locked from the garden choice, including hands plus silence.
 - Leader and prophet lines as `needs_voice` events. No model in the loop.
+- Four signature features from [physics-ideas.md](physics-ideas.md): Kuramoto faith sync, Lenia as Breath of Life (Days 3-5), the Landauer miracle cost, and Ising societies. They belong to this core civ layer. The Python sketch does not simulate them yet.
 
 **After the first settlement, before Mass**
 
@@ -150,6 +153,7 @@ Revealing a law to a settlement unlocks that law's science-tree node and shifts 
 - World Partition, garden plus east, if that split wins. The underworld becomes a cell only after that.
 - Niagara disasters and Chaos destruction tied to flood and clash. The return's light can be Niagara. The death is not a Chaos event.
 - Qwen3 4B through llama.cpp for leaders, prophets, dialogue, and the few dead in the underworld, bundled in the one install. The crowd still does not call it.
+- The remaining ideas in [physics-ideas.md](physics-ideas.md), from Kerr black-hole lensing through the IIT soul meter. They are later layers, outside the core civ tick.
 
 ## (f) Incarnation
 

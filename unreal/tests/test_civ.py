@@ -10,6 +10,36 @@ import civ_sim
 
 
 DOC = UNREAL / "docs" / "civilizations.md"
+IDEAS = UNREAL / "docs" / "physics-ideas.md"
+
+PHYSICS_SOURCES = (
+    "https://doi.org/10.1016/S0167-2789(00)00094-4",
+    "https://arxiv.org/abs/1812.05433",
+    "https://doi.org/10.1038/nature10872",
+    "https://arxiv.org/abs/0710.3256",
+    "https://arxiv.org/abs/1502.03808",
+    "https://arxiv.org/abs/quant-ph/0303081",
+    "https://doi.org/10.1038/nrn2787",
+    "https://arxiv.org/abs/astro-ph/0511774",
+    "https://www.ea.com/seed/news/siggraph2024-pbmpm",
+    "https://arxiv.org/abs/0908.4105",
+    "https://arxiv.org/abs/patt-sol/9304003",
+    "https://arxiv.org/abs/cond-mat/0007300",
+    "https://arxiv.org/abs/1310.4691",
+    "https://doi.org/10.1145/2897824.2925868",
+    "https://arxiv.org/abs/2212.14787",
+)
+
+PHYSICS_FORMULAS = (
+    "dθ_i/dt = ω_i + (K/N) Σ sin(θ_j − θ_i)",
+    "r e^{iψ} = (1/N) Σ e^{iθ_j}",
+    "K_c = 2/(π g(0))",
+    "A' = clip(A + Δt·G(K*A))",
+    "G = 2exp(-(u-μ)²/2σ²) - 1",
+    "cost = k_B·T_world·ln2·ΔI_bits",
+    "H = −J Σ s_i s_j − h Σ s_i",
+    "P = min(1, e^{−ΔE/T})",
+)
 
 ENDING_TITLES = {
     "harmony": "The garden kept",
@@ -40,6 +70,25 @@ class DocTests(unittest.TestCase):
             "GOAP",
         ):
             self.assertIn(phrase, text)
+
+    def test_physics_ideas_keep_the_given_sources(self):
+        sketch = DOC.read_text(encoding="utf-8")
+        ideas = IDEAS.read_text(encoding="utf-8")
+        self.assertIn("physics-ideas.md", sketch)
+        self.assertIn("SIGNATURE", ideas)
+        self.assertIn("core civ layer", ideas)
+        self.assertIn("## Later layers", ideas)
+        signature = ideas.split("## Later layers", 1)[0]
+        later = ideas.split("## Later layers", 1)[1]
+        for url in PHYSICS_SOURCES[:4]:
+            self.assertIn(url, signature)
+            self.assertNotIn(url, later)
+        for url in PHYSICS_SOURCES[4:]:
+            self.assertIn(url, later)
+            self.assertNotIn(url, signature)
+        for formula in PHYSICS_FORMULAS:
+            self.assertIn(formula, signature)
+        self.assertIn("Strogatz 2000", signature)
 
 
 class EndingTests(unittest.TestCase):
