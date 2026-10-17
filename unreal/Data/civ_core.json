@@ -1,0 +1,69 @@
+{
+  "source": "unreal/docs/physics-ideas.md",
+  "scope": {
+    "simulated": ["ising", "kuramoto"],
+    "deferred": ["lenia", "landauer"]
+  },
+  "sources": {
+    "kuramoto": "https://doi.org/10.1016/S0167-2789(00)00094-4",
+    "ising": "https://arxiv.org/abs/0710.3256"
+  },
+  "ising": {
+    "J": 1.0,
+    "temperature": 1.5,
+    "field": 0.0,
+    "width": 4,
+    "height": 4,
+    "boundary": "periodic",
+    "faith_rate": 0.5,
+    "opinion_pull": 0.15,
+    "miracle_field": 5.0,
+    "miracle_note": "miracle_field is greater than 4*J so one sweep flips an opposed society. That holds near T_c as well as at zero temperature, because every uphill neighbor bond is still cheaper than the field."
+  },
+  "deffuant": {
+    "epsilon": 0.5,
+    "mu": 0.5
+  },
+  "kuramoto": {
+    "K": 1.5,
+    "dt": 0.05,
+    "omega_half_width": 0.5,
+    "prophet_narrow": 0.5,
+    "miracle_coupling_gain": 0.6,
+    "phase_sect_threshold": 1.5707963267948966
+  },
+  "ending_bias": {
+    "harmony": {"temperature": -0.2, "field": 0.1, "coupling": 0.2},
+    "wonder": {"temperature": 0.0, "field": 0.0, "coupling": 0.1},
+    "exile": {"temperature": 0.35, "field": 0.0, "coupling": -0.1},
+    "order": {"temperature": -0.4, "field": 0.0, "coupling": 0.15}
+  },
+  "starting": {
+    "harmony": {"faith": 55, "prosperity": 45, "fear": 12},
+    "wonder": {"faith": 50, "prosperity": 40, "fear": 20},
+    "exile": {"faith": 40, "prosperity": 28, "fear": 36},
+    "order": {"faith": 48, "prosperity": 55, "fear": 8}
+  },
+  "layouts": {
+    "harmony": [
+      {"name": "the grove", "region": "garden"},
+      {"name": "the river houses", "region": "garden"},
+      {"name": "the south hedge", "region": "garden"}
+    ],
+    "wonder": [
+      {"name": "the open rows", "region": "garden"},
+      {"name": "the uncut trees", "region": "garden"},
+      {"name": "the far orchard", "region": "garden"}
+    ],
+    "exile": [
+      {"name": "east camp", "region": "east"},
+      {"name": "the wild bank", "region": "east"},
+      {"name": "the second fire", "region": "east"}
+    ],
+    "order": [
+      {"name": "the quiet hedge", "region": "garden"},
+      {"name": "the kept paths", "region": "garden"},
+      {"name": "the closed gate", "region": "garden"}
+    ]
+  }
+}
