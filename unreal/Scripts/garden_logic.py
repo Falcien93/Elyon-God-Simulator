@@ -112,10 +112,11 @@ def light_state(dawn):
             "fog_height_falloff": 0.22,
             "fog_start_distance": 8000.0,
             "fog_max_opacity": 0.15,
-            # Manual exposure. With physical camera exposure off, UE treats this bias
-            # as EV100. 12 is daylight for a 120000 lux sun, a little open of sunny-16
-            # so golden hour at pitch -20 stays visible.
-            "exposure_bias": 12.0,
+            # Manual compensation, not an EV100. Physical camera exposure is off, so
+            # positive bias brightens. A bias of +12 reported Exposure -12 on the laptop.
+            # Sunny-16 for this 120000 lux sun is EV 15 (f/16, 1/125 s, ISO 100), so the
+            # compensation is -15. That lands inside the cached-lighting window [-4, 16].
+            "exposure_bias": -15.0,
             "enable_volumetric_fog": False,
             "volumetric_fog_albedo": (0.8, 0.82, 0.84, 1.0),
             "volumetric_fog_emissive": (0.0, 0.0, 0.0, 1.0),
@@ -161,6 +162,7 @@ def light_state(dawn):
             "fog_height_falloff": 0.2,
             "fog_start_distance": 5000.0,
             "fog_max_opacity": 0.28,
+        # Same sign as dawn: negative compensation darkens. -2 is Exposure +2.
         "exposure_bias": -2.0,
             "enable_volumetric_fog": False,
             "volumetric_fog_albedo": (0.15, 0.18, 0.28, 1.0),

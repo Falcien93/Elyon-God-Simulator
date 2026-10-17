@@ -216,7 +216,7 @@ def _place(actor, ue, spec, available):
         comp = actor.get_component_by_class(ue.CineCameraComponent)
         comp.set_editor_property("current_focal_length", 24.0)
         comp.set_editor_property("current_aperture", 8.0)
-        # f/8 must not drive exposure. The unbound volume owns manual EV.
+        # f/8 must not drive exposure. The unbound volume owns the compensation.
         _try_set(comp, "post_process_blend_weight", 0.0, ue)
 
 
@@ -338,8 +338,8 @@ def _apply_exposure(actor, ue, light):
 
     UE 5.8 PostProcessSettings has no histogram log min/max properties.
     Manual mode does not meter the scene, so a stuck eye adaptation cannot
-    hold the view black. Physical camera exposure stays off, and the bias is
-    the EV100.
+    hold the view black. Physical camera exposure stays off. Bias is a
+    compensation: positive brightens, and the reported EV100 is the negation.
     """
     actor.set_editor_property("unbound", True)
     actor.set_editor_property("priority", 10.0)

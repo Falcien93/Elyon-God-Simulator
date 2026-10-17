@@ -1,3 +1,4 @@
+import math
 import sys
 import unittest
 from pathlib import Path
@@ -277,7 +278,15 @@ class GardenLogicTests(unittest.TestCase):
         self.assertGreaterEqual(dawn["sun_intensity"], 100000.0)
         self.assertGreaterEqual(dawn["sun_pitch"], -25.0)
         self.assertLessEqual(dawn["sun_pitch"], -15.0)
-        self.assertEqual(dawn["exposure_bias"], 12.0)
+        # Bias +12 reported Exposure -12. Direct sun is EV 15, inside [-4, 16].
+        self.assertEqual(dawn["exposure_bias"], -15.0)
+        self.assertEqual(-dawn["exposure_bias"], 15.0)
+        self.assertGreaterEqual(-dawn["exposure_bias"], 14.0)
+        self.assertLessEqual(-dawn["exposure_bias"], 15.0)
+        self.assertGreaterEqual(-dawn["exposure_bias"], -4.0)
+        self.assertLessEqual(-dawn["exposure_bias"], 16.0)
+        sunny = math.log2((16.0 ** 2) / (1.0 / 125.0))
+        self.assertAlmostEqual(sunny, 15.0, delta=0.1)
         self.assertEqual(dark["exposure_bias"], -2.0)
         self.assertLess(dawn["fog_density"], 0.01)
         self.assertLessEqual(dawn["fog_max_opacity"], 0.15)
@@ -426,7 +435,7 @@ class LevelBuildTests(unittest.TestCase):
         self.assertEqual(exposure.props["priority"], 10.0)
         settings = exposure.props["settings"]
         self.assertEqual(settings.props["auto_exposure_method"], "AEM_MANUAL")
-        self.assertEqual(settings.props["auto_exposure_bias"], 12.0)
+        self.assertEqual(settings.props["auto_exposure_bias"], -15.0)
         self.assertNotIn("auto_exposure_histogram_log_min", settings.props)
         self.assertNotIn("auto_exposure_histogram_log_max", settings.props)
         self.assertFalse(settings.props["auto_exposure_apply_physical_camera_exposure"])
@@ -695,7 +704,7 @@ class LevelBuildTests(unittest.TestCase):
         self.assertIn("intensity_lux=120000.0", text)
         self.assertIn("pitch=-20.0", text)
         self.assertIn("method=AEM_MANUAL", text)
-        self.assertIn("bias=12.0", text)
+        self.assertIn("bias=-15.0", text)
         self.assertIn("x=1.0 y=2.0 z=3.0", text)
         self.assertEqual(ue.SystemLibrary.commands, ["HighResShot 1920x1080"])
         self.assertIn("Saved/Screenshots", text)
